@@ -60,6 +60,16 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .tag.up{color:var(--good);background:var(--good-bg)}
 .tag.down{color:var(--warn);background:var(--warn-bg)}
 .chev{flex:none}
+.day-list{display:flex;flex-direction:column;gap:12px}
+.day-card{display:flex;align-items:center;gap:14px;width:100%;border:0;background:var(--surface);border-radius:20px;padding:20px 18px;text-align:left;color:inherit;min-height:96px}
+.day-main{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
+.day-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.day-title{font-size:22px;font-weight:600;letter-spacing:-.01em}
+.day-sub{font-size:15px;color:var(--muted)}
+.status{font-size:13px;font-weight:500;border-radius:999px;padding:4px 10px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.status.done{background:var(--good-bg);color:var(--good)}
+.status.live{background:var(--ink);color:#FFFFFF}
+.day-card.off{opacity:.55}
 .linkbtn{border:0;background:none;padding:6px 0;color:var(--ink);text-decoration:underline;text-underline-offset:3px;font-size:15px;text-align:left;align-self:flex-start}
 
 .btn{display:flex;align-items:center;justify-content:center;height:64px;border-radius:32px;border:0;background:var(--ink);color:#FFFFFF;font-size:18px;font-weight:600;width:100%;flex:none;text-decoration:none}
@@ -165,6 +175,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
+const APP_VERSION = "2026-11-10.3";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -333,7 +344,7 @@ function mergeProfile(p){
   const d = defaultProfile();
   if (!p || typeof p !== "object") return d;
   const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
-    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, v:2};
+    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2};
   if (p.v === 2 && Array.isArray(p.slots)){
     const byKey = Object.fromEntries(p.slots.map(s => [s.key, s]));
     out.slots = d.slots.map(s => byKey[s.key] && byKey[s.key].ex ? {...s, ...byKey[s.key]} : s);
@@ -342,7 +353,7 @@ function mergeProfile(p){
 }
 
 /* ---------- state ---------- */
-const S = {profile:defaultProfile(), sessions:{}, kind:null, view:"prep", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false};
+const S = {profile:defaultProfile(), sessions:{}, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false};
 const slotsOf = g => S.profile.slots.filter(s => s.group === g);
 const slotByKey = k => S.profile.slots.find(s => s.key === k);
 const today = () => ymd(new Date());
@@ -394,11 +405,77 @@ const Store = {
 };
 const debouncers = {};
 function commitSession(s, later = false){
-  s.touched = true;
+  s.touched = true; s.updatedAt = Date.now();
   clearTimeout(debouncers[s.id]);
-  if (later) debouncers[s.id] = setTimeout(() => Store.saveSession(s), 700); else Store.saveSession(s);
+  const save = () => { Store.saveSession(s); Sync.queue(s.id); };
+  if (later) debouncers[s.id] = setTimeout(save, 700); else save();
 }
-function commitProfile(){ Store.saveProfile(); }
+function commitProfile(){ S.profile.updatedAt = Date.now(); Store.saveProfile(); Sync.queue("profile"); }
+
+/* ---------- sync with Google Sheets (Apps Script web app) ---------- */
+const KEY_URL = "trening:sync:url", KEY_Q = "trening:sync:queue";
+const Sync = {
+  url:null, q:new Set(), timer:null, busy:false, last:null, err:null,
+  init(){
+    try { this.url = localStorage.getItem(KEY_URL) || null; (JSON.parse(localStorage.getItem(KEY_Q) || "[]")).forEach(x => this.q.add(x)); } catch(e){}
+    window.addEventListener("online", () => this.flush());
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) this.flush(); });
+  },
+  saveQ(){ try { localStorage.setItem(KEY_Q, JSON.stringify([...this.q])); } catch(e){} },
+  queue(id){ if (!this.url) return; this.q.add(id); this.saveQ(); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 1500); },
+  row(x){
+    return {session:x, feel:FEELS.find(f => f[0] === x.feel)?.[1] || "", flags:FLAGS.filter(f => (x.flags || []).includes(f[0])).map(f => f[1]).join(", "),
+      items:(x.items || []).map(it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps) + (it.ex !== it.planEx ? " [zamiast " + exOf(it.planEx).name + "]" : "") + (x.kind === "strength" ? " (" + it.done + "/" + x.rounds + ")" : it.done ? " ✓" : "")).join("; "),
+      changes:x.assessment ? (x.assessment.changes || []).filter(c => c.direction !== "same").map(c => { const it = x.items.find(i => i.key === c.key); return exOf(c.ex).name + ": " + (it ? doseText(it.ex, it.load, it.reps) + " → " : "") + doseText(c.ex, c.load, c.reps); }).join("; ") + (x.assessment.applied === true ? " (przyjęte)" : x.assessment.applied === false ? " (odrzucone)" : "") : ""};
+  },
+  async flush(){
+    if (!this.url || this.busy || !this.q.size || !navigator.onLine) return;
+    this.busy = true;
+    const ids = [...this.q];
+    const body = {sessions: ids.filter(id => id !== "profile" && S.sessions[id] && S.sessions[id].touched).map(id => this.row(S.sessions[id]))};
+    if (ids.includes("profile")){ body.profile = S.profile; body.planText = S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); }
+    try {
+      const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)});
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || "błąd arkusza");
+      ids.forEach(id => this.q.delete(id)); this.saveQ(); this.last = Date.now(); this.err = null;
+    } catch(e){ this.err = "Nie udało się wysłać do arkusza. Spróbuję ponownie."; }
+    this.busy = false;
+    if (S.view === "settings") render();
+    if (this.q.size && !this.err) this.flush();
+  },
+  async pull(){
+    if (!this.url || !navigator.onLine) return false;
+    try {
+      const res = await fetch(this.url, {method:"GET"});
+      const j = await res.json();
+      if (!j.ok) throw new Error("bad");
+      let changed = false;
+      for (const [id, r] of Object.entries(j.sessions || {})){
+        const l = S.sessions[id];
+        if (!l || (r.updatedAt || 0) > (l.updatedAt || 0)){ S.sessions[id] = r; changed = true; }
+      }
+      for (const [id, l] of Object.entries(S.sessions)){
+        const r = (j.sessions || {})[id];
+        if (l.v === 2 && l.touched && (!r || (l.updatedAt || 0) > (r.updatedAt || 0))) this.q.add(id);
+      }
+      if (j.profile && (j.profile.updatedAt || 0) > (S.profile.updatedAt || 0)){ S.profile = mergeProfile(j.profile); changed = true; }
+      else if (!j.profile || (S.profile.updatedAt || 0) > (j.profile.updatedAt || 0)) this.q.add("profile");
+      this.saveQ();
+      if (changed) Store.replaceAll(S.profile, S.sessions);
+      this.last = Date.now(); this.err = null;
+      this.flush();
+      return changed;
+    } catch(e){ this.err = "Nie mogę połączyć się z arkuszem. Sprawdź adres i internet."; return false; }
+  },
+  async connect(url){
+    this.url = url; try { localStorage.setItem(KEY_URL, url); } catch(e){}
+    const before = this.err; await this.pull();
+    if (!this.err){ Object.keys(S.sessions).forEach(id => { if (S.sessions[id].touched) this.q.add(id); }); this.q.add("profile"); this.saveQ(); this.flush(); }
+    return !this.err;
+  },
+  disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
+};
 
 /* ---------- views: prep ---------- */
 function itemRow(it, i, tappable){
@@ -407,16 +484,38 @@ function itemRow(it, i, tappable){
   const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${changed ? `<span class="tag">zmienione</span>` : ""}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
+function sessionFor(kind){ const x = S.sessions[sessionId(kind)]; return x && x.v === 2 ? x : null; }
+function statusOf(x){
+  if (x && x.status === "done") return {cls:"done", txt:"Zrobione"};
+  if (x && (x.status === "active" || x.status === "finishing")) return {cls:"live", txt:"W trakcie"};
+  return {cls:"", txt:"Do zrobienia"};
+}
+function renderHome(){
+  const d = new Date(), sd = isStrengthDay(today()), st = sessionFor("strength"), mb = sessionFor("mobility");
+  const card = (kind, title, sub, x, enabled) => {
+    const t = statusOf(x);
+    const inner = `<span class="day-main"><span class="day-top"><span class="day-title">${title}</span>${enabled ? `<span class="status ${t.cls}">${t.cls === "done" ? "✓ " : ""}${t.txt}</span>` : ""}</span><span class="day-sub">${esc(sub)}</span></span>`;
+    return enabled ? `<button class="day-card" data-act="open" data-kind="${kind}">${inner}${CHEV}</button>` : `<div class="day-card off">${inner}</div>`;
+  };
+  const stSub = !sd ? "Dziś wolne. Następny: " + nextStrengthLabel() + "." : st && st.status === "done" ? summaryLine(st) : `Obwód · ${roundsText(S.profile.rounds)} · około ${S.profile.rounds * 10} min`;
+  const mbSub = mb && mb.status === "done" ? summaryLine(mb) : `${slotsOf("mobility").length} ćwiczeń · około 10 min`;
+  const done = [sd ? st : null, mb].filter(x => x && x.status === "done").length, total = sd ? 2 : 1;
+  const lead = done === total ? "Wszystko na dziś zrobione." : done ? "Zrobione " + done + " z " + total + "." : total === 2 ? "Dziś trening siłowy i mobilność." : "Dziś mobilność.";
+  return `<section class="screen"><header class="head"><div><p class="kicker">${dayLabel(d)}</p><h1 class="title">Dzisiaj</h1><p class="lead">${lead}</p></div><button class="icon-btn" data-act="menu" aria-label="Więcej">${DOTS}</button></header>
+    ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
+    <div class="day-list">${card("strength", "Trening siłowy", stSub, st, sd)}${card("mobility", "Mobilność", mbSub, mb, true)}</div>
+    ${!Sync.url && doneSessions().length >= 3 && (backupAgeDays() === null || backupAgeDays() > 14) ? `<button class="linkbtn" data-act="go" data-v="settings">${backupAgeDays() === null ? "Nie masz kopii zapasowej. Zrób ją w ustawieniach." : "Ostatnia kopia zapasowa ma ponad 2 tygodnie."}</button>` : ""}</section>`;
+}
 function renderPrep(){
   const s = current(), strength = s.kind === "strength", d = new Date();
   let banner = "";
   if (!Store.ok) banner = `<p class="banner">Ta przeglądarka nie pozwala zapisywać danych, np. w trybie prywatnym. Postęp nie zostanie zapamiętany.</p>`;
   if (S.syncErr) banner += `<p class="banner">${esc(S.syncErr)}</p>`;
-  const head = (title, lead) => `<header class="head"><div><p class="kicker">${dayLabel(d)}</p><h1 class="title">${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div><button class="icon-btn" data-act="menu" aria-label="Więcej">${DOTS}</button></header>`;
+  const head = (title, lead) => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"}</p><h1 class="title">${title}</h1>${lead ? `<p class="lead">${lead}</p>` : ""}</div></header>`;
 
   if (s.status === "done"){
     const nextPlan = slotsOf(strength ? "circuit" : "mobility").map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
-    return `<section class="screen">${head("Na dziś zrobione", esc(summaryLine(s)))}${banner}
+    return `<section class="screen">${head("Zrobione", esc(summaryLine(s)))}${banner}
       <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : "Mobilność na następny raz"}</h2><div class="card">${nextPlan.map((it,i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
       <div class="push">${strength && s.assessment ? `<button class="btn outline" data-act="show-result">Zobacz ocenę sesji</button>` : ""}${strength ? "" : `<button class="btn outline" data-act="redo">Zrób jeszcze raz</button>`}</div></section>`;
   }
@@ -431,7 +530,7 @@ function renderPrep(){
         <div class="card">${s.items.map((it,i) => itemRow(it, i, true)).join("")}</div></section>
       <div class="push"><button class="btn" data-act="start">Zaczynam</button></div></section>`;
   }
-  return `<section class="screen">${head("Przygotowanie", "Dziś bez treningu siłowego. Następny: " + esc(nextStrengthLabel()) + ".")}${banner}
+  return `<section class="screen">${head("Przygotowanie")}${banner}
     <section class="sec"><h2 class="sec-h">Mobilność · około 10 min</h2><div class="card">${s.items.map((it) => itemRow(it, null, true)).join("")}</div></section>
     <div class="push"><button class="btn" data-act="start">Zaczynam</button></div></section>`;
 }
@@ -558,11 +657,18 @@ function renderSettings(){
     <section class="sec"><h2 class="sec-h">Dni treningu siłowego</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Przerwa między rundami</h2><div class="choices" style="grid-template-columns:repeat(4,minmax(0,1fr))">${[60,90,120,150].map(n => `<button class="choice ${p.rest === n ? "on" : ""}" data-act="rest" data-n="${n}">${clock(n)}</button>`).join("")}</div></section>
-    <section class="sec"><h2 class="sec-h">Dane</h2><p class="note">Wszystko jest zapisane tylko w tym telefonie. Co jakiś czas zrób kopię zapasową, np. do Plików albo iCloud.</p>
+    <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
+      ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
+         <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`
+      : `<p class="note">Wklej adres aplikacji internetowej z Apps Script (kończy się na /exec). Dane będą zapisywać się w arkuszu na Twoim Dysku.</p>
+         <input class="input" id="syncUrl" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Adres synchronizacji">
+         ${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}<button class="btn outline" data-act="sync-on" ${S.busy ? "disabled" : ""}>${S.busy ? "Łączę…" : "Połącz"}</button>`}</section>
+    <section class="sec"><h2 class="sec-h">Dane</h2><p class="note">${Sync.url ? "Dane są w telefonie i w arkuszu." : "Wszystko jest zapisane tylko w tej aplikacji na tym telefonie. Usunięcie ikony z ekranu głównego usuwa też dane."} ${backupAgeDays() === null ? "Nie masz jeszcze kopii zapasowej." : "Ostatnia kopia: " + (backupAgeDays() === 0 ? "dziś" : backupAgeDays() + " " + plural(backupAgeDays(), "dzień", "dni", "dni") + " temu") + "."}</p>
       <button class="btn outline" data-act="backup">Zapisz kopię zapasową</button>
       <label class="btn plain" for="importFile" style="cursor:pointer">Wczytaj kopię zapasową</label><input type="file" id="importFile" accept="application/json,.json" hidden>
       ${S.notice ? `<p class="note">${esc(S.notice)}</p>` : ""}
-      <button class="btn plain" data-act="reset">Przywróć plan startowy</button></section></section>`;
+      <button class="btn plain" data-act="reset">Przywróć plan startowy</button>
+      <p class="note" style="text-align:center">Wersja ${APP_VERSION}</p></section></section>`;
 }
 
 /* ---------- sheets ---------- */
@@ -609,7 +715,6 @@ function sheetHtml(){
   if (sh.type === "menu"){
     const s2 = isStrengthDay(today());
     const items = [["history","Historia"],["progress","Progres"]];
-    if (s2) items.push(["kind", (S.kind || "strength") === "strength" ? "Mobilność na dziś" : "Trening siłowy na dziś"]);
     items.push(["settings","Sprzęt i plan"]);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Menu"><span class="grab" aria-hidden="true"></span>
       <div class="card">${items.map(([v,t]) => `<button class="row" style="min-height:56px" data-act="go" data-v="${v}"><span class="main"><span class="name" style="font-weight:400">${t}</span></span>${CHEV}</button>`).join("")}</div>
@@ -638,7 +743,7 @@ function render(){
     else if (v !== "prep") v = "prep";
     S.view = v;
   }
-  const html = !S.loaded ? renderPrep() : v === "exercise" ? renderExercise() : v === "rest" ? renderRest() : v === "finish" ? renderFinish() : v === "result" ? renderResult()
+  const html = !S.loaded || v === "home" ? renderHome() : v === "exercise" ? renderExercise() : v === "rest" ? renderRest() : v === "finish" ? renderFinish() : v === "result" ? renderResult()
     : v === "history" ? renderHistory() : v === "progress" ? renderProgress() : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
   renderSheet();
@@ -673,7 +778,7 @@ async function saveFinish(){
   const s = current();
   clearTimeout(debouncers[s.id]);
   s.status = "done";
-  if (s.kind !== "strength"){ commitSession(s); go("prep"); return; }
+  if (s.kind !== "strength"){ commitSession(s); go("home"); return; }
   s.assessment = assess(s); commitSession(s); go("result");
 }
 function applyAssessment(apply){
@@ -778,11 +883,13 @@ async function backup(btn){
   const name = "trening-kopia-" + today() + ".json";
   try {
     const file = new File([data], name, {type:"application/json"});
-    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"Kopia zapasowa: trening"}); btn.textContent = "Kopia zapisana"; return; }
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"Kopia zapasowa: trening"}); markBackup(); btn.textContent = "Kopia zapisana"; return; }
   } catch(e){ if (e && e.name === "AbortError") return; }
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type:"application/json"})); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  btn.textContent = "Kopia zapisana";
+  markBackup(); btn.textContent = "Kopia zapisana";
 }
+function markBackup(){ S.profile.lastBackup = today(); commitProfile(); }
+function backupAgeDays(){ if (!S.profile.lastBackup) return null; return Math.round((parseYmd(today()) - parseYmd(S.profile.lastBackup)) / 86400000); }
 function importBackup(file){
   const r = new FileReader();
   r.onload = () => {
@@ -812,7 +919,8 @@ document.addEventListener("click", e => {
       else go(v);
       break;
     }
-    case "home": S.kind = S.kind; go("prep"); break;
+    case "home": go("home"); break;
+    case "open": S.kind = b.dataset.kind; go("prep"); break;
     case "warmup": S.sheet = {type:"warmup"}; renderSheet(); break;
     case "warm-start": S.profile.warmStart = b.dataset.v; commitProfile(); renderSheet(); render(); break;
     case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
@@ -844,12 +952,22 @@ document.addEventListener("click", e => {
     case "mic": { S.micHint = true; render(); const t = $("#sessionNote"); if (t) t.focus(); break; }
     case "save": saveFinish(); break;
     case "apply": applyAssessment(true); break;
-    case "skip": if (s.assessment && s.assessment.applied == null) applyAssessment(false); go("prep"); break;
+    case "skip": if (s.assessment && s.assessment.applied == null) applyAssessment(false); go("home"); break;
     case "show-result": go("result"); break;
     case "redo": { const id = s.id; delete S.sessions[id]; go("prep"); break; }
     case "copy-analysis": copyText(analysisPrompt(), b, "Skopiowano. Wklej w rozmowie z Claude."); break;
     case "copy-session": copyText(sessionPrompt(s), b, "Skopiowano. Wklej w rozmowie z Claude."); break;
     case "backup": backup(b); break;
+    case "sync-on": {
+      const url = ($("#syncUrl")?.value || "").trim();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)){ Sync.err = "To nie wygląda na adres z Apps Script. Powinien zaczynać się od https://script.google.com/macros/s/ i kończyć na /exec."; render(); break; }
+      S.busy = true; Sync.err = null; render();
+      Sync.connect(url).then(ok => { S.busy = false; if (!ok) Sync.disconnect(), Sync.err = "Nie udało się połączyć. Sprawdź, czy wdrożenie ma dostęp „Każdy”, i spróbuj jeszcze raz."; render(); });
+      break;
+    }
+    case "sync-now": Sync.pull().then(() => render()); break;
+    case "sync-off": S.sheet = {type:"confirm", title:"Odłączyć arkusz?", text:"Dane w arkuszu zostaną. Nowe sesje będą zapisywać się tylko w telefonie.", act:"sync-off-yes", yes:"Odłącz", no:"Anuluj"}; renderSheet(); break;
+    case "sync-off-yes": Sync.disconnect(); S.sheet = null; render(); break;
     case "day": { const d = Number(b.dataset.d), sc = S.profile.schedule; S.profile.schedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "rest": S.profile.rest = Number(b.dataset.n); commitProfile(); render(); break;
     case "reset": S.sheet = {type:"confirm", title:"Przywrócić plan startowy?", text:"Ćwiczenia, ciężary i powtórzenia wrócą do planu startowego. Historia zostaje.", act:"reset-yes", yes:"Przywróć", no:"Anuluj"}; renderSheet(); break;
@@ -877,11 +995,14 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && S.
 
 /* ---------- boot ---------- */
 Store.init();
-{ const data = Store.load(); S.profile = mergeProfile(data.profile); S.sessions = data.sessions || {}; }
+Sync.init();
+{ const data = Store.load(); S.profile = mergeProfile(data.profile); S.sessions = data.sessions || {};
+  for (const k of ["strength", "mobility"]){ const x = S.sessions[sessionId(k)]; if (x && x.v === 2 && (x.status === "active" || x.status === "finishing")){ S.kind = k; S.view = "exercise"; } } }
 S.loaded = true;
 document.body.classList.remove("loading");
 render();
-if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
+Sync.pull().then(changed => { if (changed && ["home", "prep", "history", "progress"].includes(S.view)) render(); });
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).catch(() => {});
 </script>
 </body>
 </html>
