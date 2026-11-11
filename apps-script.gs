@@ -86,7 +86,7 @@ function doPost(e) {
   }
   if (body.claude && body.claude.prompt) {
     let r;
-    try { r = callClaude_(String(body.claude.prompt), body.claude.effort, body.claude.model); } catch (err) { r = { error: String(err) }; }
+    try { r = callClaude_(String(body.claude.prompt), body.claude.effort, body.claude.model, body.claude.images); } catch (err) { r = { error: String(err) }; }
     return out_({ ok: true, claude: r });
   }
   return out_({ ok: true });
@@ -99,21 +99,26 @@ function testClaude() {
 }
 
 // Sonnet 5.5 zawsze najpierw myśli, a max_tokens obejmuje myślenie i odpowiedź, więc limit musi być duży.
-function callClaude_(prompt, effort, model) {
+// images: zdjęcia z aplikacji (np. wyświetlacz PM5), [{media_type:"image/jpeg", data:base64}], najwyżej 3.
+function callClaude_(prompt, effort, model, images) {
   const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
   if (!key) return { error: "Brak klucza API w ustawieniach skryptu (ANTHROPIC_API_KEY)." };
   const eff = ["low", "medium", "high"].indexOf(effort) >= 0 ? effort : "medium";
   const mdl = /^claude-[a-z0-9.-]+$/.test(model || "") ? model : MODEL;
+  const imgs = (Array.isArray(images) ? images : []).filter(function (im) {
+    return im && /^image\/(jpeg|png|webp)$/.test(im.media_type) && typeof im.data === "string" && im.data.length < 5000000;
+  }).slice(0, 3);
+  const content = imgs.length ? imgs.map(function (im) { return { type: "image", source: { type: "base64", media_type: im.media_type, data: im.data } }; }).concat([{ type: "text", text: prompt }]) : prompt;
   const opts = {
     method: "post", contentType: "application/json", muteHttpExceptions: true,
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
-    payload: JSON.stringify({ model: mdl, max_tokens: 16000, output_config: { effort: eff }, messages: [{ role: "user", content: prompt }] })
+    payload: JSON.stringify({ model: mdl, max_tokens: 16000, output_config: { effort: eff }, messages: [{ role: "user", content: content }] })
   };
   let res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", opts);
   if (res.getResponseCode() === 529 || res.getResponseCode() >= 500) { Utilities.sleep(3000); res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", opts); }
   if (res.getResponseCode() !== 200) return { error: "API Claude odpowiedziało " + res.getResponseCode() + ": " + res.getContentText().slice(0, 200) };
   const body = JSON.parse(res.getContentText());
-  return { stop: body.stop_reason, text: (body.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("") };
+  return { img: imgs.length, stop: body.stop_reason, text: (body.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("") };
 }
 
 function upsertRow_(sh, id, row) {
