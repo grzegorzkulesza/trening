@@ -70,6 +70,15 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .status.done{background:var(--good-bg);color:var(--good)}
 .status.live{background:var(--ink);color:#FFFFFF}
 .day-card.off{opacity:.55}
+.row.wk{min-height:60px;padding-top:9px;padding-bottom:9px}
+.row.wk.off .name{font-weight:400;color:var(--muted)}
+.row.wk.missed .name,.row.wk.missed .sub{color:var(--faint)}
+.wk-d{width:36px;height:42px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;line-height:1.1}
+.wk-d b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.wk-d span{font-size:12px;color:var(--muted)}
+.wk-d.on{background:var(--ink);color:#FFFFFF}
+.wk-d.on span{color:rgba(255,255,255,.75)}
+.wk-t{display:inline-flex;align-items:center;gap:4px}
 .linkbtn{border:0;background:none;padding:6px 0;color:var(--ink);text-decoration:underline;text-underline-offset:3px;font-size:15px;text-align:left;align-self:flex-start}
 
 .btn{display:flex;align-items:center;justify-content:center;height:64px;border-radius:32px;border:0;background:var(--ink);color:#FFFFFF;font-size:18px;font-weight:600;width:100%;flex:none;text-decoration:none}
@@ -212,7 +221,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .sheet-x{position:absolute;top:16px;right:16px;z-index:1}
 .sheet>header,.sheet>.head{padding-right:52px}
 .sheet h2{margin:0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.02em}
-.sheet .sub{margin:6px 0 0;font-size:15px;color:var(--muted)}
+.sheet header .sub{margin:6px 0 0;font-size:15px;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -222,7 +231,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.13";
+const APP_VERSION = "2026-11-11.14";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -460,11 +469,53 @@ function bbKey(dateStr){
   return BB_ORDER[(BB_ORDER.indexOf(k) + 1) % BB_ORDER.length];
 }
 // Circuit for one session: KB slots, with today's barbell lift in place of its KB counterpart.
-function circuitFor(dateStr){
+function circuitFor(dateStr, key){
   const all = slotsOf("circuit"), base = all.filter(x => !x.bb);
   if (!bbOn()) return base;
-  const bb = all.find(x => x.key === bbKey(dateStr));
+  const bb = all.find(x => x.key === (key || bbKey(dateStr)));
   return bb ? base.map(x => x.key === bb.bb ? bb : x) : base;
+}
+// This week, Monday to Sunday (on Saturday and Sunday: next week). Future Strength days take barbell lifts in turn, as if every session before them gets done.
+function weekPlan(){
+  const t = today(), d0 = parseYmd(t), mon = new Date(d0); mon.setDate(d0.getDate() - (d0.getDay() + 6) % 7 + (d0.getDay() === 6 || d0.getDay() === 0 ? 7 : 0));
+  const out = []; let k = null;
+  for (let i = 0; i < 7; i++){
+    const d = new Date(mon); d.setDate(mon.getDate() + i); const date = ymd(d), w = d.getDay();
+    const get = id => { const x = S.sessions[id]; return x && x.v === 2 ? x : null; };
+    const st = get(date), cs = get(date + "-cond");
+    let kind = S.profile.schedule.includes(w) ? "strength" : (S.profile.condSchedule || []).includes(w) || (cs && cs.status === "done") ? "cond" : null;
+    const x = kind === "strength" ? st : kind === "cond" ? cs : null, done = !!(x && x.status === "done");
+    const day = {date, w, kind, done, today:date === t, past:date < t, session:done ? x : null, bb:null, condKey:null};
+    if (kind === "strength" && !done && date >= t && bbOn()){ k = k ? BB_ORDER[(BB_ORDER.indexOf(k) + 1) % BB_ORDER.length] : bbKey(date); day.bb = k; }
+    if (kind === "strength" && done){ const b = (x.items || []).find(it => BB_ORDER.includes(it.key)); if (b) day.bbEx = b.ex; }
+    if (kind === "cond") day.condKey = done && x.items && x.items[0] ? x.items[0].key : condKey(date);
+    out.push(day);
+  }
+  return out;
+}
+function dayPlanItems(day){
+  if (day.session) return day.session.items;
+  const slots = day.kind === "strength" ? circuitFor(day.date, day.bb) : slotsOf("cond").filter(x => x.key === day.condKey);
+  return slots.map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
+}
+function weekHtml(){
+  const days = weekPlan(), CHECK = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>`;
+  const rows = days.map(d => {
+    const date = `<span class="wk-d ${d.today ? "on" : ""}"><b>${parseYmd(d.date).getDate()}</b><span>${DAYS_SHORT[d.w]}</span></span>`;
+    if (!d.kind) return `<div class="row wk off">${date}<span class="main"><span class="name">Wolne</span></span></div>`;
+    let title, sub;
+    if (d.kind === "strength"){
+      const its = dayPlanItems(d), bbIt = its.find(it => BB_ORDER.includes(it.key)), bbName = bbIt ? exOf(bbIt.ex).name : null;
+      title = "Strength"; sub = (bbName ? bbName + " · " : "") + its.length + " " + plural(its.length, "ćwiczenie", "ćwiczenia", "ćwiczeń");
+    } else {
+      const sl = slotByKey(d.condKey), it = d.session && d.session.items[0];
+      title = "Conditioning"; sub = (d.condKey === "c-int" ? "Intervals" : "Steady") + " · " + (it ? exOf(it.ex).name : sl ? exOf(sl.ex).name : "");
+    }
+    const tag = d.done ? `<span class="tag up wk-t">${CHECK} zrobione</span>` : "";
+    return `<button class="row wk ${d.past && !d.done ? "missed" : ""}" data-act="day-plan" data-date="${d.date}">${date}<span class="main"><span class="name">${title}</span><span class="sub">${esc(sub)}</span></span>${tag}${CHEV}</button>`;
+  }).join("");
+  const next = days[0].date > today();
+  return `<section class="sec"><h2 class="sec-h">${next ? "Następny tydzień" : "Ten tydzień"}</h2><div class="card">${rows}</div><p class="note">Mobility codziennie, około 10 minut.</p></section>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
 const slotByKey = k => S.profile.slots.find(s => s.key === k);
@@ -727,7 +778,7 @@ function itemRow(it, i, tappable){
   const changed = it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
   const byClaude = sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
   const tag = it.swap ? `<span class="tag">zamiana na dziś</span>` : changed ? `<span class="tag">zmienione</span>` : byClaude ? `<span class="tag up">od Claude</span>` : "";
-  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span>${LOADS[it.load] && LOADS[it.load].bb ? `<span class="sub">${esc(platesText(LOADS[it.load].bb))}</span>` : ""}</span>${tag}${tappable ? CHEV : ""}`;
+  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps) + (LOADS[it.load] && LOADS[it.load].bb ? " · " + platesText(LOADS[it.load].bb) : ""))}</span></span>${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
@@ -769,6 +820,7 @@ function renderHome(){
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
     <div class="day-list">${card("strength", "Strength", stSub, st, sd)}${showCond ? condCard : ""}${card("mobility", "Mobility", mbSub, mb, true)}</div>
     ${r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
+    ${weekHtml()}
     ${!Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
 }
 function reviewBlock(s, r){
@@ -1077,6 +1129,18 @@ function sheetHtml(){
       <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
   }
+  if (sh.type === "day"){
+    const d = weekPlan().find(x => x.date === sh.date); if (!d || !d.kind) return "";
+    const dt = parseYmd(d.date), strength = d.kind === "strength", its = dayPlanItems(d);
+    const head = DAYS[d.w].charAt(0).toUpperCase() + DAYS[d.w].slice(1) + ", " + dt.getDate() + " " + MONTHS[dt.getMonth()];
+    const sub = (strength ? "Strength · " + roundsText(d.session ? d.session.rounds : S.profile.rounds) : "Conditioning · " + (d.condKey === "c-int" ? "Intervals" : "Steady")) + (d.done ? " · zrobione" : "");
+    const body = d.past && !d.done ? `<p class="note">${strength ? "Nie zrobiony. Opuszczony trening po prostu pomijasz, aplikacja go nie przenosi." : "Nie zrobiony."}</p>`
+      : `<div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
+         ${!d.done && !d.today ? `<p class="note">${strength ? "Ciężary i powtórzenia według obecnego planu. Claude może je zmienić po kolejnych treningach." : "Według obecnego planu."}</p>` : ""}`;
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(head)}">${SHEET_X}
+      <header><h2>${esc(head)}</h2><p class="sub">${esc(sub)}</p></header>${body}
+      ${d.today && !d.done ? `<button class="btn" data-act="open" data-kind="${d.kind}">Otwórz plan na dziś</button>` : ""}</div>`;
+  }
   if (sh.type === "warmup"){
     const starts = WARM_START.filter(w => eqOk(w.eq));
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Warm-up">${SHEET_X}
@@ -1182,6 +1246,7 @@ document.addEventListener("click", e => {
     case "cat": S.cat = b.dataset.c; go("cat"); break;
     case "home": go("home"); break;
     case "open": S.kind = b.dataset.kind; go("prep"); break;
+    case "day-plan": S.sheet = {type:"day", date:b.dataset.date}; renderSheet(); break;
     case "back-prep": go("prep"); break;
     case "note": go("note"); break;
     case "finish": finishSession(); break;
