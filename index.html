@@ -283,7 +283,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.37";
+const APP_VERSION = "2026-11-11.38";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1033,7 +1033,7 @@ function renderNote(){
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
 function doneSessions(){ return Object.values(S.sessions).filter(s => s.v === 2 && s.status === "done").sort((a, b) => (b.date + b.kind).localeCompare(a.date + a.kind)); }
 /* ---------- groups: animals for level ranges, like the old BTWB badges ----------
-   Hare starts at Beginner (5), Lynx at Novice (20), Bison at Intermediate (50), Bear at Advanced (80), Eagle at Elite (95). */
+   Thresholds on the level scale, where 100 is Advanced (see LV_SCALE). */
 const ANIMAL = {
   hedgehog: c => {
     const pts = []; const cx = 29, cy = 45;
@@ -1077,7 +1077,7 @@ const repCap = (e, load) => e.dist ? 60 : e.bb ? 8 : e.pattern === "hinge" ? 20 
 // The nearest result that lifts category c to targetLevel: more reps of the same, then a heavier load, then the next exercise.
 function targetFor(c, it, targetLevel){
   if (!it || !CAT_EX[c.id] || !EX[it.ex]) return null;
-  const score = (ex, load, reps) => { const v = c.score({ex, load, reps}); return v == null ? -1 : Math.round(v); };
+  const score = (ex, load, reps) => { const v = c.score({ex, load, reps}); return v == null ? -1 : toLv(v); };
   const minReps = (id, load, from) => { const e = EX[id], step = e.dist ? 10 : 1; for (let r = Math.max(from, repFloor(e, load)); r <= repCap(e, load); r += step) if (score(id, load, r) >= targetLevel) return r; return null; };
   const cur = EX[it.ex];
   let r = minReps(it.ex, it.load, it.reps + (cur.dist ? 10 : 1)); if (r) return {ex:it.ex, load:it.load, reps:r};
@@ -1106,10 +1106,22 @@ function etaText(O, gap){
   const w = Math.max(1, Math.ceil(gap / (slope * 7)));
   return "za ~" + w + " " + plural(w, "tydzień", "tygodnie", "tygodni");
 }
-/* ---------- progress: level 0–100 like BTWB Fitness Level = percentile among people who train ----------
-   Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
+/* ---------- progress: level 0–100, from the percentile among people who train (like BTWB Fitness Level) ----------
+   Percentiles: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
+   Level = percentile × 100/80, at most 100: Advanced is 100 (Nov 2026), so the top of the scale is a result people reach.
    Hinge (no community data for KB Swing) and Conditioning (Row 2000 m, men 40–49) are estimates. */
-const PCTS = [5, 20, 50, 80, 95], RIR = 2;
+const PCTS = [5, 20, 50, 80, 95], RIR = 2, LV_SCALE = 100 / 80;
+const toLv = v => Math.min(100, Math.round(v * LV_SCALE));
+// The standard result for a level: the percentile curve of a category read backwards.
+function stdFor(a, lv){
+  const p = lv / LV_SCALE, pts = [[0, 0], ...a.map((x, i) => [x, PCTS[i]]), [a[4] * 1.35, 100]];
+  for (let i = 1; i < pts.length; i++) if (p <= pts[i][1]){ const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return x0 + (p - y0) / (y1 - y0) * (x1 - x0); }
+  return pts[pts.length - 1][0];
+}
+const upTo = (v, step) => Math.ceil(v / step - 1e-9) * step;
+// Shown as a set like the ones in the plan: max reps minus the reps in reserve, a 1RM as its set of 5.
+const repsSet = (name, max) => name + " × " + Math.max(1, Math.ceil(max - RIR - 1e-9));
+const set5 = (name, oneRm, step, per) => name + " " + (per || "") + plKg(upTo(oneRm / (1 + (5 + RIR) / 30), step)) + " kg × 5";
 const KGS0 = {bw:0, kb4:4, kb8:8, kb16:16, kb20:20, db15x2:30, db225x2:45};
 const KGS = new Proxy(KGS0, {get:(t, k) => k in t ? t[k] : LOADS[k] && LOADS[k].bb ? LOADS[k].bb : undefined});
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -1122,41 +1134,41 @@ function pctFrom(v, a){
 const e1rm = (kg, reps) => kg * (1 + (reps + RIR) / 30);
 const fmtTime = t => Math.floor(t / 60) + ":" + String(Math.round(t % 60)).padStart(2, "0");
 const LEVEL_CATS = [
-  {id:"pull", name:"Pull", pattern:"hpull", src:"Strength Level, Pull-ups", std:["1 Pull-up", "6 Pull-ups", "13 Pull-ups", "24 Pull-ups", "34 Pull-ups"],
+  {id:"pull", name:"Pull", pattern:"hpull", src:"Strength Level, Pull-ups", ref:() => ({a:[1, 6, 13, 24, 34], f:v => repsSet("Pull-up", v)}),
     score(it){ const r = it.reps; switch (it.ex){
       case "ring-row": return 1.5 * clamp01(r / 12); case "ring-row-box": return 1.5 + clamp01(r / 12);
       case "pullup-negative": return 2.5 + clamp01(r / 5); case "band-pullup": return 3.5 + 1.5 * clamp01(r / 8);
       case "pullup": return pctFrom(r + RIR, [1, 6, 13, 24, 34]); } return null; }},
-  {id:"push", name:"Push", pattern:"hpush", src:"Strength Level, Push-ups", std:["1 Push-up", "18 Push-ups", "41 Push-ups", "68 Push-ups", "99 Push-ups"],
+  {id:"push", name:"Push", pattern:"hpush", src:"Strength Level, Push-ups", ref:() => ({a:[1, 18, 41, 68, 99], f:v => repsSet("Push-up", v)}),
     score(it){ const r = it.reps; switch (it.ex){
       case "incline-pushup-75": case "incline-pushup-50": return 1.5 * clamp01(r / 15); case "knee-pushup": return 1.5 + 1.5 * clamp01(r / 15);
       case "pushup-negative": return 3 + clamp01(r / 8); case "pushup": return pctFrom(r + RIR, [1, 18, 41, 68, 99]);
       case "ring-dip": return Math.max(pctFrom(30, [1, 18, 41, 68, 99]), pctFrom(r + RIR, [1, 6, 13, 24, 34])); } return null; }},
   {id:"press", name:"Press", pattern:"vpush",
     src:() => bbOn() ? "Strength Level, Push Press (1RM); KB Clean & Press przeliczony z Dumbbell Shoulder Press" : "Strength Level, Dumbbell Shoulder Press (1RM jedną ręką)",
-    std:() => bbOn() ? ["Push Press 37 kg", "57 kg", "83 kg", "114 kg", "147 kg"] : ["13 kg", "21 kg", "32 kg", "45 kg", "60 kg"],
+    ref:() => bbOn() ? {a:[37, 57, 83, 114, 147], f:v => set5("Push Press", v, 2.5)} : {a:[13, 21, 32, 45, 60], f:v => set5("Dumbbell Shoulder Press", v, 1)},
     score(it){ const kg = KGS[it.load]; if (!kg) return null;
       if (it.ex === "bb-push-press") return pctFrom(e1rm(kg, it.reps), [37, 57, 83, 114, 147]);
       if (it.ex === "kb-clean-press") return pctFrom(e1rm(kg, it.reps) * 0.9, [13, 21, 32, 45, 60]);
       if (it.ex === "kb-strict-press") return pctFrom(e1rm(kg, it.reps), [13, 21, 32, 45, 60]); return null; }},
   {id:"hinge", name:"Hinge", pattern:"hinge",
     src:() => bbOn() ? "Strength Level, Deadlift (1RM); KB Swing to szacunek wg StrongFirst" : "szacunek wg standardów StrongFirst (brak danych społeczności dla KB Swing)",
-    std:() => bbOn() ? ["Deadlift 80 kg", "113 kg", "154 kg", "202 kg", "253 kg"] : ["KB Swing 16 kg × 15", "24 kg × 15", "32 kg × 15", "40 kg × 15", "48 kg × 15"],
+    ref:() => bbOn() ? {a:[80, 113, 154, 202, 253], f:v => set5("Deadlift", v, 2.5)} : {a:[16, 24, 32, 40, 48], f:v => "KB Swing " + upTo(v, 1) + " kg × 15"},
     score(it){ const kg = KGS[it.load]; if (!kg) return null;
       if (it.ex === "bb-dl") return pctFrom(e1rm(kg, it.reps), [80, 113, 154, 202, 253]);
       const eq = it.ex === "kb-swing-1a" ? kg * 1.3 : it.ex === "kb-swing" ? kg : 0; if (!eq) return null;
       return Math.max(0, pctFrom(eq, [16, 24, 32, 40, 48]) + (Math.max(10, Math.min(30, it.reps)) - 15) * 0.4); }},
   {id:"legs", name:"Legs", pattern:"lunge",
     src:() => bbOn() ? "Strength Level, Front Squat (1RM); Bulgarian Split Squat z Dumbbell Bulgarian Split Squat" : "Strength Level, Dumbbell Bulgarian Split Squat (1RM, ciężar na rękę)",
-    std:() => bbOn() ? ["Front Squat 55 kg", "77 kg", "105 kg", "137 kg", "172 kg"] : ["2 × 10 kg", "2 × 18 kg", "2 × 30 kg", "2 × 44 kg", "2 × 60 kg"],
+    ref:() => bbOn() ? {a:[55, 77, 105, 137, 172], f:v => set5("Front Squat", v, 2.5)} : {a:[10, 18, 30, 44, 60], f:v => set5("Bulgarian Split Squat", v, 1, "2 × ") + " per side"},
     score(it){ const kg = KGS[it.load];
       if (it.ex === "bb-front-squat" && kg) return pctFrom(e1rm(kg, it.reps), [55, 77, 105, 137, 172]);
       if (it.ex === "bb-back-squat" && kg) return pctFrom(e1rm(kg, it.reps), [64, 93, 130, 173, 219]);
       if (it.ex !== "bss") return null; if (it.load === "bw") return 1.5 * clamp01(it.reps / 12); return pctFrom(e1rm(KGS[it.load] / 2, it.reps), [10, 18, 30, 44, 60]); }},
-  {id:"carry", name:"Core & Carry", pattern:"carry", src:"Strength Level, Farmers Walk (ciężar na rękę, 20 m)", std:["2 × 9 kg", "2 × 20 kg", "2 × 37 kg", "2 × 58 kg", "2 × 84 kg"],
+  {id:"carry", name:"Core & Carry", pattern:"carry", src:"Strength Level, Farmers Walk (ciężar na rękę, 20 m)", ref:() => ({a:[9, 20, 37, 58, 84], f:v => "Farmer's Carry 2 × " + upTo(v, 1) + " kg · 20 m"}),
     score(it){ const kg = KGS[it.load]; if (!kg) return null; const hand = it.ex === "suitcase-carry" ? kg : it.ex === "farmer-carry" ? kg / 2 : 0; if (!hand) return null;
       return pctFrom(hand, [9, 20, 37, 58, 84]) + (Math.max(20, Math.min(60, it.reps)) - 20) / 10; }},
-  {id:"cond", name:"Conditioning", kind:"cond", src:"szacunek z rankingów Concept2, mężczyźni 40–49", std:["Row 2000 m 9:30", "8:40", "7:50", "7:10", "6:40"], bench:true,
+  {id:"cond", name:"Conditioning", kind:"cond", src:"szacunek z rankingów Concept2, mężczyźni 40–49", ref:() => ({a:[570, 520, 470, 430, 400].map(t => 2000 / t), f:v => "Row 2000 m " + fmtTime(Math.floor(2000 / v))}), bench:true,
     scoreBench(sec){ return pctFrom(2000 / sec, [570, 520, 470, 430, 400].map(t => 2000 / t)); }}
 ];
 const MOD_COLORS = {W:"#1F4E8C", G:"#E39A3B", M:"#3E9C7F"};
@@ -1171,11 +1183,11 @@ function levelHistory(){
   const sess = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && (x.kind === "strength" || x.kind === "cond")).sort((a, b) => a.date.localeCompare(b.date));
   for (const x of sess){
     for (const c of LEVEL_CATS){
-      if (c.bench){ const t = x.bench && x.bench.row2000; if (t) out[c.id].push({date:x.date, level:Math.round(c.scoreBench(t)), text:"Row 2000 m " + fmtTime(t)}); continue; }
+      if (c.bench){ const t = x.bench && x.bench.row2000; if (t) out[c.id].push({date:x.date, level:toLv(c.scoreBench(t)), text:"Row 2000 m " + fmtTime(t)}); continue; }
       if (x.kind !== "strength") continue;
       const mine = {};
       for (const it0 of x.items || []){ const it = {...it0, ex:EX_ALIAS[it0.ex] || it0.ex}; const v = c.score(it); if (v == null) continue;
-        const l = Math.round(v); if (!mine[it.ex] || l > mine[it.ex].level) mine[it.ex] = {date:x.date, level:l, text:resText(it), it}; }
+        const l = toLv(v); if (!mine[it.ex] || l > mine[it.ex].level) mine[it.ex] = {date:x.date, level:l, text:resText(it), it}; }
       if (!Object.keys(mine).length) continue;
       Object.assign(latest[c.id], mine);
       // A light day on another exercise (e.g. first Deadlift after KB Swing) does not pull the level down.
@@ -1237,11 +1249,10 @@ function renderCat(){
       return `<section class="lvl"><div class="grp-top">${badge(g, 64)}<div class="grp-t"><h2 class="grp-name" style="font-size:26px">${g.name}</h2><p class="grp-lv"><b>${lv}</b> / 100 ${deltaChip(lastChange(h.map(r => r.level)))}</p></div></div>
         ${ng ? groupTrack(g, ng, lv, "") : ""}${ng && tg ? `<p class="cat-next" style="margin:0">${badge(ng, 18)}${esc(tg)}</p>` : ""}
         ${levelChart(h, "Poziom " + c.name)}</section>`; })();
-  // Groups as the scale: the five that match a percentile show its standard, the others an example result for this category.
-  const std0 = typeof c.std === "function" ? c.std() : c.std, pre = (std0[0].match(/^([A-Za-z][A-Za-z &]*?)\s+\d/) || [])[1];
-  const std = std0.map((t, i) => i && pre && /^\d/.test(t) ? pre + " " + t : t), stdAt = {5:std[0], 20:std[1], 50:std[2], 80:std[3], 95:std[4]};
-  const reqOf = g => stdAt[g.min] || (g.min === 0 ? "" : last && !c.bench ? (t => t ? resText(t) : "")(targetFor(c, last.it, g.min)) : "");
-  const cur = lv == null ? null : groupOf(lv), pick = GROUPS.find(g => g.id === S.catGroup) || (cur && nextGroup(cur)) || GROUPS[1];
+  // What a group takes: the next one, the nearest step from the current exercise (as above); every group, the standard as a set.
+  const ref = c.ref(), cur = lv == null ? null : groupOf(lv), ng0 = cur && nextGroup(cur);
+  const reqOf = g => { if (g.min === 0) return ""; const t = g === ng0 && !c.bench ? targetFor(c, last.it, g.min) : null; return t ? resText(t) : ref.f(stdFor(ref.a, g.min)); };
+  const pick = GROUPS.find(g => g.id === S.catGroup) || (cur && nextGroup(cur)) || GROUPS[1];
   const groupsCard = `<section class="lvl" style="gap:6px"><div class="grp-all" role="tablist" aria-label="Grupy">${GROUPS.map(g => `<button class="grp-pick grp-i ${g === pick ? "sel" : ""} ${g === cur ? "on" : ""}" role="tab" aria-selected="${g === pick}" data-act="cat-g" data-g="${g.id}" aria-label="${g.name} od ${g.min}"><span class="gp-ring">${badge(g, 30, lv == null || lv < g.min)}</span><small>${g.min}</small></button>`).join("")}</div>
     <p class="grp-req">${badge(pick, 20)}<b>${pick.name}</b>${reqOf(pick) ? `<span>${esc(reqOf(pick))}</span>` : ""}</p></section>`;
   let ladder = "";
