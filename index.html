@@ -110,6 +110,11 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .grp-lv{margin:4px 0 0;font-size:15px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .grp-lv b{color:var(--ink);font-weight:600}
 .grp-next{display:flex;flex-direction:column;gap:8px}
+.gtrack{display:flex;align-items:center;gap:10px}
+.gt-end{display:flex;flex-direction:column;align-items:center;gap:2px;flex:none}
+.gt-end small,.gt-mid small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.gt-mid{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:16px}
+.cat-next{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
 .grp-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px;color:var(--muted)}
 .grp-row b{color:var(--ink);font-weight:600}
 .grp-to{display:inline-flex;align-items:center;gap:6px}
@@ -270,7 +275,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.26";
+const APP_VERSION = "2026-11-11.27";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -613,7 +618,7 @@ function dayCardsHtml(date){
   if (strengthDay || isDone(st)){
     let sub;
     if (isDone(st)) sub = doneSub(st);
-    else if (past) sub = "Opuszczony trening po prostu pomijasz.";
+    else if (past) sub = "";
     else if (isToday && st && st.status === "prep") sub = estText("strength", st.items, st.rounds);
     else sub = estText("strength", dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", bb:null}), S.profile.rounds);
     out.push(card("strength", "Strength", sub, st, past && !isDone(st)));
@@ -982,7 +987,7 @@ function planScreen(date, kind){
   return `<section class="screen">${head}
     <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? (condKey(date) === "c-int" ? "Intervals" : "Steady") : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
-      <p class="note">${strength ? "Ciężary i powtórzenia według obecnego planu. Claude może je zmienić po kolejnych treningach." : "Według obecnego planu."}</p></section></section>`;
+</section></section>`;
 }
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
@@ -1051,17 +1056,23 @@ function targetFor(c, it, targetLevel){
     for (const l of loadsOf(e)){ r = minReps(id, l, 1); if (r) return {ex:id, load:l, reps:r}; } }
   return null;
 }
+// Between this group and the next: both badges with their thresholds, the bar filled up to the current level.
+function groupTrack(g, ng, lv, eta){
+  const pct = Math.max(0, Math.min(100, (lv - g.min) / (ng.min - g.min) * 100));
+  return `<div class="gtrack" role="img" aria-label="${g.name} od ${g.min}, ${ng.name} od ${ng.min}, teraz ${lv}"><span class="gt-end">${badge(g, 28)}<small>${g.min}</small></span>
+    <span class="gt-mid"><span class="bar"><i style="width:${pct}%"></i></span>${eta ? `<small>${esc(eta)}</small>` : ""}</span><span class="gt-end">${badge(ng, 28)}<small>${ng.min}</small></span></div>`;
+}
 const targetText = t => t ? resText(t) : null;
 // Weeks to the next group at the recent pace (needs a couple of weeks of data).
 function etaText(O, gap){
   const t = today(), pts = O.filter(p => (parseYmd(t) - parseYmd(p.date)) / 86400000 <= 42);
-  if (pts.length < 3 || (parseYmd(pts[pts.length - 1].date) - parseYmd(pts[0].date)) / 86400000 < 14) return "Tempo policzę po dwóch tygodniach treningów.";
+  if (pts.length < 3 || (parseYmd(pts[pts.length - 1].date) - parseYmd(pts[0].date)) / 86400000 < 14) return "";
   const xs = pts.map(p => (parseYmd(p.date) - parseYmd(pts[0].date)) / 86400000), ys = pts.map(p => p.level), n = xs.length;
   const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
   const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / (xs.reduce((a, x) => a + (x - mx) ** 2, 0) || 1);
-  if (slope <= 0) return "Ostatnio bez wzrostu.";
+  if (slope <= 0) return "";
   const w = Math.max(1, Math.ceil(gap / (slope * 7)));
-  return "Przy obecnym tempie: około " + w + " " + plural(w, "tydzień", "tygodnie", "tygodni") + ".";
+  return "za ~" + w + " " + plural(w, "tydzień", "tygodnie", "tygodni");
 }
 /* ---------- progress: level 0–100 like BTWB Fitness Level = percentile among people who train ----------
    Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
@@ -1167,7 +1178,7 @@ function renderProgress(){
     if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
     const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
     return `<button class="cat cat-g" data-act="cat" data-c="${c.id}">${badge(g, 40)}<span class="cat-b"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>
-      <span class="s">${ng ? `Do ${ng.name} brakuje ${ng.min - last.level}${tg ? ": np. " + esc(tg) : ""}` : esc(last.text)}</span></span></button>`;
+      <span class="s cat-next">${ng ? badge(ng, 18) + esc(tg || "od " + ng.min) : esc(last.text)}</span></span></button>`;
   }).join("");
   const cov = coverageData();
   let hero;
@@ -1175,9 +1186,8 @@ function renderProgress(){
   else {
     const g = groupOf(ov), ng = nextGroup(g), pct = ng ? (ov - g.min) / (ng.min - g.min) * 100 : 100;
     hero = `<section class="lvl grp-hero">
-      <div class="grp-top">${badge(g, 88)}<div class="grp-t"><p class="kicker">Twoja grupa</p><h2 class="grp-name">${g.name}</h2><p class="grp-lv">Poziom ogólny <b>${ov}</b> / 100 ${deltaChip(lastChange(O.map(p => p.level)))}</p></div></div>
-      ${ng ? `<div class="grp-next"><div class="grp-row"><span class="grp-to">Do ${badge(ng, 22)} <b>${ng.name}</b> (${ng.min})</span><span>brakuje <b>${ng.min - ov}</b></span></div>${barHtml(pct)}
-        <p class="note">${esc(etaText(O, ng.min - ov))} ${open.length > 1 ? "Poziom to średnia z " + open.length + " kategorii: +" + (ng.min - ov) + " w każdej albo więcej w najsłabszych." : ""}</p></div>` : `<p class="note">Najwyższa grupa.</p>`}
+      <div class="grp-top">${badge(g, 88)}<div class="grp-t"><h2 class="grp-name">${g.name}</h2><p class="grp-lv"><b>${ov}</b> / 100 ${deltaChip(lastChange(O.map(p => p.level)))}</p></div></div>
+      ${ng ? groupTrack(g, ng, ov, etaText(O, ng.min - ov)) : ""}
       ${levelChart(O, "Poziom ogólny")}
       <div class="grp-all" role="list" aria-label="Wszystkie grupy">${GROUPS.map(x => `<span class="grp-i ${x === g ? "on" : ""}" role="listitem" aria-label="${x.name} od ${x.min}">${badge(x, 30, x.min > ov)}<small>${x.min}</small></span>`).join("")}</div>
     </section>`;
@@ -1193,15 +1203,15 @@ function renderCat(){
   const head = `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="progress" aria-label="Wróć do progresu">${BACK}</button><h1 class="title" style="font-size:28px">${c.name}</h1></div></header>`;
   const hero = h.length < need ? `<section class="lvl"><p class="lead">${c.bench ? "Zrób test Row 2000 m na maksa w sesji Conditioning i podaj czas w notatce, np. „Row 2000 m 8:45”." : "Odblokuje się po 2 treningach (" + h.length + " z 2)."}</p></section>`
     : (() => { const g = groupOf(lv), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
-      return `<section class="lvl"><div class="grp-top">${badge(g, 64)}<div class="grp-t"><p class="kicker">Grupa w ${c.name}</p><h2 class="grp-name" style="font-size:26px">${g.name}</h2></div></div>
-        <div class="lvl-top"><p class="lvl-num"><b>${lv}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}
-        ${ng ? `<div class="grp-next"><div class="grp-row"><span class="grp-to">Do ${badge(ng, 22)} <b>${ng.name}</b> (${ng.min})</span><span>brakuje <b>${ng.min - lv}</b></span></div>${barHtml((lv - g.min) / (ng.min - g.min) * 100)}${tg ? `<p class="note">Wystarczy np. <b style="color:var(--ink);font-weight:500">${esc(tg)}</b>.</p>` : ""}</div>` : ""}</section>`; })();
+      return `<section class="lvl"><div class="grp-top">${badge(g, 64)}<div class="grp-t"><h2 class="grp-name" style="font-size:26px">${g.name}</h2><p class="grp-lv"><b>${lv}</b> / 100 ${deltaChip(lastChange(h.map(r => r.level)))}</p></div></div>
+        ${ng ? groupTrack(g, ng, lv, "") : ""}${ng && tg ? `<p class="cat-next" style="margin:0">${badge(ng, 18)}${esc(tg)}</p>` : ""}
+        ${levelChart(h, "Poziom " + c.name)}</section>`; })();
   // Groups as the scale: the five that match a percentile show its standard, the others an example result for this category.
   const std = typeof c.std === "function" ? c.std() : c.std, stdAt = {5:std[0], 20:std[1], 50:std[2], 80:std[3], 95:std[4]};
   let scale = "", placed = lv == null;
   GROUPS.forEach(g => {
     if (!placed && lv < g.min){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
-    const ex = stdAt[g.min] || (g.min === 0 ? "Start" : last && !c.bench ? (t => t ? "np. " + resText(t) : "")(targetFor(c, last.it, g.min)) : "");
+    const ex = stdAt[g.min] || (g.min === 0 ? "" : last && !c.bench ? (t => t ? resText(t) : "")(targetFor(c, last.it, g.min)) : "");
     scale += `<li class="step">${badge(g, 28, lv == null || lv < g.min)}<span class="bd"><b>${g.name} · ${g.min}</b>${ex ? `<span>${esc(ex)}</span>` : ""}</span></li>`;
   });
   if (!placed) scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`;
