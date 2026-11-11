@@ -285,7 +285,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.34";
+const APP_VERSION = "2026-11-11.35";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -753,7 +753,7 @@ const Coach = {
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
-      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}]}. W changes tylko ćwiczenia, które zmieniasz. Jeśli notatka podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".';
+      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W changes tylko ćwiczenia, które zmieniasz. W done tylko ćwiczenia, przy których notatka mówi, że zrobił co innego niż w dzisiejszym planie (inny wariant, ciężar albo liczbę powtórzeń, np. w drugiej rundzie pełne Push-up zamiast Knee Push-up): podaj najlepszą serię, którą faktycznie zrobił; bez zgadywania. Jeśli notatka podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".';
   },
   parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
   apply(s, out){
@@ -768,6 +768,16 @@ const Coach = {
       changes.push(exOf(sl.ex).name + ": " + doseText(sl.ex, sl.load, sl.reps) + " → " + (c.ex !== sl.ex ? exOf(c.ex).name + " " : "") + doseText(c.ex, load, reps));
       Object.assign(sl, {ex:c.ex, load, reps, claudeNote:String(c.reason || "").slice(0, 200), claudeAt:now});
     });
+    // What was actually done, when the note says it differs from the day's plan: the record (and the levels) follow the note.
+    let fixed = false;
+    (Array.isArray(out.done) ? out.done : []).forEach(c => {
+      const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex]) return;
+      const loads = ((allowed[c.key] || {})[c.ex]) || (c.ex === it.ex ? loadsOf(EX[c.ex]) : null); if (!loads) return;
+      const load = loads.includes(c.load) ? c.load : it.load, reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || it.reps));
+      if (!loads.includes(load) || (c.ex === it.ex && load === it.load && reps === it.reps)) return;
+      Object.assign(it, {ex:c.ex, load, reps, fromNote:true}); fixed = true;
+    });
+    if (fixed) commitSession(s);
     const r = parseInt(out.rounds, 10);
     if (g === "circuit" && r >= 1 && r <= 5 && r !== S.profile.rounds){ changes.push("Rounds: " + S.profile.rounds + " → " + r); S.profile.rounds = r; }
     if (changes.length) commitProfile();
@@ -1516,7 +1526,10 @@ Store.init();
 Sync.init();
 { const data = Store.load(); S.profile = mergeProfile(data.profile); S.sessions = data.sessions || {};
   if (data.profile && Array.isArray(data.profile.slots) && (DEFAULT_SLOTS.some(d => !data.profile.slots.some(x => x.key === d.key)) || (data.profile.mig || 0) < MIG)) commitProfile();
-  try { S.reviews = JSON.parse(localStorage.getItem("trening:reviews") || "{}"); } catch(e){ S.reviews = {}; } }
+  try { S.reviews = JSON.parse(localStorage.getItem("trening:reviews") || "{}"); } catch(e){ S.reviews = {}; }
+  // 11.11: the note says the second round was full Push-ups × 6; the record still had the planned Knee Push-up.
+  const x = S.sessions["2026-11-11"], it = x && x.v === 2 && (x.items || []).find(i => i.key === "push");
+  if (it && it.ex === "knee-pushup" && it.reps === 6 && !it.fromNote){ Object.assign(it, {ex:"pushup", fromNote:true}); commitSession(x); } }
 S.loaded = true;
 document.body.classList.remove("loading");
 render();
