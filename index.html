@@ -238,7 +238,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.15";
+const APP_VERSION = "2026-11-11.16";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -509,7 +509,10 @@ function dayPlanItems(day){
   return slots.map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 }
 const LETTERS = ["N", "P", "W", "Ś", "C", "P", "S"];
-const WK_MIN = -8, WK_MAX = 4;
+const WK_MAX = 4;
+// The strip is also the history: it goes back to the week of the first done session.
+function wkMin(){ const first = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done").map(x => x.date).sort()[0];
+  return first ? Math.min(0, Math.round((mondayOf(first) - mondayOf(today())) / (7 * 86400000))) : 0; }
 const selDate = () => S.sel || today();
 function weekStripHtml(){
   const off = S.weekOff || 0, days = weekDays(off), sel = selDate(), a = parseYmd(days[0].date), z = parseYmd(days[6].date);
@@ -521,7 +524,7 @@ function weekStripHtml(){
     return `<button class="wk-c ${d.date === sel ? "on" : ""} ${d.today ? "today" : ""} ${d.past ? "past" : ""}" role="tab" aria-selected="${d.date === sel}" aria-label="${esc(name)}" data-act="pick-day" data-date="${d.date}"><span class="l">${LETTERS[d.w]}</span><span class="n">${dt.getDate()}</span><i class="dot ${dot}" aria-hidden="true"></i></button>`;
   };
   return `<section class="wk"><div class="wk-nav"><h2 class="sec-h">${esc(label)}</h2><span class="wk-arrows">
-      <button data-act="wk" data-d="-1" aria-label="Poprzedni tydzień" ${off <= WK_MIN ? "disabled" : ""}>${BACK}</button>
+      <button data-act="wk" data-d="-1" aria-label="Poprzedni tydzień" ${off <= wkMin() ? "disabled" : ""}>${BACK}</button>
       <button data-act="wk" data-d="1" aria-label="Następny tydzień" ${off >= WK_MAX ? "disabled" : ""}><span style="display:inline-flex;transform:scaleX(-1)">${BACK}</span></button></span></div>
     <div class="wk-strip" role="tablist" aria-label="${esc(label)}">${days.map(cell).join("")}</div></section>`;
 }
@@ -538,6 +541,8 @@ function dayDetailHtml(d){
     const r = d.session ? reviewFor(d.session.id) : null;
     out.push(`<section class="sec"><div class="sec-row"><h2 class="sec-h">${esc(h)}</h2>${status(d.done, missed)}</div>
       ${missed ? `<p class="note">${strength ? "Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi." : "Nie zrobione."}</p>`
+        : d.done ? `<div class="card">${its.map((it, i) => doneRow(it, strength ? i : null)).join("")}</div>
+           ${d.session.note ? `<div class="verdict"><p class="kicker" style="margin:0">Twoja notatka</p><p>${esc(d.session.note)}</p></div>` : ""}`
         : `<div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
            ${!d.done ? `<p class="note">${strength ? "Ciężary i powtórzenia według obecnego planu. Claude może je zmienić po kolejnych treningach." : "Według obecnego planu."}</p>` : ""}`}
       ${r ? reviewHtml(r, false) : ""}</section>`);
@@ -547,6 +552,7 @@ function dayDetailHtml(d){
     <div class="card"><div class="row"><span class="main"><span class="name">${mobN} ćwiczeń</span><span class="sub">Około 10 minut, codziennie</span></span></div></div></section>`);
   return out.join("");
 }
+const doneRow = (it, i) => `<div class="row">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana na dziś</span>` : ""}</div>`;
 function dayLead(d){
   const names = [d.kind === "strength" ? "Strength" : d.kind === "cond" ? "Conditioning" : null, "Mobility"].filter(Boolean);
   if (d.past) return d.done || d.mob ? "Zrobione: " + [d.done ? names[0] : null, d.mob ? "Mobility" : null].filter(Boolean).join(" i ") + "." : d.kind ? "Ten dzień został pominięty." : "Dzień wolny.";
@@ -919,16 +925,6 @@ function renderNote(){
 }
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
 function doneSessions(){ return Object.values(S.sessions).filter(s => s.v === 2 && s.status === "done").sort((a, b) => (b.date + b.kind).localeCompare(a.date + a.kind)); }
-function renderHistory(){
-  const list = doneSessions();
-  if (!list.length) return `<section class="screen">${backHead("Historia")}<p class="lead">Po pierwszej sesji zobaczysz tu plan, swoją notatkę i ocenę od Claude.</p></section>`;
-  return `<section class="screen">${backHead("Historia")}${list.map(s => {
-    const r = reviewFor(s.id);
-    return `<section class="sec"><h2 class="sec-h">${esc(shortDate(s.date))} · ${s.kind === "strength" ? "Strength · " + roundsText(s.rounds) : s.kind === "cond" ? "Conditioning" : "Mobility"}</h2><div class="card">
-      ${s.items.map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana</span>` : ""}</div>`).join("")}
-      ${s.note ? `<div class="row"><span class="main"><span class="why">${esc(s.note)}</span></span></div>` : ""}
-      ${r ? `<div class="row"><span class="main"><span class="name">${esc(r.title || "Ocena")}</span>${r.text ? `<span class="why">${esc(r.text)}</span>` : ""}${r.changes ? `<span class="why">Zmiany: ${esc(r.changes)}</span>` : ""}</span></div>` : ""}</div></section>`; }).join("")}</section>`;
-}
 /* ---------- progress: level 0–100 like BTWB Fitness Level = percentile among people who train ----------
    Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
    Hinge (no community data for KB Swing) and Conditioning (Row 2000 m, men 40–49) are estimates. */
@@ -1181,7 +1177,7 @@ function sheetHtml(){
       <button class="btn" data-act="close">Gotowe</button></div>`;
   }
   if (sh.type === "menu"){
-    const items = [["history", "Historia"], ["progress", "Progres"], ["settings", "Sprzęt i plan"]];
+    const items = [["progress", "Progres"], ["settings", "Sprzęt i plan"]];
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${SHEET_X}
       <header><h2>Menu</h2></header>
       <div class="card">${items.map(([v, t]) => `<button class="row" style="min-height:56px" data-act="go" data-v="${v}"><span class="main"><span class="name" style="font-weight:400">${t}</span></span>${CHEV}</button>`).join("")}</div></div>`;
@@ -1203,7 +1199,7 @@ function renderSheet(){
 /* ---------- render ---------- */
 function render(){
   const v = S.view;
-  const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "history" ? renderHistory() : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
+  const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
     : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
   renderSheet();
@@ -1277,7 +1273,7 @@ document.addEventListener("click", e => {
     case "home": go("home"); break;
     case "open": S.kind = b.dataset.kind; go("prep"); break;
     case "pick-day": S.sel = b.dataset.date === today() ? null : b.dataset.date; render(); break;
-    case "wk": { const off = Math.max(WK_MIN, Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
+    case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
     case "back-prep": go("prep"); break;
     case "note": go("note"); break;
@@ -1346,7 +1342,7 @@ Sync.init();
 S.loaded = true;
 document.body.classList.remove("loading");
 render();
-Sync.pull().then(changed => { if (changed && ["home", "prep", "history", "progress"].includes(S.view)) render(); });
+Sync.pull().then(changed => { if (changed && ["home", "prep", "progress"].includes(S.view)) render(); });
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).catch(() => {});
 </script>
 </body>
