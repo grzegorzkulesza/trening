@@ -244,7 +244,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.19";
+const APP_VERSION = "2026-11-11.20";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -539,6 +539,28 @@ function dayFor(date){
   return weekDays(off).find(x => x.date === date);
 }
 const doneRow = (it, i) => `<div class="row">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana na dziś</span>` : ""}</div>`;
+// Estimated duration in minutes. Rough seconds per rep, carries ~1.2 s per metre, a short change between exercises,
+// at most 20 s between rounds, 2 min Warm-up, 2 min barbell warm-up sets. Intervals: 5 min easy before, 4 min after.
+function estSec(it){
+  const ex = exOf(it.ex), sides = ex.side ? 2 : 1;
+  if (ex.minutes) return it.reps * 60;
+  if (ex.timed) return it.reps * sides;
+  if (ex.dist) return it.reps * sides * 1.2;
+  return it.reps * sides * (ex.bb ? 4 : ex.pattern === "hinge" ? 2 : 3) + (ex.bb ? 10 : 0);
+}
+function estMin(kind, items, rounds){
+  if (!items.length) return 0;
+  let min;
+  if (kind === "cond"){ const it = items[0], ex = exOf(it.ex); min = ex.interval ? it.reps * (it.ex === "rope-int" ? 1 : 2) + 9 : it.reps; }
+  else {
+    const trans = kind === "mobility" ? 30 : 15, r = kind === "strength" ? (rounds || 1) : 1;
+    let sec = r * items.reduce((a, it) => a + estSec(it) + trans, 0);
+    if (kind === "strength") sec += (r - 1) * 20 + 120 + (items.some(it => exOf(it.ex).bb) ? 120 : 0);
+    min = sec / 60;
+  }
+  return Math.max(1, min < 15 ? Math.round(min) : Math.round(min / 5) * 5);
+}
+const estText = (kind, items, rounds) => "około " + estMin(kind, items, rounds) + " min";
 const sessOf = id => { const x = S.sessions[id]; return x && x.v === 2 ? x : null; };
 const isDone = x => !!(x && x.status === "done");
 function doneSub(x){
@@ -551,9 +573,9 @@ function dayCardsHtml(date){
   const t = today(), isToday = date === t, past = date < t, w = parseYmd(date).getDay(), day = dayFor(date);
   const st = sessOf(date), cs = sessOf(date + "-cond"), mb = sessOf(date + "-mob");
   const strengthDay = S.profile.schedule.includes(w), condDay = (S.profile.condSchedule || []).includes(w);
-  const card = (kind, title, sub, x, missed, extra) => {
+  const card = (kind, title, sub, x, missed, optional) => {
     const done = isDone(x), off = past && !done;
-    const chip = done ? `<span class="status done">✓ Zrobione</span>` : missed ? `<span class="status">Pominięte</span>` : off ? "" : `<span class="status">${isToday ? "Do zrobienia" : "Zaplanowane"}</span>`;
+    const chip = done ? `<span class="status done">✓ Zrobione</span>` : missed ? `<span class="status">Pominięte</span>` : off ? "" : `<span class="status">${optional ? "Opcjonalnie" : isToday ? "Do zrobienia" : "Zaplanowane"}</span>`;
     const inner = `<span class="day-main"><span class="day-top"><span class="day-title">${title}</span>${chip}</span><span class="day-sub">${esc(sub)}</span></span>`;
     const act = done ? `data-act="detail" data-id="${esc(x.id)}"` : isToday ? `data-act="open" data-kind="${kind}"` : !past ? `data-act="plan-detail" data-date="${date}" data-kind="${kind}"` : "";
     return act ? `<button class="day-card" ${act}>${inner}${CHEV}</button>` : `<div class="day-card off">${inner}</div>`;
@@ -563,16 +585,16 @@ function dayCardsHtml(date){
     let sub;
     if (isDone(st)) sub = doneSub(st);
     else if (past) sub = "Opuszczony trening po prostu pomijasz.";
-    else { const its = dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", bb:null}), bb = its.find(it => BB_ORDER.includes(it.key));
-      sub = roundsText(S.profile.rounds) + " · " + its.length + " ćwiczeń" + (bb ? " · " + exOf(bb.ex).name : ""); }
+    else if (isToday && st && st.status === "prep") sub = estText("strength", st.items, st.rounds);
+    else sub = estText("strength", dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", bb:null}), S.profile.rounds);
     out.push(card("strength", "Strength", sub, st, past && !isDone(st)));
   }
   if (isDone(cs) || (!past && condDay && !strengthDay) || (isToday && !strengthDay)){
     const ck = condKey(date), sl = slotByKey(ck);
-    const sub = isDone(cs) ? doneSub(cs) : (condDay ? "" : "Opcjonalnie: ") + (ck === "c-int" ? "Intervals" : "Steady") + (sl ? " · " + (ck === "c-int" ? roundsText(sl.reps) : sl.reps + " min") : "");
-    out.push(card("cond", "Conditioning", sub, cs, false));
+    const sub = isDone(cs) ? doneSub(cs) : sl ? estText("cond", [sl]) : "";
+    out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
   }
-  out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "Nie zrobione." : slotsOf("mobility").length + " ćwiczeń · około 10 min", mb, false));
+  out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "Nie zrobione." : estText("mobility", slotsOf("mobility")), mb, false));
   return `<div class="day-list">${out.join("")}</div>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
@@ -899,12 +921,12 @@ function renderPrep(){
   if (cond){
     const it = s.items[0], intervals = it && exOf(it.ex).interval;
     return `<section class="screen">${head(intervals ? "Intervals" : "Steady")}
-      <section class="sec"><h2 class="sec-h">${intervals ? "Około 25 minut" : "Tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, true)).join("")}</div>
+      <section class="sec"><h2 class="sec-h">${cap(estText("cond", s.items))}${intervals ? "" : " · tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, true)).join("")}</div>
         <p class="note">${intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   return `<section class="screen">${head("Plan na dziś")}
-    <section class="sec"><h2 class="sec-h">Około 10 minut</h2><div class="card">${s.items.map(it => itemRow(it, null, true)).join("")}</div></section>
+    <section class="sec"><h2 class="sec-h">${cap(estText("mobility", s.items))}</h2><div class="card">${s.items.map(it => itemRow(it, null, true)).join("")}</div></section>
     <div class="push"><button class="btn" data-act="note">Zrobione</button></div></section>`;
 }
 // Details of a done session: what was done, the note and Claude's review. Same screen for today and for past days.
@@ -925,7 +947,7 @@ function planScreen(date, kind){
     : (kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(date)) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">Plan</h1></div></header>`;
   return `<section class="screen">${head}
-    <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? (condKey(date) === "c-int" ? "Intervals" : "Steady") : "Około 10 minut"}</h2>
+    <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? (condKey(date) === "c-int" ? "Intervals" : "Steady") : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
       <p class="note">${strength ? "Ciężary i powtórzenia według obecnego planu. Claude może je zmienić po kolejnych treningach." : "Według obecnego planu."}</p></section></section>`;
 }
