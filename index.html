@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.52";
+const APP_VERSION = "2026-11-11.53";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -334,7 +334,7 @@ const EQUIP = [
   {id:"kb4", label:"Kettlebell 4 kg"}, {id:"kb8", label:"Kettlebell 8 kg"}, {id:"kb16", label:"Kettlebell 16 kg"}, {id:"kb20", label:"Kettlebell 20 kg"},
   {id:"db15", label:"Hantle 2 × 15 kg"}, {id:"db225", label:"Hantle 2 × 22,5 kg"}, {id:"mb9", label:"Piłka lekarska 9 kg"},
   {id:"rings", label:"Kółka gimnastyczne"}, {id:"pullbar", label:"Drążek"}, {id:"bands", label:"Gumy oporowe"},
-  {id:"box", label:"Skrzynia 50 / 60 / 75 cm"}, {id:"rower", label:"Wioślarz"}, {id:"rope", label:"Skakanka"},
+  {id:"box", label:"Skrzynia 50 / 60 / 75 cm"}, {id:"rower", label:"Wioślarz"}, {id:"rope", label:"Skakanka"}, {id:"broom", label:"Kij"}, {id:"abmat", label:"AbMat"},
   {id:"barbell", label:"Sztanga i stojaki", note:"Gryf 20 kg, bumpery 2 × 20 / 15 / 10 / 5 / 2,5 / 1,25 kg."}
 ];
 const DEFAULT_EQUIP = Object.fromEntries(EQUIP.map(e => [e.id, true]));
@@ -509,12 +509,19 @@ const DEFAULT_SLOTS = [
   {key:"m-super", group:"mobility", pattern:"mob-back", ex:"superman", load:"bw", reps:10},
   {key:"m-crab", group:"mobility", pattern:"mob-tspine", ex:"crab-press", load:"bw", reps:6}
 ];
-const WARMUP = [
-  {name:"Jumping Jacks", reps:20, cue:"Luźno i rytmicznie, ręce nad głowę."},
-  {name:"Air Squat", reps:10, cue:"Pełny zakres, pięty przy podłodze."},
-  {name:"Ring Row", reps:8, cue:"Lekko, tułów prawie pionowo. Budzi plecy i łopatki."}
-];
-const WARM_START = [{id:"rope", name:"Jump Rope", dose:"45 s", eq:"rope"}, {id:"row", name:"Row", dose:"1 min", eq:"rower"}];
+// Warm-up, about 5 minutes: Row to warm up in general, then one move for each part today's circuit works,
+// matched to the barbell lift of the day (Deadlift: hinge with a stick; Push Press: pass-throughs for the shoulders).
+function warmupFor(items){
+  const has = id => (items || []).some(it => it.ex === id);
+  const kb = ["kb16", "kb20", "kb8"].find(k => eqOk(k)), kbKg = kb ? kb.slice(2) : null;
+  const out = [eqOk("rower") ? {name:"Row", dose:"2 min", cue:"Spokojnie, ostatnie 20 s żywiej."} : {name:"Jumping Jacks", dose:"× 40"}];
+  if (eqOk("bands")) out.push({name:"Band Pull-apart", dose:"× 10"});
+  out.push(has("bb-dl") && eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8", cue:"Kij na plecach: głowa, łopatki, kość krzyżowa."}
+    : kbKg ? {name:"KB Deadlift", dose:kbKg + " kg × 8"} : {name:"Hip Hinge", dose:"× 8"});
+  out.push(eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5", cue:"2 s pauzy na dole."} : {name:"Air Squat", dose:"× 8", cue:"2 s pauzy na dole."});
+  out.push(has("bb-push-press") && eqOk("broom") ? {name:"Broomstick Pass-through", dose:"× 10"} : {name:"Push-up", dose:"× 5"});
+  return out;
+}
 
 const MIG = 2; // 1: barbell switched on; 2: Steady at least 40 min (Nov 2026)
 function defaultProfile(){
@@ -609,7 +616,7 @@ function dayFor(date){
 }
 const doneRow = (it, i) => `<div class="row">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana na dziś</span>` : ""}</div>`;
 // Estimated duration in minutes. Rough seconds per rep, carries ~1.2 s per metre, a short change between exercises,
-// at most 20 s between rounds, 2 min Warm-up, 2 min barbell warm-up sets. Intervals: 5 min easy before, 4 min after.
+// at most 20 s between rounds, 5 min Warm-up, 2 min barbell warm-up sets. Intervals: 5 min easy before, 4 min after.
 function estSec(it){
   const ex = exOf(it.ex), sides = ex.side ? 2 : 1;
   if (ex.minutes) return it.reps * 60;
@@ -624,7 +631,7 @@ function estMin(kind, items, rounds){
   else {
     const trans = kind === "mobility" ? 30 : 15, r = kind === "strength" ? (rounds || 1) : 1;
     let sec = r * items.reduce((a, it) => a + estSec(it) + trans, 0);
-    if (kind === "strength") sec += (r - 1) * 20 + 120 + (items.some(it => exOf(it.ex).bb) ? 120 : 0);
+    if (kind === "strength") sec += (r - 1) * 20 + 300 + (items.some(it => exOf(it.ex).bb) ? 120 : 0);
     min = sec / 60;
   }
   return Math.max(1, min < 15 ? Math.round(min) : Math.round(min / 5) * 5);
@@ -1047,11 +1054,10 @@ function renderPrep(){
   const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
   if (s.status === "done") return doneScreen(s);
   if (strength){
-    const ws = WARM_START.find(w => w.id === S.profile.warmStart && eqOk(w.eq)) || WARM_START.find(w => eqOk(w.eq));
-    const warmNames = [ws ? ws.name : null, ...WARMUP.map(w => w.name)].filter(Boolean).join(", ");
+    const warmNames = warmupFor(s.items).map(w => w.name).join(", ");
     return `<section class="screen">${head("Plan na dziś")}
       <section class="sec"><h2 class="sec-h">Warm-up</h2>
-        <div class="card"><button class="row" data-act="warmup"><span class="main"><span class="name">Około 2 minut, bez przerw</span><span class="sub">${esc(warmNames)}</span></span>${CHEV}</button></div></section>
+        <div class="card"><button class="row" data-act="warmup"><span class="main"><span class="name">Około 5 minut</span><span class="sub">${esc(warmNames)}</span></span>${CHEV}</button></div></section>
       <section class="sec"><div class="sec-row"><h2 class="sec-h">Circuit</h2>
         <div class="stepper" role="group" aria-label="Liczba rund"><button class="round-btn" data-act="rounds" data-d="-1" aria-label="Mniej rund" ${s.rounds <= 1 ? "disabled" : ""}>−</button><span class="val">${roundsText(s.rounds)}</span><button class="round-btn" data-act="rounds" data-d="1" aria-label="Więcej rund" ${s.rounds >= 5 ? "disabled" : ""}>+</button></div></div>
         <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div>
@@ -1489,12 +1495,10 @@ function sheetHtml(){
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
   }
   if (sh.type === "warmup"){
-    const starts = WARM_START.filter(w => eqOk(w.eq));
+    const ws = warmupFor(s.items);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Warm-up">${SHEET_X}
-      <header><h2>Warm-up</h2><p class="sub">Około 2 minut, jedno po drugim, bez przerw. Ma podnieść tętno i rozruszać stawy.</p></header>
-      ${starts.length ? `<section class="sec"><h3 class="sec-h">Start</h3><div class="choices" style="grid-template-columns:repeat(${starts.length},minmax(0,1fr))">${starts.map(w =>
-        `<button class="choice ${S.profile.warmStart === w.id ? "on" : ""}" style="min-height:64px" data-act="warm-start" data-v="${w.id}" aria-pressed="${S.profile.warmStart === w.id}">${w.name}<small>${w.dose}</small></button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">Then</h3><div class="card">${WARMUP.map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">× ${w.reps}</span></span><span class="sub">${esc(w.cue)}</span></span></div>`).join("")}</div></section>
+      <header><h2>Warm-up</h2><p class="sub">Około 5 minut, bez przerw.</p></header>
+      <div class="card">${ws.map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span>${w.cue ? `<span class="sub">${esc(w.cue)}</span>` : ""}</span></div>`).join("")}</div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
   }
   if (sh.type === "confirm"){
@@ -1613,7 +1617,6 @@ document.addEventListener("click", e => {
     case "review": Sync.retryReview(); break;
     case "seen": try { localStorage.setItem("trening:seen-review", b.dataset.id); } catch(e2){} render(); break;
     case "warmup": S.sheet = {type:"warmup"}; renderSheet(); break;
-    case "warm-start": S.profile.warmStart = b.dataset.v; commitProfile(); renderSheet(); render(); break;
     case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
     case "set-variant": { const it = editIt(); if (!it) return; const ex = EX[b.dataset.ex]; if (!ex || ex.id === it.ex) return;
       setItem(s, it, {ex:ex.id, load:fitLoad(ex, loadsOf(ex).includes(it.load) ? it.load : ex.def[0]), reps:ex.def[1]}, true); renderSheet(); render(); break; }
