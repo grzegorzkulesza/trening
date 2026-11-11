@@ -222,7 +222,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.11";
+const APP_VERSION = "2026-11-11.12";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -532,7 +532,7 @@ const Coach = {
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
-      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}]}. W changes tylko ćwiczenia, które zmieniasz.';
+      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}]}. W changes tylko ćwiczenia, które zmieniasz. Jeśli notatka podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".';
   },
   parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
   apply(s, out){
@@ -550,6 +550,8 @@ const Coach = {
     const r = parseInt(out.rounds, 10);
     if (g === "circuit" && r >= 1 && r <= 5 && r !== S.profile.rounds){ changes.push("Rounds: " + S.profile.rounds + " → " + r); S.profile.rounds = r; }
     if (changes.length) commitProfile();
+    const m = String(out.row2000 || "").match(/^(\d{1,2}):(\d{2})(?:[.,]\d)?$/);
+    if (m){ const sec = +m[1] * 60 + +m[2]; if (sec >= 300 && sec <= 900){ s.bench = {...(s.bench || {}), row2000:sec}; commitSession(s); } }
     return {id:s.id, date:s.date, title:String(out.title || "Sesja zapisana.").slice(0, 120), text:String(out.text || "").slice(0, 1500), changes:changes.join("; ") || "bez zmian"};
   }
 };
@@ -785,39 +787,62 @@ function renderHistory(){
       ${s.note ? `<div class="row"><span class="main"><span class="why">${esc(s.note)}</span></span></div>` : ""}
       ${r ? `<div class="row"><span class="main"><span class="name">${esc(r.title || "Ocena")}</span>${r.text ? `<span class="why">${esc(r.text)}</span>` : ""}${r.changes ? `<span class="why">Zmiany: ${esc(r.changes)}</span>` : ""}</span></div>` : ""}</div></section>`; }).join("")}</section>`;
 }
-/* ---------- progress: level 0–100 per category (100 = goal), like a personal Fitness Level ---------- */
-// step: [exId, load ("*" = any), repsFrom, repsTo, levelFrom, levelTo]
+/* ---------- progress: level 0–100 like BTWB Fitness Level = percentile among people who train ----------
+   Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
+   Hinge (no community data for KB Swing) and Conditioning (Row 2000 m, men 40–49) are estimates. */
+const PCTS = [5, 20, 50, 80, 95], RIR = 2;
+const KGS = {bw:0, kb4:4, kb8:8, kb16:16, kb20:20, db15x2:30, db225x2:45};
+const clamp01 = x => Math.max(0, Math.min(1, x));
+function pctFrom(v, a){
+  if (!(v > 0)) return 0;
+  const pts = [[0, 0], ...a.map((x, i) => [x, PCTS[i]]), [a[4] * 1.35, 100]];
+  for (let i = 1; i < pts.length; i++) if (v <= pts[i][0]){ const [x0, y0] = pts[i - 1], [x1, y1] = pts[i]; return y0 + (v - x0) / (x1 - x0) * (y1 - y0); }
+  return 100;
+}
+const e1rm = (kg, reps) => kg * (1 + (reps + RIR) / 30);
+const fmtTime = t => Math.floor(t / 60) + ":" + String(Math.round(t % 60)).padStart(2, "0");
 const LEVEL_CATS = [
-  {id:"pull", name:"Pull", pattern:"hpull", goal:"10 × Pull-up", steps:[["ring-row","*",6,12,0,20],["ring-row-box","*",6,12,20,40],["pullup-negative","*",2,5,40,55],["band-pullup","*",3,8,55,70],["pullup","*",1,10,70,100]]},
-  {id:"push", name:"Push", pattern:"hpush", goal:"8 × Ring Dip", steps:[["incline-pushup-75","*",6,15,0,15],["knee-pushup","*",6,15,15,30],["pushup-negative","*",3,8,30,40],["pushup","*",3,20,40,80],["ring-dip","*",1,8,80,100]]},
-  {id:"press", name:"Press", pattern:"vpush", goal:"KB Clean & Strict Press 20 kg × 8 per side", steps:[["kb-clean-press","kb8",5,10,0,15],["kb-clean-press","kb16",3,8,15,45],["kb-strict-press","kb16",3,8,45,70],["kb-strict-press","kb20",1,8,70,100]]},
-  {id:"hinge", name:"Hinge", pattern:"hinge", goal:"One-arm KB Swing 20 kg × 15 per side", steps:[["kb-swing","kb16",10,20,0,25],["kb-swing","kb20",10,20,25,55],["kb-swing-1a","kb20",5,15,55,100]]},
-  {id:"legs", name:"Legs", pattern:"lunge", goal:"Bulgarian Split Squat 2 × 15 kg × 10 per side", steps:[["bss","bw",5,12,0,15],["bss","kb8",5,10,15,35],["bss","kb16",5,10,35,55],["bss","kb20",5,10,55,70],["bss","db15x2",5,10,70,100]]},
-  {id:"carry", name:"Core & Carry", pattern:"carry", goal:"Farmer's Carry 2 × 22,5 kg × 40 m", steps:[["suitcase-carry","kb8",20,40,0,20],["suitcase-carry","kb16",20,40,20,45],["suitcase-carry","kb20",20,40,45,70],["farmer-carry","db15x2",20,40,70,85],["farmer-carry","db225x2",20,40,85,100]]},
-  {id:"cond", name:"Conditioning", kind:"cond", goal:"12 rounds Intervals i 45 min Steady", steps:[]}
+  {id:"pull", name:"Pull", pattern:"hpull", src:"Strength Level, Pull-ups", std:["1 Pull-up", "6 Pull-ups", "13 Pull-ups", "24 Pull-ups", "34 Pull-ups"],
+    score(it){ const r = it.reps; switch (it.ex){
+      case "ring-row": return 1.5 * clamp01(r / 12); case "ring-row-box": return 1.5 + clamp01(r / 12);
+      case "pullup-negative": return 2.5 + clamp01(r / 5); case "band-pullup": return 3.5 + 1.5 * clamp01(r / 8);
+      case "pullup": return pctFrom(r + RIR, [1, 6, 13, 24, 34]); } return null; }},
+  {id:"push", name:"Push", pattern:"hpush", src:"Strength Level, Push-ups", std:["1 Push-up", "18 Push-ups", "41 Push-ups", "68 Push-ups", "99 Push-ups"],
+    score(it){ const r = it.reps; switch (it.ex){
+      case "incline-pushup-75": case "incline-pushup-50": return 1.5 * clamp01(r / 15); case "knee-pushup": return 1.5 + 1.5 * clamp01(r / 15);
+      case "pushup-negative": return 3 + clamp01(r / 8); case "pushup": return pctFrom(r + RIR, [1, 18, 41, 68, 99]);
+      case "ring-dip": return Math.max(pctFrom(30, [1, 18, 41, 68, 99]), pctFrom(r + RIR, [1, 6, 13, 24, 34])); } return null; }},
+  {id:"press", name:"Press", pattern:"vpush", src:"Strength Level, Dumbbell Shoulder Press (1RM jedną ręką)", std:["13 kg", "21 kg", "32 kg", "45 kg", "60 kg"],
+    score(it){ const kg = KGS[it.load]; if (!kg) return null;
+      if (it.ex === "kb-clean-press") return pctFrom(e1rm(kg, it.reps) * 0.9, [13, 21, 32, 45, 60]);
+      if (it.ex === "kb-strict-press") return pctFrom(e1rm(kg, it.reps), [13, 21, 32, 45, 60]); return null; }},
+  {id:"hinge", name:"Hinge", pattern:"hinge", src:"szacunek wg standardów StrongFirst (brak danych społeczności dla KB Swing)", std:["KB Swing 16 kg × 15", "24 kg × 15", "32 kg × 15", "40 kg × 15", "48 kg × 15"],
+    score(it){ const kg = KGS[it.load]; if (!kg) return null; const eq = it.ex === "kb-swing-1a" ? kg * 1.3 : it.ex === "kb-swing" ? kg : 0; if (!eq) return null;
+      return Math.max(0, pctFrom(eq, [16, 24, 32, 40, 48]) + (Math.max(10, Math.min(30, it.reps)) - 15) * 0.4); }},
+  {id:"legs", name:"Legs", pattern:"lunge", src:"Strength Level, Dumbbell Bulgarian Split Squat (1RM, ciężar na rękę)", std:["2 × 10 kg", "2 × 18 kg", "2 × 30 kg", "2 × 44 kg", "2 × 60 kg"],
+    score(it){ if (it.ex !== "bss") return null; if (it.load === "bw") return 1.5 * clamp01(it.reps / 12); return pctFrom(e1rm(KGS[it.load] / 2, it.reps), [10, 18, 30, 44, 60]); }},
+  {id:"carry", name:"Core & Carry", pattern:"carry", src:"Strength Level, Farmers Walk (ciężar na rękę, 20 m)", std:["2 × 9 kg", "2 × 20 kg", "2 × 37 kg", "2 × 58 kg", "2 × 84 kg"],
+    score(it){ const kg = KGS[it.load]; if (!kg) return null; const hand = it.ex === "suitcase-carry" ? kg : it.ex === "farmer-carry" ? kg / 2 : 0; if (!hand) return null;
+      return pctFrom(hand, [9, 20, 37, 58, 84]) + (Math.max(20, Math.min(60, it.reps)) - 20) / 10; }},
+  {id:"cond", name:"Conditioning", kind:"cond", src:"szacunek z rankingów Concept2, mężczyźni 40–49", std:["Row 2000 m 9:30", "8:40", "7:50", "7:10", "6:40"], bench:true,
+    scoreBench(sec){ return pctFrom(2000 / sec, [570, 520, 470, 430, 400].map(t => 2000 / t)); }}
 ];
 const MOD_COLORS = {W:"#1F4E8C", G:"#E39A3B", M:"#3E9C7F"};
-const stepName = st => { const ex = exOf(st[0]); return ex.name + (ex.tag ? " (" + ex.tag + ")" : "") + (st[1] !== "*" && st[1] !== "bw" ? " " + (LOADS[st[1]]?.label || st[1]) : ""); };
 const ddmm = d => { const x = parseYmd(d); return x.getDate() + "." + (x.getMonth() + 1); };
-function stepFor(cat, it){ const id = EX_ALIAS[it.ex] || it.ex; return cat.steps.findIndex(st => st[0] === id && (st[1] === "*" || st[1] === it.load)); }
-function stepLevel(st, reps){ const r = Math.max(st[2], Math.min(st[3], reps)); return Math.round(st[4] + (r - st[2]) / Math.max(1, st[3] - st[2]) * (st[5] - st[4])); }
-function condLevel(it){ const ex = exOf(it.ex); if (ex.interval) return Math.round(Math.max(0, Math.min(1, (it.reps - 6) / 6)) * 100); if (ex.minutes) return Math.round(Math.max(0, Math.min(1, (it.reps - 20) / 25)) * 100); return null; }
+const exLabel = id => { const ex = exOf(id); return ex.name + (ex.tag ? " (" + ex.tag + ")" : ""); };
+const resText = it => exLabel(it.ex) + " " + doseText(it.ex, it.load, it.reps).replace(/^.* · /, "").replace(/^(Bodyweight|Feet on box) /, "");
+const unlockN = c => c.bench ? 1 : 2;
 // Every done session gives at most one result per category: the best one in that session.
 function levelHistory(){
   const out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []]));
   const sess = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && (x.kind === "strength" || x.kind === "cond")).sort((a, b) => a.date.localeCompare(b.date));
-  const lastCond = {};
   for (const x of sess){
-    if (x.kind === "cond"){
-      for (const it of x.items || []){ const l = condLevel(it); if (l == null) continue; lastCond[exOf(it.ex).interval ? "int" : "steady"] = {l, it}; }
-      const parts = Object.values(lastCond);
-      if (parts.length){ const it = x.items[0]; out.cond.push({date:x.date, level:Math.round(parts.reduce((a, p) => a + p.l, 0) / parts.length), text:exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps), it}); }
-      continue;
-    }
     for (const c of LEVEL_CATS){
-      if (!c.pattern) continue;
+      if (c.bench){ const t = x.bench && x.bench.row2000; if (t) out[c.id].push({date:x.date, level:Math.round(c.scoreBench(t)), text:"Row 2000 m " + fmtTime(t)}); continue; }
+      if (x.kind !== "strength") continue;
       let best = null;
-      for (const it of x.items || []){ const i = stepFor(c, it); if (i < 0) continue; const l = stepLevel(c.steps[i], it.reps); if (!best || l > best.level) best = {date:x.date, level:l, text:exOf(it.ex).name + (exOf(it.ex).tag ? " (" + exOf(it.ex).tag + ")" : "") + " " + doseText(it.ex, it.load, it.reps).replace(/^.* · /, "").replace(/^Bodyweight /, "").replace(/^Feet on box /, ""), it, step:i}; }
+      for (const it0 of x.items || []){ const it = {...it0, ex:EX_ALIAS[it0.ex] || it0.ex}; const v = c.score(it); if (v == null) continue;
+        const l = Math.round(v); if (!best || l > best.level) best = {date:x.date, level:l, text:resText(it), it}; }
       if (best) out[c.id].push(best);
     }
   }
@@ -826,7 +851,7 @@ function levelHistory(){
 const lastChange = arr => { if (!arr.length) return 0; const v = arr[arr.length - 1]; for (let i = arr.length - 2; i >= 0; i--) if (arr[i] !== v) return v - arr[i]; return 0; };
 function overallSeries(H){
   const dates = [...new Set(Object.values(H).flat().map(r => r.date))].sort();
-  return dates.map(d => { const lv = LEVEL_CATS.map(c => H[c.id].filter(r => r.date <= d)).filter(a => a.length >= 2).map(a => a[a.length - 1].level);
+  return dates.map(d => { const lv = LEVEL_CATS.map(c => [c, H[c.id].filter(r => r.date <= d)]).filter(([c, a]) => a.length >= unlockN(c)).map(([, a]) => a[a.length - 1].level);
     return lv.length ? {date:d, level:Math.round(lv.reduce((a, b) => a + b, 0) / lv.length)} : null; }).filter(Boolean);
 }
 function levelChart(points, label){
@@ -842,8 +867,8 @@ const barHtml = v => `<span class="bar"><i style="width:${Math.max(0, Math.min(1
 function renderProgress(){
   const H = levelHistory(), O = overallSeries(H), ov = O.length ? O[O.length - 1].level : null;
   const rows = LEVEL_CATS.map(c => {
-    const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level));
-    if (h.length < 2) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${h.length} z 2</span></span><span class="s">${h.length ? esc(last.text) + " · " : ""}Odblokuje się po 2 treningach</span></button>`;
+    const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level)), need = unlockN(c);
+    if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
     return `<button class="cat" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>${barHtml(last.level)}<span class="s">${esc(last.text)}</span></button>`;
   }).join("");
   const cov = coverageData();
@@ -854,29 +879,29 @@ function renderProgress(){
     <div class="card"><button class="row" data-act="go" data-v="coverage" style="min-height:72px"><span class="main"><span class="name">Pokrycie</span><span class="sub">${cov.reg[0].done} z ${cov.reg[0].plan} Strength · ${cov.gaps} ${plural(cov.gaps, "wzorzec", "wzorce", "wzorców")} bez ćwiczeń</span></span>${CHEV}</button></div>
   </section>`;
 }
+const CHECK_W = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>`;
 function renderCat(){
-  const c = LEVEL_CATS.find(x => x.id === S.cat) || LEVEL_CATS[0], h = levelHistory()[c.id], last = h[h.length - 1];
+  const c = LEVEL_CATS.find(x => x.id === S.cat) || LEVEL_CATS[0], h = levelHistory()[c.id], last = h[h.length - 1], need = unlockN(c), lv = last ? last.level : null;
   const head = `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="progress" aria-label="Wróć do progresu">${BACK}</button><h1 class="title" style="font-size:28px">${c.name}</h1></div></header>`;
-  const hero = h.length < 2 ? `<section class="lvl"><p class="lead">Odblokuje się po 2 treningach (${h.length} z 2). Cel: ${esc(c.goal)}.</p></section>`
-    : `<section class="lvl"><div class="lvl-top"><p class="lvl-num"><b>${last.level}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}</section>`;
-  let path;
-  if (c.id === "cond"){
-    const pick = f => { const r = [...h].reverse().find(x => (x.it && exOf(x.it.ex)[f])); return r ? r.it : null; };
-    const iv = pick("interval"), st = pick("minutes"), slI = slotByKey("c-int"), slS = slotByKey("c-steady");
-    const row = (title, from, to, val, unit) => `<li class="step cur"><span class="mk cur">${PIN}</span><span class="bd"><b>${title}</b>${barHtml(val == null ? 0 : (val - from) / (to - from) * 100)}<span>${from} → ${to} ${unit} · teraz ${val == null ? "brak" : val + " " + unit}</span></span></li>`;
-    path = `<ol class="card" style="margin:0;padding:0;list-style:none">${row("Intervals", 6, 12, iv ? iv.reps : slI && slI.reps, "rounds")}${row("Steady", 20, 45, st ? st.reps : slS && slS.reps, "min")}</ol>`;
-  } else {
-    const cur = last ? last.step : (() => { const sl = S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit"); return sl ? stepFor(c, sl) : 0; })();
-    path = `<ol class="card" style="margin:0;padding:0;list-style:none">${c.steps.map((st, i) => {
-      if (i < cur) return `<li class="step"><span class="mk done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span class="bd"><b>${esc(stepName(st))}</b><span>${st[4]}–${st[5]} · zaliczone</span></span></li>`;
-      if (i === cur){ const reps = last ? last.it.reps : st[2], within = (Math.max(st[2], Math.min(st[3], reps)) - st[2]) / Math.max(1, st[3] - st[2]) * 100, ex = exOf(st[0]);
-        const u = ex.dist ? " m" : ""; return `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${esc(stepName(st))}</b>${barHtml(within)}<span>${st[4]}–${st[5]} · teraz × ${reps}${u}. ${i < c.steps.length - 1 ? "Następny krok przy × " + st[3] + u + " z zapasem." : "Cel: × " + st[3] + u + "."}</span></span></li>`; }
-      return `<li class="step"><span class="mk next" aria-hidden="true"><i></i></span><span class="bd"><b>${esc(stepName(st))}</b><span>${st[4]}–${st[5]}</span></span></li>`;
-    }).join("")}</ol>`;
+  const hero = h.length < need ? `<section class="lvl"><p class="lead">${c.bench ? "Zrób test Row 2000 m na maksa w sesji Conditioning i podaj czas w notatce, np. „Row 2000 m 8:45”." : "Odblokuje się po 2 treningach (" + h.length + " z 2)."}</p></section>`
+    : `<section class="lvl"><div class="lvl-top"><p class="lvl-num"><b>${lv}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}</section>`;
+  const names = ["Beginner", "Novice", "Intermediate", "Advanced", "Elite"];
+  let scale = "", placed = lv == null;
+  names.forEach((n, i) => {
+    if (!placed && lv < PCTS[i]){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
+    const done = lv != null && lv >= PCTS[i];
+    scale += `<li class="step"><span class="mk ${done ? "done" : "next"}" aria-hidden="true">${done ? CHECK_W : "<i></i>"}</span><span class="bd"><b>${n} · ${PCTS[i]}</b><span>${esc(c.std[i])}</span></span></li>`;
+  });
+  if (!placed) scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`;
+  let ladder = "";
+  if (!c.bench){
+    const ids = LADDERS[c.pattern] || [], curId = last ? last.it.ex : (S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit") || {}).ex, ci = ids.indexOf(curId);
+    if (ids.length > 1) ladder = `<section class="sec"><h2 class="sec-h">Progresja</h2><ol class="card" style="margin:0;padding:0;list-style:none">${ids.map((id, i) =>
+      `<li class="step ${i === ci ? "cur" : ""}"><span class="mk ${i < ci ? "done" : i === ci ? "cur" : "next"}" aria-hidden="true">${i < ci ? CHECK_W : i === ci ? PIN : "<i></i>"}</span><span class="bd"><b>${esc(exLabel(id))}</b></span></li>`).join("")}</ol></section>`;
   }
   const results = h.length ? `<section class="sec"><h2 class="sec-h">Wyniki, które się liczą</h2><div class="card">${[...h].reverse().slice(0, 6).map(r =>
     `<div class="row"><span class="main"><span class="name" style="font-size:15px">${esc(r.text)}</span><span class="sub" style="font-size:13px">${esc(shortDate(r.date))}</span></span><b style="font-size:17px">${r.level}</b></div>`).join("")}</div></section>` : "";
-  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Progresja</h2>${path}</section>${results}</section>`;
+  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Skala</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(c.src)}.</p></section>${ladder}${results}</section>`;
 }
 const PIN = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
 function coverageData(){
