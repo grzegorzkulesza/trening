@@ -277,7 +277,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.32";
+const APP_VERSION = "2026-11-11.33";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -470,7 +470,7 @@ const DEFAULT_SLOTS = [
   {key:"bb-fs", group:"circuit", pattern:"squat", ex:"bb-front-squat", load:"bb30", reps:5, bb:"bss"},
   {key:"bb-pp", group:"circuit", pattern:"vpush", ex:"bb-push-press", load:"bb30", reps:5, bb:"cp"},
   {key:"c-int", group:"cond", pattern:"cond-int", ex:"row-int", load:"bw", reps:8},
-  {key:"c-steady", group:"cond", pattern:"cond-steady", ex:"row-steady", load:"bw", reps:30},
+  {key:"c-steady", group:"cond", pattern:"cond-steady", ex:"row-steady", load:"bw", reps:40},
   {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:60},
   {key:"m-zsit", group:"mobility", pattern:"mob-hip", ex:"z-sit", load:"bw", reps:30},
   {key:"m-dog", group:"mobility", pattern:"mob-ankle", ex:"down-dog-press", load:"bw", reps:8},
@@ -484,7 +484,7 @@ const WARMUP = [
 ];
 const WARM_START = [{id:"rope", name:"Jump Rope", dose:"45 s", eq:"rope"}, {id:"row", name:"Row", dose:"1 min", eq:"rower"}];
 
-const MIG = 1; // 1: barbell switched on (Nov 2026)
+const MIG = 2; // 1: barbell switched on; 2: Steady at least 40 min (Nov 2026)
 function defaultProfile(){
   return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
 }
@@ -498,6 +498,7 @@ function mergeProfile(p){
     const byKey = Object.fromEntries(p.slots.map(s => [s.key, s]));
     out.slots = d.slots.map(s => byKey[s.key] && byKey[s.key].ex ? {...s, ...byKey[s.key]} : s);
     out.slots.forEach(sl => { if (EX_ALIAS[sl.ex]) sl.ex = EX_ALIAS[sl.ex]; });
+    if ((p.mig || 0) < 2){ const st = out.slots.find(x => x.key === "c-steady"); if (st && st.reps < 40) st.reps = 40; }
   }
   return out;
 }
@@ -1026,9 +1027,8 @@ const ANIMAL = {
   bear: c => `<circle cx="19" cy="21" r="7" fill="#fff"/><circle cx="45" cy="21" r="7" fill="#fff"/><circle cx="19" cy="21" r="3.2" fill="${c}" opacity=".35"/><circle cx="45" cy="21" r="3.2" fill="${c}" opacity=".35"/>
     <ellipse cx="32" cy="36" rx="17" ry="16" fill="#fff"/><ellipse cx="32" cy="43" rx="7.5" ry="5.6" fill="${c}" opacity=".2"/><circle cx="25.5" cy="33" r="1.9" fill="${c}"/><circle cx="38.5" cy="33" r="1.9" fill="${c}"/><ellipse cx="32" cy="40.6" rx="2.8" ry="2" fill="${c}"/>`,
   eagle: c => `<path d="M46 10 C37 7 27 10 22 16 L18 21 L21 31 C23 36 24 40 24 45 L29 49 L33 45 L37 50 L41 45 L45 51 L49 45 L54 49 C56 38 54 27 51 20 C50 15 48 12 46 10 Z" fill="#fff"/>
-    <path d="M22 16 C14 15 7 19 5 25 C4 30 6 35 9 38 C9 34 10 31 13 30 C16 29 19 30 21 31 L18 21 Z" fill="#E3B341"/>
-    <path d="M12 30 C15 27.5 18 27.5 21 28" stroke="${c}" stroke-width="1.3" fill="none" opacity=".55"/><circle cx="27.5" cy="23.5" r="2.4" fill="${c}"/><circle cx="28.2" cy="22.8" r=".7" fill="#fff"/>
-    <polygon points="35,16 36,19.5 24,22.5 21.5,20" fill="${c}"/>`
+    <path d="M22 16 C14 15 7 19 5 25 C4 30 6 35 9 38 C9 34 10 31 13 30 C16 29 19 30 21 31 L18 21 Z" fill="#fff"/><path d="M22 16 C14 15 7 19 5 25 C4 30 6 35 9 38 C9 34 10 31 13 30 C16 29 19 30 21 31 L18 21 Z" fill="${c}" opacity=".35"/>
+    <circle cx="27.5" cy="23.5" r="2.2" fill="${c}"/><polygon points="35,16 36,19.5 24,22.5 21.5,20" fill="${c}"/>`
 };
 const GROUPS = [
   {id:"hedgehog", name:"Hedgehog", min:0, color:"#8C8279"}, {id:"hare", name:"Hare", min:5, color:"#B49870"},
@@ -1508,7 +1508,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ 
 Store.init();
 Sync.init();
 { const data = Store.load(); S.profile = mergeProfile(data.profile); S.sessions = data.sessions || {};
-  if (data.profile && Array.isArray(data.profile.slots) && DEFAULT_SLOTS.some(d => !data.profile.slots.some(x => x.key === d.key))) commitProfile();
+  if (data.profile && Array.isArray(data.profile.slots) && (DEFAULT_SLOTS.some(d => !data.profile.slots.some(x => x.key === d.key)) || (data.profile.mig || 0) < MIG)) commitProfile();
   try { S.reviews = JSON.parse(localStorage.getItem("trening:reviews") || "{}"); } catch(e){ S.reviews = {}; } }
 S.loaded = true;
 document.body.classList.remove("loading");
