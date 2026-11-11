@@ -197,6 +197,35 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .photo img{width:64px;height:64px;object-fit:cover;border-radius:12px;flex:none}
 .photo span{flex:1;font-size:17px;font-weight:500}
 .photo button{border:0;background:none;font-size:15px;color:var(--muted);padding:8px 0}
+/* prototype: time and effort */
+.lab-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#E9E8E3;border-radius:14px;padding:4px}
+.lab-seg button{height:40px;border:0;border-radius:10px;background:transparent;font-size:14px;font-weight:500;color:var(--ink)}
+.lab-seg button.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.lab-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;min-height:60px}
+.lab-row span{font-size:17px;font-weight:500}
+.lab-row small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
+.lab-time{display:block;width:100%;border:0;outline:none;background:transparent;font:inherit;font-size:44px;line-height:1.1;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;padding:6px 0 18px;color:var(--ink);letter-spacing:-.01em}
+.lab-time::placeholder,.lab-time.empty{color:#C9C8C2}
+.lab-time.bad,.lab-ms.bad input{color:var(--warn)}
+.lab-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 14px 14px}
+.lab-pad button{height:54px;border:0;border-radius:14px;background:var(--bg);font-size:24px;font-weight:500;color:var(--ink)}
+.lab-pad button.ok{background:var(--ink);color:#FFFFFF;font-size:17px;font-weight:600}
+.wheels{position:relative;display:flex;justify-content:center;align-items:center;gap:6px;padding:0 18px 16px}
+.wheels::before{content:"";position:absolute;left:18px;right:18px;top:68px;height:44px;border-radius:12px;background:var(--bg)}
+.wheel{position:relative;height:180px;width:84px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.wheel::-webkit-scrollbar{display:none}
+.wheel i{display:block;height:68px}
+.wheel b{display:grid;place-items:center;height:44px;font-size:26px;font-weight:600;scroll-snap-align:center;font-variant-numeric:tabular-nums}
+.wheels em{position:relative;font-style:normal;font-size:26px;font-weight:600}
+.lab-ms{display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:2px 18px 18px}
+.lab-ms label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
+.lab-ms input{width:88px;height:64px;border:0;border-radius:14px;background:var(--bg);font:inherit;font-size:32px;font-weight:600;text-align:center;color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
+.lab-ms input:focus{box-shadow:0 0 0 2px var(--ink)}
+.lab-ms b{font-size:32px;font-weight:600;padding-bottom:30px}
+.rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.rpe button{height:52px;border:0;border-radius:14px;background:var(--surface);font-size:18px;font-weight:600;color:var(--ink)}
+.rpe button.on{background:var(--ink);color:#FFFFFF}
+.rpe-t{margin:0;min-height:20px;font-size:15px;color:var(--muted);text-align:center}
 .note-field textarea{flex:1;text-align:left;font-size:17px;line-height:1.5;padding:0}
 .mic{width:100%;height:54px;flex:none;border:0;border-radius:22px;background:var(--chip);display:grid;place-items:center}
 .hint{margin:6px 0 0;font-size:13px;color:var(--muted)}
@@ -291,7 +320,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.40";
+const APP_VERSION = "2026-11-11.41";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -761,13 +790,14 @@ const COND_RULES = "To sesja Conditioning (osobna od Strength, wtorek Intervals,
 const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu obwodowo w stylu CrossFit z krótkimi przerwami; ten styl zostaje). " +
   "Oceń jego dzisiejszy trening na podstawie notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens) i zdecyduj o planie na następny trening.\n" +
   "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Najwyżej jedna zmiana na ćwiczenie i tylko taka, która wynika z notatki. Za łatwe: krok w górę. Trudne, ból albo sypiąca się technika: zostaje albo krok w dół; przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. " +
-  "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Ustaw liczbę rund na tyle, ile faktycznie robi, jeśli o tym mówi. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
+  "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Rundy: nigdy ich nie dodawaj; możesz je tylko zmniejszyć, gdy robi mniej, przy zmęczeniu albo gdy trening nie mieści się w czasie. Progresja wyłącznie ciężarem, powtórzeniami albo trudniejszym wariantem. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
   "Progresje: KB Halo to przygotowanie barków, najwyżej 8 kg × 8 per side. Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Pull: ring-row → ring-row-box → pullup-negative → band-pullup → pullup. " +
   "Push: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
   "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
   "Sztanga (gryf 20 kg, bumpery, stojaki; kody ciężaru bb + kg, np. bb62.5, od bb20 do bb127.5 co 2,5 kg): w każdym Strength jedno ćwiczenie ze sztangą, po kolei Deadlift (key bb-dl), Front Squat (bb-fs), Push Press (bb-pp); w tej sesji zastępuje odpowiednio KB Swing, Bulgarian Split Squat albo KB Clean & Press. " +
   "Na sztangę zawsze 5 reps na rundę. Za łatwo: Deadlift +5 kg, Front Squat i Push Press +2,5 kg. Trudno, sypiąca się technika, okrągłe plecy albo ból: ten sam ciężar albo −5 kg. Nie dokładaj szybciej, niż wynika z notatki; technika ważniejsza niż kilogramy. " +
-"Czas treningu (pole czas: od startu Warm-up do końca ostatniej rundy) to druga miara obok ciężaru: mówi, jak szybko regeneruje się między ćwiczeniami i rundami. " +
+"Budżet: Strength najwyżej 45 min (bez Warm-up). Gdy czas zbliża się do 45 min, progresja tylko ciężarem albo trudniejszym wariantem, nie powtórzeniami. " +
+  "Czas treningu (pole czas: od pierwszego ćwiczenia 1. rundy do końca ostatniej, bez Warm-up i serii rozgrzewkowych na sztandze) to druga miara obok ciężaru: mówi, jak szybko regeneruje się między ćwiczeniami i rundami. " +
   "Porównuj go z poprzednimi treningami o tym samym składzie (to samo ćwiczenie ze sztangą powtarza się co 3 treningi) i z szacunkiem aplikacji (pole szacunek). " +
   "Ten sam plan w krótszym czasie i bez trudności w notatce: podnieś ciężar albo trudność, nie skracaj czasu dalej. Czas rośnie przy tym samym planie albo notatka mówi o zmęczeniu: nie podnoś. Bez czasu oceniaj jak dotąd. " +
   "Zmieniaj tylko key z dzisiejszej sesji. Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
@@ -809,7 +839,7 @@ const Coach = {
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
-      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W changes tylko ćwiczenia, które zmieniasz. W done tylko ćwiczenia, przy których notatka mówi, że zrobił co innego niż w dzisiejszym planie (inny wariant, ciężar albo liczbę powtórzeń, np. w drugiej rundzie pełne Push-up zamiast Knee Push-up): podaj najlepszą serię, którą faktycznie zrobił; bez zgadywania. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".' +
+      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening (taka sama albo mniejsza niż teraz),"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W changes tylko ćwiczenia, które zmieniasz. W done tylko ćwiczenia, przy których notatka mówi, że zrobił co innego niż w dzisiejszym planie (inny wariant, ciężar albo liczbę powtórzeń, np. w drugiej rundzie pełne Push-up zamiast Knee Push-up): podaj najlepszą serię, którą faktycznie zrobił; bez zgadywania. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".' +
       (photo ? ' Dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
   },
   parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
@@ -836,7 +866,7 @@ const Coach = {
     });
     if (fixed) commitSession(s);
     const r = parseInt(out.rounds, 10);
-    if (g === "circuit" && r >= 1 && r <= 5 && r !== S.profile.rounds){ changes.push("Rounds: " + S.profile.rounds + " → " + r); S.profile.rounds = r; }
+    if (g === "circuit" && r >= 1 && r < S.profile.rounds){ changes.push("Rounds: " + S.profile.rounds + " → " + r); S.profile.rounds = r; }
     if (changes.length) commitProfile();
     const pm = cleanPm5(out.pm5);
     if (pm){ s.pm5 = pm; if (s.items.some(it => exOf(it.ex).test) && pm.time && (!pm.dist || Math.abs(pm.dist - 2000) <= 5) && !out.row2000) out.row2000 = mmss(pm.time); commitSession(s); }
@@ -1374,6 +1404,7 @@ function renderCoverage(){
 function renderSettings(){
   const p = S.profile;
   return `<section class="screen">${backHead("Sprzęt i plan")}
+    <section class="sec"><h2 class="sec-h">Prototyp</h2><div class="card"><button class="row" data-act="go" data-v="lab"><span class="main"><span class="name">Czas i wysiłek</span></span>${CHEV}</button></div></section>
     <section class="sec"><h2 class="sec-h">Sprzęt</h2><div class="card">${EQUIP.map(e => `<div class="opt"><label for="eq-${e.id}">${esc(e.label)}${e.note ? `<small>${esc(e.note)}</small>` : ""}</label><input type="checkbox" class="sw" id="eq-${e.id}" data-eq="${e.id}" ${p.equip[e.id] ? "checked" : ""}></div>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Dni Strength</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
@@ -1392,6 +1423,74 @@ function renderSettings(){
       <button class="btn plain" data-act="reset">Przywróć plan startowy</button>
       <p class="note" style="text-align:center">Wersja ${APP_VERSION}</p></section></section>`;
 }
+
+/* ---------- prototype: entering the session time and effort, four ways (compare, then keep one) ---------- */
+// Foster's CR-10 for session RPE; 6 and 8 sit between the anchors.
+const RPE_TXT = ["", "Bardzo, bardzo lekko", "Lekko", "Umiarkowanie", "Dość ciężko", "Ciężko", "Ciężko+", "Bardzo ciężko", "Bardzo ciężko+", "Prawie maksymalnie", "Maksymalnie"];
+const Lab = {
+  v:"A", on:false, d:"", m:"", s:"", wm:25, ws:0, rpe:null, pad:false, msg:"",
+  VARS:[["A", "Pole"], ["B", "Klawiatura"], ["C", "Kółka"], ["D", "Min i s"]],
+  clear(){ Object.assign(this, {d:"", m:"", s:"", wm:25, ws:0, pad:false, msg:""}); },
+  // Digits typed from the right, like a kitchen timer: 2, 4, 3, 0 → 24:30.
+  fromDigits(){ if (!this.d) return null; const x = this.d.padStart(3, "0"); return [+x.slice(0, -2), +x.slice(-2)]; },
+  secs(){
+    if (!this.on) return null;
+    let mm, ss;
+    if (this.v === "A" || this.v === "B"){ const r = this.fromDigits(); if (!r) return null; [mm, ss] = r; }
+    else if (this.v === "C"){ mm = this.wm; ss = this.ws; }
+    else { if (this.m === "") return null; mm = +this.m; ss = this.s === "" ? 0 : +this.s; }
+    return ss < 60 && mm * 60 + ss > 0 && mm <= 90 ? mm * 60 + ss : null;
+  },
+  bad(){ return this.on && (this.v === "A" || this.v === "B" ? !!this.d : this.v === "D" ? this.m !== "" || this.s !== "" : false) && this.secs() == null; },
+  ok(){ return this.rpe != null && (!this.on || this.secs() != null); },
+  label(){ const r = this.fromDigits(); return r ? r[0] + ":" + String(r[1]).padStart(2, "0") : ""; },
+  timeBody(){
+    if (!this.on) return "";
+    if (this.v === "A") return `<input class="lab-time ${this.bad() ? "bad" : ""}" id="labA" data-lab="a" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0:00" value="${this.label()}" aria-label="Czas treningu">`;
+    if (this.v === "B") return `<button class="lab-time ${this.d ? "" : "empty"} ${this.bad() ? "bad" : ""}" data-lab="b-open" style="border:0">${this.label() || "0:00"}</button>
+      ${this.pad ? `<div class="lab-pad">${[1,2,3,4,5,6,7,8,9].map(n => `<button data-lab="k" data-k="${n}">${n}</button>`).join("")}<button data-lab="k" data-k="del" aria-label="Usuń cyfrę">⌫</button><button data-lab="k" data-k="0">0</button><button class="ok" data-lab="k" data-k="ok">OK</button></div>` : ""}`;
+    if (this.v === "C") { const col = (n, step, id) => `<div class="wheel" id="${id}">${"<i></i>"}${Array.from({length:n}, (_, i) => `<b>${String(i * step).padStart(id === "wS" ? 2 : 1, "0")}</b>`).join("")}<i></i></div>`;
+      return `<div class="wheels">${col(91, 1, "wM")}<em>:</em>${col(60, 1, "wS")}</div>`; }
+    return `<div class="lab-ms ${this.bad() ? "bad" : ""}"><label><input id="labM" data-lab="m" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" placeholder="0" value="${this.m}" aria-label="Minuty">min</label><b>:</b><label><input id="labS" data-lab="s" inputmode="numeric" pattern="[0-9]*" maxlength="2" autocomplete="off" placeholder="00" value="${this.s}" aria-label="Sekundy">s</label></div>`;
+  },
+  render(){
+    return `<section class="screen"><header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="settings" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">Jak poszło?</h1></div></header>
+      <div class="lab-seg" role="tablist">${this.VARS.map(([k, n]) => `<button class="${this.v === k ? "on" : ""}" role="tab" aria-selected="${this.v === k}" data-lab="v" data-v="${k}">${n}</button>`).join("")}</div>
+      <div class="card"><label class="lab-row"><span>Czas treningu<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-lab="on" ${this.on ? "checked" : ""} aria-label="Podaj czas"></label>${this.timeBody()}</div>
+      <section class="sec"><h2 class="sec-h">Wysiłek</h2><div class="rpe" role="radiogroup" aria-label="Wysiłek od 1 do 10">${[1,2,3,4,5,6,7,8,9,10].map(n => `<button class="${this.rpe === n ? "on" : ""}" role="radio" aria-checked="${this.rpe === n}" data-lab="rpe" data-n="${n}">${n}</button>`).join("")}</div>
+        <p class="rpe-t">${this.rpe ? RPE_TXT[this.rpe] : ""}</p></section>
+      <div class="field" style="min-height:110px"><textarea placeholder="Podyktuj lub napisz" style="text-align:left;min-height:84px"></textarea></div>
+      <div class="push">${this.msg ? `<p class="note" style="text-align:center">${esc(this.msg)}</p>` : ""}<button class="btn" data-lab="save" ${this.ok() ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
+  },
+  after(){
+    if (this.v === "C" && this.on){
+      [["wM", "wm"], ["wS", "ws"]].forEach(([id, key]) => { const el = $("#" + id); if (!el) return; el.scrollTop = this[key] * 44;
+        let t; el.addEventListener("scroll", () => { clearTimeout(t); t = setTimeout(() => { this[key] = Math.max(0, Math.round(el.scrollTop / 44)); this.refresh(); }, 90); }, {passive:true}); });
+    }
+  },
+  // Small updates while typing, so the field keeps focus and the keyboard stays up.
+  refresh(){ const b = $("[data-lab=save]"); if (b) b.disabled = !this.ok(); const a = $("#labA"); if (a) a.classList.toggle("bad", this.bad()); const ms = $(".lab-ms"); if (ms) ms.classList.toggle("bad", this.bad()); },
+  focus(){ const el = this.v === "A" ? $("#labA") : this.v === "D" ? $("#labM") : null; if (el) el.focus(); },
+  click(el){
+    const k = el.dataset.lab;
+    if (k === "v"){ this.v = el.dataset.v; this.clear(); render(); if (this.on && this.v === "B"){ this.pad = true; render(); } return; }
+    if (k === "rpe"){ this.rpe = +el.dataset.n; this.msg = ""; render(); return; }
+    if (k === "b-open"){ this.pad = !this.pad; render(); return; }
+    if (k === "k"){ const x = el.dataset.k; if (x === "ok"){ this.pad = false; } else if (x === "del"){ this.d = this.d.slice(0, -1); } else if (this.d.length < 4){ this.d = (this.d + x).replace(/^0+/, ""); } render(); return; }
+    if (k === "save"){ const t = this.secs(); this.msg = "Prototyp, nic nie zapisano: " + (t ? mmss(t) : "bez czasu") + " · wysiłek " + this.rpe; render(); }
+  },
+  input(el){
+    const k = el.dataset.lab;
+    if (k === "on"){ this.on = el.checked; this.clear(); if (this.on && this.v === "B") this.pad = true; render(); if (this.on) this.focus(); return; }
+    if (k === "a"){ const digits = el.value.replace(/\D/g, "").replace(/^0+/, ""); this.d = digits.length > 4 ? this.d : digits; el.value = this.label(); try { el.setSelectionRange(el.value.length, el.value.length); } catch(e){} }
+    if (k === "m"){ this.m = el.value.replace(/\D/g, "").slice(0, 2); el.value = this.m; if (this.m.length === 2) $("#labS").focus(); }
+    if (k === "s"){ this.s = el.value.replace(/\D/g, "").slice(0, 2); el.value = this.s; }
+    this.msg = ""; this.refresh();
+  }
+};
+document.addEventListener("click", e => { const el = e.target.closest("[data-lab]"); if (el && el.tagName !== "INPUT") Lab.click(el); });
+document.addEventListener("input", e => { if (e.target.dataset && e.target.dataset.lab && e.target.type !== "checkbox") Lab.input(e.target); });
+document.addEventListener("change", e => { if (e.target.dataset && e.target.dataset.lab === "on") Lab.input(e.target); });
 
 /* ---------- sheets ---------- */
 function sheetHtml(){
@@ -1457,10 +1556,11 @@ function renderSheet(){
 function render(){
   const v = S.view;
   const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "detail" ? (S.sessions[S.detail?.id] ? doneScreen(S.sessions[S.detail.id]) : renderHome()) : v === "plan" ? planScreen(S.detail.date, S.detail.kind) : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
-    : v === "settings" ? renderSettings() : renderPrep();
+    : v === "settings" ? renderSettings() : v === "lab" ? Lab.render() : renderPrep();
   $("#app").innerHTML = html;
   fitDayTitle();
   renderSheet();
+  if (v === "lab") Lab.after();
 }
 function fitDayTitle(){
   const h = $(".day-h"); if (!h) return;
