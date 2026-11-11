@@ -98,6 +98,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .push{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:4px}
 .home-head{align-items:center}
 .day-h{font-size:22px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:350px){.day-h{font-size:20px}}
 .icon-btn{width:44px;height:44px;border-radius:22px;border:0;background:var(--surface);display:grid;place-items:center;flex:none;color:var(--ink)}
 .round-btn{width:44px;height:44px;border-radius:22px;border:0;background:var(--surface);font-size:22px;line-height:1;flex:none}
 .round-btn:disabled{opacity:.35}
@@ -243,7 +244,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.18";
+const APP_VERSION = "2026-11-11.19";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -858,7 +859,10 @@ function renderHome(){
   // One compact line: the week strip below already shows where you are.
   const sd2 = parseYmd(sel), yest = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
   const when = sel === today() ? "Dziś" : sel === tomorrow() ? "Jutro" : sel === yest ? "Wczoraj" : cap(DAYS[sd2.getDay()]);
-  const head = `<header class="head home-head"><h1 class="title day-h">${when}, ${sd2.getDate()} ${MONTHS[sd2.getMonth()]}</h1>${menuBtn}</header>`;
+  // Three lengths; fitDayTitle() keeps the longest that fits on one line (e.g. "Poniedziałek, 26 października" on a narrow phone).
+  const rel = ["Dziś", "Jutro", "Wczoraj"].includes(when), wShort = rel ? when : cap(DAYS_SHORT[sd2.getDay()]) + ".";
+  const fits = [when + ", " + sd2.getDate() + " " + MONTHS[sd2.getMonth()], wShort + ", " + sd2.getDate() + " " + MONTHS[sd2.getMonth()], wShort + ", " + sd2.getDate() + "." + (sd2.getMonth() + 1)];
+  const head = `<header class="head home-head"><h1 class="title day-h" aria-label="${esc(dayLabel(sd2))}" data-fits="${esc(JSON.stringify(fits))}">${esc(fits[0])}</h1>${menuBtn}</header>`;
   const isToday = sel === today();
   return `<section class="screen">${head}
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
@@ -1213,8 +1217,15 @@ function render(){
   const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "detail" ? (S.sessions[S.detail?.id] ? doneScreen(S.sessions[S.detail.id]) : renderHome()) : v === "plan" ? planScreen(S.detail.date, S.detail.kind) : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
     : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
+  fitDayTitle();
   renderSheet();
 }
+function fitDayTitle(){
+  const h = $(".day-h"); if (!h) return;
+  let fits; try { fits = JSON.parse(h.dataset.fits); } catch(e){ return; }
+  for (const t of fits){ h.textContent = t; if (h.scrollWidth <= h.clientWidth + 1) return; }
+}
+window.addEventListener("resize", fitDayTitle);
 function go(view){ S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
 
 /* ---------- actions ---------- */
