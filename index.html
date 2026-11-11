@@ -291,7 +291,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.39";
+const APP_VERSION = "2026-11-11.40";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1038,8 +1038,7 @@ function renderPrep(){
         ${(() => { const b = s.items.find(it => LOADS[it.load] && LOADS[it.load].bb && LOADS[it.load].bb > BAR); if (!b) return "";
           const half = Math.max(BAR, Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5);
           return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą rundą: 5 × pusty gryf, 3 × ${plKg(half)} kg.</p>`; })()}</section>
-      <div class="push">${s.startAt && sameDay(s.startAt) ? `<p class="note" style="text-align:center">Start ${hhmm(s.startAt)}</p><button class="btn" data-act="note">Po treningu: notatka</button>`
-        : `<button class="btn" data-act="start">Start</button><button class="btn plain" data-act="note">Po treningu: notatka</button>`}</div></section>`;
+      <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   if (cond){
     const it = s.items[0], intervals = it && exOf(it.ex).interval, test = it && exOf(it.ex).test;
@@ -1077,8 +1076,6 @@ function planScreen(date, kind){
 </section></section>`;
 }
 const condLabel = k => k === "c-int" ? "Intervals" : k === "c-test" ? "Test" : "Steady";
-const sameDay = t => ymd(new Date(t)) === today();
-const hhmm = t => { const d = new Date(t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); };
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
@@ -1550,8 +1547,7 @@ document.addEventListener("click", e => {
     case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
     case "back-prep": go("prep"); break;
-    case "note": { const s = current(); if (s.kind === "strength" && s.startAt && sameDay(s.startAt) && !s.dur){ s.dur = Math.round((Date.now() - s.startAt) / 1000); if (s.dur > 4 * 3600) s.dur = null; commitSession(s); } go("note"); break; }
-    case "start": { const s = current(); s.startAt = Date.now(); s.dur = null; commitSession(s); render(); break; }
+    case "note": go("note"); break;
     case "photo-del": setPhoto(current().id, null); render(); break;
     case "finish": finishSession(); break;
     case "review": Sync.retryReview(); break;
