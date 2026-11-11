@@ -305,7 +305,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.49";
+const APP_VERSION = "2026-11-11.50";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -390,7 +390,7 @@ X("farmer-carry", {name:"Farmer's Carry", pattern:"carry", loads:["db15x2","db22
 X("row-int", {name:"Row Intervals", pattern:"cond-int", req:["rower"], interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki oddech, nie da się mówić. Spokojnie: luźne wiosłowanie."});
 X("run-int", {name:"Run Intervals", pattern:"cond-int", interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki bieg, nie da się mówić. Spokojnie: trucht albo marsz."});
 X("rope-int", {name:"Jump Rope Intervals", pattern:"cond-int", req:["rope"], interval:"30 s skakania / 30 s przerwy", def:["bw",10], cue:"Nisko nad ziemią, na przodostopiu, nadgarstki kręcą skakanką."});
-X("row-2k", {name:"Row 2000 m", pattern:"cond-test", req:["rower"], test:true, def:["bw",2000], cue:"Równe tempo od startu, ostatnie 500 m na maksa."});
+X("row-2k", {name:"Row 2000 m", pattern:"cond-test", req:["rower"], test:true, def:["bw",2000], cue:"Na maksa, po 5 minutach spokojnego wiosłowania."});
 X("row-steady", {name:"Steady Row", pattern:"cond-steady", req:["rower"], minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 X("run-steady", {name:"Steady Run", pattern:"cond-steady", minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 // alternatives
@@ -1062,7 +1062,7 @@ function renderPrep(){
     const it = s.items[0], intervals = it && exOf(it.ex).interval, test = it && exOf(it.ex).test;
     return `<section class="screen">${head(test ? "Test" : intervals ? "Intervals" : "Steady")}
       <section class="sec"><h2 class="sec-h">${cap(estText("cond", s.items))}${intervals || test ? "" : " · tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, !test)).join("")}</div>
-        <p class="note">${test ? "5 minut spokojnie, potem równe tempo, ostatnie 500 m na maksa. Czas podaj w notatce." : intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
+        <p class="note">${test ? "Najpierw 5 minut spokojnie." : intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   return `<section class="screen">${head("Plan na dziś")}
