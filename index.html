@@ -98,6 +98,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .push{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:4px}
 .home-head{align-items:center}
 .head-btns{display:flex;gap:8px;flex:none}
+.lvl-badge{padding:0;overflow:hidden}
 .lvl-pill{height:44px;border:0;border-radius:22px;background:var(--surface);display:flex;align-items:center;gap:7px;padding:0 13px 0 6px;color:var(--ink);flex:none}
 .lvl-pill b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
 .lvl-pill .tr{font-size:13px;font-weight:600;color:var(--good)}
@@ -269,7 +270,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.25";
+const APP_VERSION = "2026-11-11.26";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -907,8 +908,8 @@ function renderHome(){
   const d = new Date(), r = latestReview(), sel = selDate();
   // Overall level as a small ring gauge (tap: Progres) and a gear (tap: Sprzęt i plan) instead of a menu.
   const O = overallSeries(levelHistory()), ov = O.length ? O[O.length - 1].level : null, C = 2 * Math.PI * 19;
-  const dl = O.length ? lastChange(O.map(p => p.level)) : 0, g = groupOf(ov);
-  const gauge = `<button class="lvl-pill" data-act="go" data-v="progress" aria-label="${ov == null ? "Progres" : g.name + ", poziom ogólny " + ov + " na 100" + (dl ? ", " + (dl > 0 ? "wzrost o " : "spadek o ") + Math.abs(dl) : "") + ". Progres"}">${badge(g, 32, ov == null)}<b>${ov == null ? "–" : ov}</b>${dl ? `<span class="tr ${dl < 0 ? "down" : ""}">${dl > 0 ? "↑" : "↓"}${Math.abs(dl)}</span>` : ""}</button>`;
+  const g = groupOf(ov);
+  const gauge = `<button class="icon-btn lvl-badge" data-act="go" data-v="progress" aria-label="${ov == null ? "Progres" : g.name + ", poziom ogólny " + ov + " na 100. Progres"}">${badge(g, 44, ov == null)}</button>`;
   const menuBtn = `<span class="head-btns">${gauge}<button class="icon-btn" data-act="go" data-v="settings" aria-label="Sprzęt i plan">${GEAR}</button></span>`;
   // One compact line: the week strip below already shows where you are.
   const sd2 = parseYmd(sel), yest = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
