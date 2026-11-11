@@ -15,18 +15,26 @@ const ALLOWED = {
   hinge: { "kb-swing": ["kb16", "kb20"], "kb-swing-1a": ["kb16", "kb20"] },
   hpush: { "incline-pushup-75": ["bw"], "knee-pushup": ["bw"], "pushup-negative": ["bw"], "pushup": ["bw"], "ring-dip": ["bw"] },
   lunge: { "bss": ["bw", "kb8", "kb16", "kb20", "db15x2", "db225x2"] },
-  carry: { "suitcase-carry": ["kb8", "kb16", "kb20"], "farmer-carry": ["db15x2", "db225x2"] }
+  carry: { "suitcase-carry": ["kb8", "kb16", "kb20"], "farmer-carry": ["db15x2", "db225x2"] },
+  "cond-int": { "row-int": ["bw"], "run-int": ["bw"], "rope-int": ["bw"] },
+  "cond-steady": { "row-steady": ["bw"], "run-steady": ["bw"] }
 };
 const NAMES = { "kb-halo": "KB Halo", "kb-clean-press": "KB Clean & Press", "kb-strict-press": "KB Clean & Strict Press", "ring-row": "Ring Row",
   "ring-row-box": "Ring Row (Feet on box)", "pullup-negative": "Pull-up Negative", "band-pullup": "Band-assisted Pull-up", "pullup": "Pull-up",
   "kb-swing": "KB Swing", "kb-swing-1a": "One-arm KB Swing", "incline-pushup-75": "Incline Push-up (Box 75 cm)", "knee-pushup": "Knee Push-up",
   "pushup-negative": "Push-up Negative", "pushup": "Push-up", "ring-dip": "Ring Dip", "bss": "Bulgarian Split Squat",
-  "suitcase-carry": "Suitcase Carry", "farmer-carry": "Farmer's Carry" };
+  "suitcase-carry": "Suitcase Carry", "farmer-carry": "Farmer's Carry",
+  "row-int": "Row Intervals", "run-int": "Run Intervals", "rope-int": "Jump Rope Intervals", "row-steady": "Steady Row", "run-steady": "Steady Run" };
+const INTERVAL = { "row-int": "1 min mocno / 1 min spokojnie", "run-int": "1 min mocno / 1 min spokojnie", "rope-int": "30 s skakania / 30 s przerwy" };
+const MINUTES = ["row-steady", "run-steady"];
 const PER_SIDE = ["kb-halo", "kb-clean-press", "kb-strict-press", "kb-swing-1a", "bss", "suitcase-carry"];
 const DIST = ["suitcase-carry", "farmer-carry"];
 const LOADS = { bw: "Bodyweight", kb4: "4 kg", kb8: "8 kg", kb16: "16 kg", kb20: "20 kg", db15x2: "2 × 15 kg", db225x2: "2 × 22,5 kg" };
 function name_(id) { return NAMES[id] || id; }
-function dose_(id, load, reps) { return (LOADS[load] || load) + " × " + reps + (DIST.indexOf(id) >= 0 ? " m" : "") + (PER_SIDE.indexOf(id) >= 0 ? " per side" : ""); }
+function dose_(id, load, reps) {
+  if (INTERVAL[id]) return reps + " × (" + INTERVAL[id] + ")";
+  if (MINUTES.indexOf(id) >= 0) return reps + " min";
+  return (LOADS[load] || load) + " × " + reps + (DIST.indexOf(id) >= 0 ? " m" : "") + (PER_SIDE.indexOf(id) >= 0 ? " per side" : ""); }
 
 function sheet_(name, head) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -99,7 +107,8 @@ function review_(id, force) {
   const sessions = readSessions_();
   const s = sessions[id];
   if (!s) return { error: "Nie znalazłem sesji w arkuszu." };
-  if (s.kind !== "strength" || s.status !== "done") return { error: "Oceniam tylko zakończone treningi siłowe." };
+  if ((s.kind !== "strength" && s.kind !== "cond") || s.status !== "done") return { error: "Oceniam tylko zakończone treningi siłowe i conditioning." };
+  const group = s.kind === "cond" ? "cond" : "circuit";
   const allReviews = readReviews_();
   const earlier = allReviews.filter(function (x) { return x.id === s.id; })[0] || null;
   if (earlier && !force) return { review: earlier };
@@ -107,15 +116,19 @@ function review_(id, force) {
   try { profile = JSON.parse(sheet_(PLAN).getRange("A1").getValue()); } catch (err) {}
   if (!profile || !profile.slots) return { error: "Brak planu w arkuszu." };
   const prev = Object.keys(sessions).map(function (k) { return sessions[k]; })
-    .filter(function (x) { return x.kind === "strength" && x.status === "done" && x.id !== s.id && x.date <= s.date; })
+    .filter(function (x) { return x.kind === s.kind && x.status === "done" && x.id !== s.id && x.date <= s.date; })
     .sort(function (a, b) { return b.date < a.date ? -1 : 1; }).slice(0, 4);
   const brief = function (x) {
     return { data: x.date, rundy: x.rounds, notatka: x.note || "", cwiczenia: (x.items || []).map(function (it) {
       return { key: it.key, ex: it.ex, nazwa: name_(it.ex), dawka: dose_(it.ex, it.load, it.reps), zamianaNaDzis: it.swap ? true : undefined }; }) };
   };
-  const plan = profile.slots.filter(function (sl) { return sl.group === "circuit"; })
+  const plan = profile.slots.filter(function (sl) { return sl.group === group; })
     .map(function (sl) { return { key: sl.key, pattern: sl.pattern, ex: sl.ex, load: sl.load, reps: sl.reps, teraz: name_(sl.ex) + " " + dose_(sl.ex, sl.load, sl.reps) }; });
-  const prompt = "Jesteś spokojnym, rzeczowym trenerem siły Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu obwodowo w stylu CrossFit z krótkimi przerwami; ten styl zostaje). " +
+  const condRules = "To sesja conditioning (osobna od obwodu siłowego, wtorek interwały, czwartek spokojnie; robi ją nieregularnie). " +
+    "Interwały (cond-int, reps = liczba interwałów): 6 → 8 → 10 → 12; przy 12 łatwych zaproponuj w tekście dłuższy odcinek mocny, nie zmieniaj go sam. Wariant to sprzęt (row-int, run-int, rope-int): ustaw ten, którego używał, jeśli mówi o tym w notatce. " +
+    "Spokojnie (cond-steady, reps = minuty): 20 → 25 → 30 → 35 → 40 → 45; wyżej nie. Tempo ma pozwalać mówić pełnymi zdaniami; jeśli pisze, że brakowało tchu, nie podnoś. " +
+    "Zmieniaj tylko slot z dzisiejszej sesji. Pole rounds pomiń. Jeśli w notatce jest dystans albo tempo na 500 m, odnieś się do niego i porównaj z poprzednimi.\n";
+  const prompt = (s.kind === "cond" ? condRules : "") + "Jesteś spokojnym, rzeczowym trenerem siły Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu obwodowo w stylu CrossFit z krótkimi przerwami; ten styl zostaje). " +
     "Oceń jego dzisiejszy trening na podstawie notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens) i zdecyduj o planie na następny trening.\n" +
     "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Najwyżej jedna zmiana na ćwiczenie i tylko taka, która wynika z notatki. Za łatwe: krok w górę. Trudne, ból albo sypiąca się technika: zostaje albo krok w dół; przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. " +
     "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Ustaw liczbę rund na tyle, ile faktycznie robi, jeśli o tym mówi. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
@@ -139,28 +152,28 @@ function review_(id, force) {
   lock.waitLock(20000);
   try {
     try { profile = JSON.parse(sheet_(PLAN).getRange("A1").getValue()) || profile; } catch (err) {}
-    return apply_(s, profile, out);
+    return apply_(s, profile, out, group);
   } finally {
     lock.releaseLock();
   }
 }
 
-function apply_(s, profile, out) {
+function apply_(s, profile, out, group) {
   const now = Date.now();
   const changes = [];
   (out.changes || []).forEach(function (c) {
-    const sl = profile.slots.filter(function (x) { return x.key === c.key && x.group === "circuit"; })[0];
+    const sl = profile.slots.filter(function (x) { return x.key === c.key && x.group === group; })[0];
     if (!sl) return;
     const allowed = (ALLOWED[sl.pattern] || {})[c.ex];
     if (!allowed) return;
     const load = allowed.indexOf(c.load) >= 0 ? c.load : (allowed.indexOf(sl.load) >= 0 ? sl.load : allowed[0]);
-    const reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || sl.reps));
+    const reps = Math.max(1, Math.min(group === "cond" ? (MINUTES.indexOf(c.ex) >= 0 ? 45 : 16) : 60, parseInt(c.reps, 10) || sl.reps));
     if (c.ex === sl.ex && load === sl.load && reps === sl.reps) return;
     changes.push(name_(sl.ex) + ": " + dose_(sl.ex, sl.load, sl.reps) + " → " + (c.ex !== sl.ex ? name_(c.ex) + " " : "") + dose_(c.ex, load, reps));
     sl.ex = c.ex; sl.load = load; sl.reps = reps; sl.claudeNote = String(c.reason || "").slice(0, 200); sl.claudeAt = now;
   });
   const r = parseInt(out.rounds, 10);
-  if (r >= 1 && r <= 5 && r !== profile.rounds) { changes.push("Rundy: " + profile.rounds + " → " + r); profile.rounds = r; }
+  if (group === "circuit" && r >= 1 && r <= 5 && r !== profile.rounds) { changes.push("Rundy: " + profile.rounds + " → " + r); profile.rounds = r; }
   if (changes.length) {
     profile.updatedAt = now;
     const plan = sheet_(PLAN);

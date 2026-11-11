@@ -181,7 +181,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.6";
+const APP_VERSION = "2026-11-11.7";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -222,7 +222,7 @@ const LOADS = {
 };
 
 /* ---------- exercises ---------- */
-const PATTERNS = {shoulder:"barki", vpush:"wyciskanie nad głowę", hpull:"przyciąganie", hinge:"zawias biodrowy", carry:"noszenie i core", hpush:"pchanie poziome", lunge:"jedna noga",
+const PATTERNS = {shoulder:"barki", vpush:"wyciskanie nad głowę", hpull:"przyciąganie", hinge:"zawias biodrowy", carry:"noszenie i core", "cond-int":"interwały", "cond-steady":"spokojna kondycja", hpush:"pchanie poziome", lunge:"jedna noga",
   "mob-squat":"głęboki przysiad", "mob-hip":"biodra", "mob-ankle":"kostki i łydki", "mob-back":"tył ciała", "mob-tspine":"odcinek piersiowy i barki"};
 const EX = {};
 const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, timed:false, req:[]}, o); };
@@ -248,6 +248,11 @@ X("ring-dip", {name:"Ring Dip", pattern:"hpush", req:["rings"], def:["bw",3], cu
 X("bss", {name:"Bulgarian Split Squat", pattern:"lunge", loads:["bw","kb8","kb16","kb20","db15x2","db225x2"], side:true, def:["kb16",6], cue:"Tylna stopa na skrzyni 50 cm, tułów lekko w przód."});
 X("suitcase-carry", {name:"Suitcase Carry", pattern:"carry", loads:["kb8","kb16","kb20"], side:true, dist:true, def:["kb16",20], cue:"Kettlebell w jednej ręce. Tułów prosto, bez przechylania, bark w dół."});
 X("farmer-carry", {name:"Farmer's Carry", pattern:"carry", loads:["db15x2","db225x2"], dist:true, def:["db15x2",30], cue:"Ciężar w obu rękach, barki w dół, krótkie kroki."});
+X("row-int", {name:"Row Intervals", pattern:"cond-int", req:["rower"], interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki oddech, nie da się mówić. Spokojnie: luźne wiosłowanie."});
+X("run-int", {name:"Run Intervals", pattern:"cond-int", interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki bieg, nie da się mówić. Spokojnie: trucht albo marsz."});
+X("rope-int", {name:"Jump Rope Intervals", pattern:"cond-int", req:["rope"], interval:"30 s skakania / 30 s przerwy", def:["bw",10], cue:"Nisko nad ziemią, na przodostopiu, nadgarstki kręcą skakanką."});
+X("row-steady", {name:"Steady Row", pattern:"cond-steady", req:["rower"], minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
+X("run-steady", {name:"Steady Run", pattern:"cond-steady", minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 // alternatives
 const A = (id, o) => X(id, Object.assign({alt:true}, o));
 A("band-pull-apart", {name:"Band Pull-Apart", pattern:"shoulder", loads:["band"], def:["band",15], rel:"podobnie", why:"Otwiera barki i budzi łopatki bez ciężaru."});
@@ -312,7 +317,9 @@ const LADDERS = {
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
   vpush:["kb-clean-press","kb-strict-press"],
   hinge:["kb-swing","kb-swing-1a"],
-  carry:["suitcase-carry","farmer-carry"]
+  carry:["suitcase-carry","farmer-carry"],
+  "cond-int":["row-int","run-int","rope-int"],
+  "cond-steady":["row-steady","run-steady"]
 };
 function exOf(id){
   if (EX_ALIAS[id]) id = EX_ALIAS[id];
@@ -327,10 +334,12 @@ const loadLabel = (ex, load) => load === "bw" ? (ex.tag || "Bodyweight") : (ex.t
 const sideTxt = ex => ex.side ? " per side" : "";
 function doseText(exId, load, reps){
   const ex = exOf(exId);
+  if (ex.interval) return reps + " × (" + ex.interval + ")";
+  if (ex.minutes) return reps + " min";
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
   return loadLabel(ex, load) + " × " + reps + (ex.dist ? " m" : "") + sideTxt(ex);
 }
-const shortDose = (exId, reps) => { const ex = exOf(exId); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
+const shortDose = (exId, reps) => { const ex = exOf(exId); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
 
 /* ---------- plan ---------- */
@@ -342,6 +351,8 @@ const DEFAULT_SLOTS = [
   {key:"push", group:"circuit", pattern:"hpush", ex:"knee-pushup", load:"bw", reps:8},
   {key:"bss", group:"circuit", pattern:"lunge", ex:"bss", load:"kb16", reps:6},
   {key:"carry", group:"circuit", pattern:"carry", ex:"suitcase-carry", load:"kb16", reps:20},
+  {key:"c-int", group:"cond", pattern:"cond-int", ex:"row-int", load:"bw", reps:8},
+  {key:"c-steady", group:"cond", pattern:"cond-steady", ex:"row-steady", load:"bw", reps:30},
   {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:60},
   {key:"m-zsit", group:"mobility", pattern:"mob-hip", ex:"z-sit", load:"bw", reps:30},
   {key:"m-dog", group:"mobility", pattern:"mob-ankle", ex:"down-dog-press", load:"bw", reps:8},
@@ -356,12 +367,12 @@ const WARMUP = [
 const WARM_START = [{id:"rope", name:"Jump Rope", dose:"45 s", eq:"rope"}, {id:"row", name:"Row", dose:"1 min", eq:"rower"}];
 
 function defaultProfile(){
-  return {v:2, schedule:[1,3,5], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
+  return {v:2, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
 }
 function mergeProfile(p){
   const d = defaultProfile();
   if (!p || typeof p !== "object") return d;
-  const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
+  const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, condSchedule:Array.isArray(p.condSchedule) ? p.condSchedule : d.condSchedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
     warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2};
   if (p.v === 2 && Array.isArray(p.slots)){
     const byKey = Object.fromEntries(p.slots.map(s => [s.key, s]));
@@ -377,7 +388,15 @@ const slotsOf = g => S.profile.slots.filter(s => s.group === g);
 const slotByKey = k => S.profile.slots.find(s => s.key === k);
 const today = () => ymd(new Date());
 const isStrengthDay = dateStr => S.profile.schedule.includes(parseYmd(dateStr).getDay());
-const sessionId = kind => kind === "strength" ? today() : today() + "-mob";
+const sessionId = kind => kind === "strength" ? today() : today() + (kind === "cond" ? "-cond" : "-mob");
+const isCondDay = dateStr => (S.profile.condSchedule || []).includes(parseYmd(dateStr).getDay());
+// Wtorek: interwały, czwartek: spokojnie. W inny dzień: to, czego dawniej nie było.
+function condKey(dateStr){
+  const sc = (S.profile.condSchedule || []).slice().sort(), d = parseYmd(dateStr).getDay();
+  if (sc.includes(d)) return sc.indexOf(d) % 2 === 0 ? "c-int" : "c-steady";
+  const last = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === "cond" && x.status === "done" && x.date < dateStr).sort((a, b) => b.date.localeCompare(a.date))[0];
+  return last && last.items && last.items[0] && last.items[0].key === "c-int" ? "c-steady" : "c-int";
+}
 function nextStrengthLabel(fromToday = false){
   const d = new Date();
   for (let i = fromToday ? 0 : 1; i <= 7; i++){ const n = new Date(d); n.setDate(d.getDate()+i); if (S.profile.schedule.includes(n.getDay())) return DAYS[n.getDay()] + ", " + n.getDate() + " " + MONTHS[n.getMonth()]; }
@@ -385,10 +404,11 @@ function nextStrengthLabel(fromToday = false){
 }
 function fitLoad(ex, load){ const ls = loadsOf(ex); return ls.includes(load) ? load : (ls.includes(ex.def[0]) ? ex.def[0] : ls[0] || "bw"); }
 function buildSession(kind){
-  const group = kind === "strength" ? "circuit" : "mobility";
+  const group = kind === "strength" ? "circuit" : kind === "cond" ? "cond" : "mobility";
+  const slots = kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(today())) : slotsOf(group);
   return {v:2, id:sessionId(kind), date:today(), kind, status:"prep", touched:false, rounds: kind === "strength" ? S.profile.rounds : 1,
     finishedAt:null, note:"",
-    items: slotsOf(group).map(s => { const ex = exOf(s.ex), load = fitLoad(ex, s.load);
+    items: slots.map(s => { const ex = exOf(s.ex), load = fitLoad(ex, s.load);
       return {key:s.key, ex:s.ex, load, reps:s.reps, planEx:s.ex, planLoad:load, planReps:s.reps, swap:null, done:0}; })};
 }
 function current(){
@@ -536,7 +556,7 @@ const Sync = {
     if (got) { await this.pull(); redraw(); }
     else if (this.q.size) this.flush();
   },
-  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
+  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : sl.group === "cond" ? "Conditioning: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
 };
 
@@ -565,23 +585,29 @@ function summaryLine(s){
   return s.items.length + " " + plural(s.items.length, "ćwiczenie", "ćwiczenia", "ćwiczeń");
 }
 function renderHome(){
-  const d = new Date(), sd = isStrengthDay(today()), st = sessionFor("strength"), mb = sessionFor("mobility");
+  const d = new Date(), sd = isStrengthDay(today()), st = sessionFor("strength"), mb = sessionFor("mobility"), cd = isCondDay(today()), cs = sessionFor("cond");
   const card = (kind, title, sub, x, enabled) => {
     const done = x && x.status === "done";
     const inner = `<span class="day-main"><span class="day-top"><span class="day-title">${title}</span>${enabled ? `<span class="status ${done ? "done" : ""}">${done ? "✓ Zrobione" : "Do zrobienia"}</span>` : ""}</span><span class="day-sub">${esc(sub)}</span></span>`;
     return enabled ? `<button class="day-card" data-act="open" data-kind="${kind}">${inner}${CHEV}</button>` : `<div class="day-card off">${inner}</div>`;
   };
+  const doneSub = x => S.reviewing === x.id ? "Claude ocenia trening…" : reviewFor(x.id) ? "Ocena od Claude jest gotowa." : Sync.pendingReview() ? "Ocena przyjdzie, gdy uda się połączyć z arkuszem." : "Notatka zapisana.";
   let stSub;
   if (!sd) stSub = "Dziś wolne. Następny: " + nextStrengthLabel() + ".";
-  else if (st && st.status === "done") stSub = S.reviewing === st.id ? "Claude ocenia trening…" : reviewFor(st.id) ? "Ocena od Claude jest gotowa." : Sync.pendingReview() ? "Ocena przyjdzie, gdy uda się połączyć z arkuszem." : "Notatka zapisana.";
+  else if (st && st.status === "done") stSub = doneSub(st);
   else stSub = roundsText(S.profile.rounds) + " · " + slotsOf("circuit").length + " ćwiczeń";
   const mbSub = mb && mb.status === "done" ? "Zrobione na dziś." : slotsOf("mobility").length + " ćwiczeń · około 10 min";
-  const doneN = [sd ? st : null, mb].filter(x => x && x.status === "done").length, total = sd ? 2 : 1;
-  const lead = doneN === total ? "Wszystko na dziś zrobione." : doneN ? "Zrobione " + doneN + " z " + total + "." : total === 2 ? "Dziś trening siłowy i mobilność." : "Dziś mobilność.";
+  const ck = condKey(today()), cslot = slotByKey(ck);
+  const csSub = cs && cs.status === "done" ? doneSub(cs) : (cd ? "" : "Opcjonalnie: ") + (ck === "c-int" ? "interwały" : "spokojnie") + (cslot ? " · " + (ck === "c-int" ? cslot.reps + " " + plural(cslot.reps, "interwał", "interwały", "interwałów") : cslot.reps + " min") : "");
+  const csDone = cs && cs.status === "done";
+  const doneN = [sd ? st : null, mb, cd || csDone ? cs : null].filter(x => x && x.status === "done").length, total = (sd ? 1 : 0) + 1 + (cd || csDone ? 1 : 0);
+  const names = [sd ? "trening siłowy" : null, cd ? "conditioning" : null, "mobilność"].filter(Boolean);
+  const lead = doneN === total ? "Wszystko na dziś zrobione." : doneN ? "Zrobione " + doneN + " z " + total + "." : "Dziś " + names.slice(0, -1).join(", ") + (names.length > 1 ? " i " : "") + names[names.length - 1] + ".";
+  const condCard = card("cond", "Conditioning", csSub, cs, true);
   const r = latestReview();
   return `<section class="screen"><header class="head"><div><p class="kicker">${dayLabel(d)}</p><h1 class="title">Dzisiaj</h1><p class="lead">${lead}</p></div><button class="icon-btn" data-act="menu" aria-label="Więcej">${DOTS}</button></header>
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
-    <div class="day-list">${card("strength", "Trening siłowy", stSub, st, sd)}${card("mobility", "Mobilność", mbSub, mb, true)}</div>
+    <div class="day-list">${card("strength", "Trening siłowy", stSub, st, sd)}${cd || csDone ? condCard : ""}${card("mobility", "Mobilność", mbSub, mb, true)}${cd || csDone ? "" : condCard}</div>
     ${r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
     ${!Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
 }
@@ -593,14 +619,14 @@ function reviewBlock(s, r){
   return `<p class="note">${Sync.url ? "Ocena pojawi się tutaj, gdy uda się połączyć z arkuszem." : "Połącz arkusz Google w ustawieniach, żeby Claude oceniał treningi zaraz po zapisaniu."}</p>`;
 }
 function renderPrep(){
-  const s = current(), strength = s.kind === "strength";
-  const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
+  const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
+  const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
   if (s.status === "done"){
     const r = reviewFor(s.id);
     return `<section class="screen">${head("Zrobione")}
       ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
-      ${strength ? reviewBlock(s, r) : ""}
-      <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : "Mobilność na następny raz"}</h2><div class="card">${planItems(strength ? "circuit" : "mobility").map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
+      ${strength || cond ? reviewBlock(s, r) : ""}
+      <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : cond ? "Conditioning na następne razy" : "Mobilność na następny raz"}</h2><div class="card">${planItems(strength ? "circuit" : cond ? "cond" : "mobility").map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
       <div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div></section>`;
   }
   if (strength){
@@ -614,15 +640,23 @@ function renderPrep(){
         <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
+  if (cond){
+    const it = s.items[0], intervals = it && exOf(it.ex).interval;
+    return `<section class="screen">${head(intervals ? "Interwały" : "Spokojnie")}
+      <section class="sec"><h2 class="sec-h">${intervals ? "Około 25 minut" : "Tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, true)).join("")}</div>
+        <p class="note">${intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
+      <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
+  }
   return `<section class="screen">${head("Plan na dziś")}
     <section class="sec"><h2 class="sec-h">Około 10 minut</h2><div class="card">${s.items.map(it => itemRow(it, null, true)).join("")}</div></section>
     <div class="push"><button class="btn" data-act="note">Zrobione</button></div></section>`;
 }
+const kindLabel = k => k === "strength" ? "Trening siłowy" : k === "cond" ? "Conditioning" : "Mobilność";
 function renderNote(){
-  const s = current(), strength = s.kind === "strength";
+  const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
-    <header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"}</p><h1 class="title">Jak poszło?</h1>
-      <p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p></div></header>
+    <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
+      <p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : cond ? "Co robiłeś (wioślarz, bieg, skakanka), ile minut albo interwałów, dystans albo tempo na 500 m i jak się czułeś. Claude oceni i dopasuje plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p></div></header>
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
     <div class="push"><button class="btn" data-act="finish">Zapisz i zakończ</button></div></section>`;
 }
@@ -633,7 +667,7 @@ function renderHistory(){
   if (!list.length) return `<section class="screen">${backHead("Historia")}<p class="lead">Po pierwszej sesji zobaczysz tu plan, swoją notatkę i ocenę od Claude.</p></section>`;
   return `<section class="screen">${backHead("Historia")}${list.map(s => {
     const r = reviewFor(s.id);
-    return `<section class="sec"><h2 class="sec-h">${esc(shortDate(s.date))} · ${s.kind === "strength" ? "trening siłowy · " + roundsText(s.rounds) : "mobilność"}</h2><div class="card">
+    return `<section class="sec"><h2 class="sec-h">${esc(shortDate(s.date))} · ${s.kind === "strength" ? "trening siłowy · " + roundsText(s.rounds) : s.kind === "cond" ? "conditioning" : "mobilność"}</h2><div class="card">
       ${s.items.map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana</span>` : ""}</div>`).join("")}
       ${s.note ? `<div class="row"><span class="main"><span class="why">${esc(s.note)}</span></span></div>` : ""}
       ${r ? `<div class="row"><span class="main"><span class="name">${esc(r.title || "Ocena")}</span>${r.text ? `<span class="why">${esc(r.text)}</span>` : ""}${r.changes ? `<span class="why">Zmiany: ${esc(r.changes)}</span>` : ""}</span></div>` : ""}</div></section>`; }).join("")}</section>`;
@@ -659,6 +693,8 @@ function renderSettings(){
     <section class="sec"><h2 class="sec-h">Sprzęt</h2><div class="card">${EQUIP.map(e => `<div class="opt"><label for="eq-${e.id}">${esc(e.label)}${e.note ? `<small>${esc(e.note)}</small>` : ""}</label><input type="checkbox" class="sw" id="eq-${e.id}" data-eq="${e.id}" ${p.equip[e.id] ? "checked" : ""}></div>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Dni treningu siłowego</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
+    <section class="sec"><h2 class="sec-h">Dni conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
+      <p class="note">Pierwszy dzień to interwały, drugi spokojnie. W inne dni Conditioning też jest dostępny.</p></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
          <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`
@@ -679,19 +715,19 @@ function sheetHtml(){
   const s = current();
   if (sh.type === "edit"){
     const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotByKey(it.key);
-    const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist ? 5 : 1;
+    const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
     const variants = it.swap ? [] : (LADDERS[slot.pattern] || []).filter(id => EX[id] && exAvailable(EX[id]));
-    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : "") + " względem planu";
+    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
-      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Obwód, ćwiczenie " + (idx+1) + " z " + s.items.length : "Mobilność"} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
+      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Obwód, ćwiczenie " + (idx+1) + " z " + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
         ${slot && slot.claudeNote && !it.swap ? `<p class="sub">Od Claude: ${esc(slot.claudeNote)}</p>` : ""}</header>
       ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Wariant</h3><div class="chips">${variants.map(id => { const v = EX[id];
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
       ${loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Ciężar</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">${ex.timed ? "Czas" : ex.dist ? "Dystans" : "Powtórzenia"}${s.kind === "strength" ? " w rundzie" : ""}${ex.side ? " (per side)" : ""}</h3>
-        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Czas" : ex.dist ? "Dystans" : ex.minutes ? "Czas" : ex.interval ? "Interwały" : "Powtórzenia"}${s.kind === "strength" ? " w rundzie" : ""}${ex.side ? " (per side)" : ""}</h3>
+        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap ? "To zamiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
@@ -765,12 +801,12 @@ function finishSession(){
   s.items.forEach(it => it.done = s.rounds);
   S.micHint = false;
   const had = reviewFor(s.id);
-  if (s.kind === "strength" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || ""))){
+  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || ""))){
     s.reviewedNote = s.note || "";
     commitSession(s);
     Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});
     go("prep"); Sync.review(s.id, !!had);
-  } else { commitSession(s); go(s.kind === "strength" && Sync.url ? "prep" : "home"); }
+  } else { commitSession(s); go(s.kind !== "mobility" && Sync.url ? "prep" : "home"); }
 }
 
 async function backup(btn){
@@ -834,6 +870,7 @@ document.addEventListener("click", e => {
     }
     case "rounds": { const r = Math.max(1, Math.min(5, s.rounds + Number(b.dataset.d))); s.rounds = r; S.profile.rounds = r; commitProfile(); commitSession(s); render(); break; }
     case "mic": { S.micHint = true; render(); const t = $("#sessionNote"); if (t) t.focus(); break; }
+    case "cday": { const d = Number(b.dataset.d), sc = S.profile.condSchedule || []; S.profile.condSchedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "day": { const d = Number(b.dataset.d), sc = S.profile.schedule; S.profile.schedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "backup": backup(b); break;
     case "sync-on": {
