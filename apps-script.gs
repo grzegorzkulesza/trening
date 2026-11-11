@@ -124,7 +124,7 @@ function review_(id, force) {
   const ans = callClaude_(prompt);
   if (ans.error) return { error: ans.error };
   const m = ans.text.match(/\{[\s\S]*\}/);
-  if (!m) return { error: "Nieczytelna odpowiedź Claude." };
+  if (!m) return { error: "Nieczytelna odpowiedź Claude (" + ans.stop + "): " + (ans.text || "pusta").slice(0, 160) };
   const out = JSON.parse(m[0]);
   const lock = LockService.getScriptLock();
   lock.waitLock(20000);
@@ -196,23 +196,24 @@ function doPost(e) {
 
 // Uruchom raz w edytorze (Uruchom → testClaude), żeby nadać uprawnienia i sprawdzić klucz API.
 function testClaude() {
-  const r = callClaude_("Odpowiedz jednym słowem: działa");
+  const r = callClaude_("Odpowiedz jednym słowem: działa", "low");
   Logger.log(r.error || r.text);
 }
 
-function callClaude_(prompt) {
+// Sonnet 5.5 zawsze najpierw myśli, a max_tokens obejmuje myślenie i odpowiedź, więc limit musi być duży.
+function callClaude_(prompt, effort) {
   const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
   if (!key) return { error: "Brak klucza API w ustawieniach skryptu (ANTHROPIC_API_KEY)." };
   const opts = {
     method: "post", contentType: "application/json", muteHttpExceptions: true,
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
-    payload: JSON.stringify({ model: MODEL, max_tokens: 2000, messages: [{ role: "user", content: prompt }] })
+    payload: JSON.stringify({ model: MODEL, max_tokens: 16000, output_config: { effort: effort || "medium" }, messages: [{ role: "user", content: prompt }] })
   };
   let res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", opts);
   if (res.getResponseCode() === 529 || res.getResponseCode() >= 500) { Utilities.sleep(3000); res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", opts); }
   if (res.getResponseCode() !== 200) return { error: "API Claude odpowiedziało " + res.getResponseCode() + ": " + res.getContentText().slice(0, 200) };
   const body = JSON.parse(res.getContentText());
-  return { text: (body.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("") };
+  return { stop: body.stop_reason, text: (body.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("") };
 }
 
 function upsert_(item) {

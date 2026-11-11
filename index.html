@@ -178,7 +178,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.2";
+const APP_VERSION = "2026-11-11.3";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -507,7 +507,7 @@ const Sync = {
     this.busy = true; clearTimeout(this.timer);
     const body = {sessions:[this.row(s)], review:id, force:!!force};
     if (this.q.has("profile")){ body.profile = S.profile; body.planText = this.planText(); }
-    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 90000);
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 150000);
     try {
       const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body), signal:ctrl.signal});
       const j = await res.json();
@@ -576,7 +576,7 @@ function renderHome(){
     ${!Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
 }
 function reviewBlock(s, r){
-  if (S.reviewing === s.id) return `<section class="verdict"><div class="wait"><i></i><p class="t" style="margin:0">Claude ocenia trening…</p></div><p>Czyta notatkę i sprawdza plan. Zwykle trwa to kilkanaście sekund.</p></section>`;
+  if (S.reviewing === s.id) return `<section class="verdict"><div class="wait"><i></i><p class="t" style="margin:0">Claude ocenia trening…</p></div><p>Czyta notatkę i sprawdza plan. Zwykle trwa to do minuty.</p></section>`;
   const p = Sync.pendingReview();
   if (p && p.id === s.id && S.reviewErr) return `<section class="verdict"><p class="t" style="margin:0">Oceny jeszcze nie ma</p><p>${esc(S.reviewErr)}</p><button class="btn outline" style="height:52px;font-size:16px" data-act="review">Spróbuj teraz</button></section>`;
   if (r) return reviewHtml(r, false);
