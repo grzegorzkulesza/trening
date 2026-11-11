@@ -222,22 +222,11 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .eff-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .eff-h p{margin:0;font-size:15px;color:var(--muted)}
 .eff-h p b{font-size:22px;font-weight:600;color:var(--ink);margin-right:6px;font-variant-numeric:tabular-nums}
-.eff-sl{position:relative;height:48px;touch-action:pan-y;cursor:pointer}
-.eff-tr{position:absolute;left:0;right:0;top:20px;height:8px;border-radius:4px;background:#E2E0DA;overflow:hidden}
-.eff-tr i{display:block;height:100%;background:var(--ink);border-radius:4px}
-.eff-th{position:absolute;top:10px;width:28px;height:28px;margin-left:-14px;border-radius:50%;background:var(--surface);box-shadow:0 1px 4px rgba(0,0,0,.25)}
-.eff-sl.unset .eff-th{display:none}
-.eff-bar{display:flex;gap:4px;height:48px;touch-action:pan-y;cursor:pointer}
-.eff-bar span{flex:1;border-radius:8px;background:#E2E0DA}
+.eff-bar{display:flex;align-items:flex-end;gap:4px;height:52px;touch-action:pan-y;cursor:pointer;user-select:none;-webkit-user-select:none}
+.eff-bar span{flex:1;height:100%;border-radius:8px;background:#E2E0DA;transition:background .1s}
 .eff-bar span.on{background:var(--ink)}
+.eff-bar.warm span.on{background:var(--c)}
 .eff-ends{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);margin-top:-4px}
-.eff-ru-wrap{position:relative;background:var(--surface);border-radius:20px}
-.eff-ru-wrap::after{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:56px;margin-left:-28px;border-radius:14px;box-shadow:inset 0 0 0 2px var(--ink);pointer-events:none}
-.eff-ru{display:flex;overflow-x:scroll;scroll-snap-type:x mandatory;scrollbar-width:none;height:64px;align-items:center}
-.eff-ru::-webkit-scrollbar{display:none}
-.eff-ru i{flex:none;display:block;height:1px}
-.eff-ru b{flex:none;width:56px;text-align:center;font-size:22px;font-weight:500;color:var(--faint);scroll-snap-align:center;font-variant-numeric:tabular-nums}
-.eff-ru b.on{color:var(--ink);font-weight:600}
 .rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .rpe button{height:52px;border:0;border-radius:14px;background:var(--surface);font-size:18px;font-weight:600;color:var(--ink)}
 .rpe button.on{background:var(--ink);color:#FFFFFF}
@@ -336,7 +325,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.43";
+const APP_VERSION = "2026-11-11.45";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -802,6 +791,7 @@ const COND_RULES = "To sesja Conditioning (osobna od Strength, wtorek Intervals,
   "Steady (cond-steady, reps = minuty): 20 → 25 → 30 → 35 → 40 → 45; wyżej nie. Tempo ma pozwalać mówić pełnymi zdaniami; jeśli pisze, że brakowało tchu, nie podnoś. " +
 "Test Row 2000 m (row-2k, cond-test): sprawdzian poziomu; planu na jego podstawie nie zmieniaj, oceń tylko rozłożenie tempa. " +
   "Zmieniaj tylko slot z dzisiejszej sesji. Pole rounds pomiń. Jeśli w notatce albo na zdjęciu jest dystans albo tempo na 500 m, odnieś się do niego i porównaj z poprzednimi (pole pm5). " +
+  "Wysiłek (pole wysilek, 1–10): Steady powinien wyjść około 3–4 (tempo rozmowy); wyżej znaczy, że tempo było za szybkie. " +
   "Postęp w Steady to więcej metrów w tym samym czasie przy tempie rozmowy (i tym samym albo niższym tętnie, jeśli widać); w Intervals równe albo szybsze odcinki mocne.\n";
 const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu obwodowo w stylu CrossFit z krótkimi przerwami; ten styl zostaje). " +
   "Oceń jego dzisiejszy trening na podstawie notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens) i zdecyduj o planie na następny trening.\n" +
@@ -816,6 +806,7 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
   "Czas treningu (pole czas: cały trening, od początku Warm-up do końca ostatniej rundy, razem z seriami rozgrzewkowymi na sztandze) to druga miara obok ciężaru: mówi, jak szybko regeneruje się między ćwiczeniami i rundami. " +
   "Porównuj go z poprzednimi treningami o tym samym składzie (to samo ćwiczenie ze sztangą powtarza się co 3 treningi) i z szacunkiem aplikacji (pole szacunek). " +
   "Ten sam plan w krótszym czasie i bez trudności w notatce: podnieś ciężar albo trudność, nie skracaj czasu dalej. Czas rośnie przy tym samym planie albo notatka mówi o zmęczeniu: nie podnoś. Bez czasu oceniaj jak dotąd. " +
+  "Wysiłek (pole wysilek): jego ocena całej sesji 1–10 w skali sRPE (CR-10 Fostera); z czasem daje obciążenie sesji = wysiłek × minuty. Porównuj z poprzednimi sesjami: ten sam plan przy niższym wysiłku to gotowość do progresji; wysiłek 8 i więcej albo rosnąca suma obciążenia z tygodnia na tydzień przy słabszych wynikach: nie podnoś. Notatka mówi więcej o szczegółach, wysiłek o całości. " +
   "Zmieniaj tylko key z dzisiejszej sesji. Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
 // PM5 numbers as Claude read them from the photo: times "m:ss(.d)" to seconds, the rest to whole numbers within sane ranges.
 function cleanPm5(p){
@@ -840,7 +831,7 @@ const Coach = {
   },
   // Barbell load lists are long: one line instead of 44 codes.
   allowedText(group){ return JSON.stringify(this.allowed(group), (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v); },
-  brief: x => ({data:x.date, rundy:x.rounds, notatka:x.note || "", czas:x.dur ? mmss(x.dur) : x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, szacunek:x.kind === "strength" ? estMin("strength", x.items || [], x.rounds) + " min" : undefined,
+  brief: x => ({data:x.date, rundy:x.rounds, notatka:x.note || "", czas:x.dur ? mmss(x.dur) : x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:x.rpe || undefined, szacunek:x.kind === "strength" ? estMin("strength", x.items || [], x.rounds) + " min" : undefined,
     pm5:x.pm5 ? pm5Text(x.pm5) + (x.pm5.parts && x.pm5.parts.length ? " | odcinki: " + x.pm5.parts.map(pm5Text).join("; ") : "") : undefined, cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), zamianaNaDzis:it.swap ? true : undefined}))}),
   prompt(s, earlier, photo){
     const g = this.group(s);
@@ -1105,7 +1096,7 @@ function doneScreen(s){
   return `<section class="screen">${head}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
-    <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility"}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${cond && s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
+    <section class="sec"><h2 class="sec-h">${(strength ? "Circuit · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (s.rpe ? " · wysiłek " + s.rpe : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${cond && s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
       ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie z PM5 nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}</section>
     ${isToday && strength ? `<section class="sec"><h2 class="sec-h">Plan na następny trening · ${esc(nextStrengthLabel())}</h2><div class="card">${planItems("circuit").map((it, i) => itemRow(it, i, false)).join("")}</div></section>` : ""}
     ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
@@ -1131,8 +1122,9 @@ function renderNote(){
     ${strength ? timeCard(s) : ""}
     ${cond && eqOk("rower") ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie z PM5"><span>Zdjęcie z PM5</span><button data-act="photo-del">Usuń</button></div>`
       : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie z PM5</label>`) : ""}
+    ${s.kind !== "mobility" ? effHtml(s.rpe, "note") : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
-    <div class="push"><button class="btn" data-act="finish" ${timeOk(s) ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
+    <div class="push"><button class="btn" data-act="finish" ${noteOk(s) ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
 }
 // Session time: switched off = not measured; switched on = minutes (and seconds) must be filled before saving.
 const TM = {};
@@ -1140,6 +1132,7 @@ function tmOf(s){ if (!TM[s.id]) TM[s.id] = s.dur ? {m:String(Math.floor(s.dur /
 function tmSecs(t){ if (t.m === "") return null; const mm = +t.m, ss = t.s === "" ? 0 : +t.s; return ss < 60 && mm <= 90 && mm * 60 + ss > 0 ? mm * 60 + ss : null; }
 const tmBad = s => { const t = tmOf(s); return (t.m !== "" || t.s !== "") && tmSecs(t) == null; };
 const timeOk = s => s.kind !== "strength" || !s.timed || tmSecs(tmOf(s)) != null;
+const noteOk = s => timeOk(s) && (s.kind === "mobility" || s.rpe != null);
 function timeCard(s){
   const t = tmOf(s);
   return `<div class="card"><label class="lab-row"><span>Czas treningu<small>Z Warm-up</small></span><input type="checkbox" class="sw" data-timed="1" ${s.timed ? "checked" : ""} aria-label="Podaj czas treningu"></label>
@@ -1451,56 +1444,54 @@ function renderSettings(){
       <p class="note" style="text-align:center">Wersja ${APP_VERSION}</p></section></section>`;
 }
 
-/* ---------- prototype: effort 1–10 in one row, three ways (compare, then keep one) ---------- */
-// Foster's CR-10 for session RPE; 6 and 8 sit between the anchors.
+/* ---------- effort: session RPE (Foster's CR-10) as one row of 10 segments, tap or drag ---------- */
+// 6 and 8 sit between the anchors of the scale.
 const RPE_TXT = ["", "Bardzo, bardzo lekko", "Lekko", "Umiarkowanie", "Dość ciężko", "Ciężko", "Ciężko+", "Bardzo ciężko", "Bardzo ciężko+", "Prawie maksymalnie", "Maksymalnie"];
+const RPE_C = ["", "#E3D9C6", "#D6C4A0", "#C9AE7C", "#C2955A", "#C47A3C", "#B9642B", "#A04F24", "#833F20", "#5F2F1B", "#3D2015"];
+let EFF_LOOK = "F"; // the prototype switches it until one look is chosen
+const effHead = rpe => rpe ? `<b>${rpe}</b>${RPE_TXT[rpe]}` : `<b>–</b>`;
+function effHtml(rpe, key, look = EFF_LOOK){
+  const steps = look === "S" || look === "SW", warm = look === "W" || look === "SW";
+  return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek</h2><p class="eff-v">${effHead(rpe)}</p></div>
+    <div class="eff-bar ${steps ? "steps" : ""} ${warm ? "warm" : ""}" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 10" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${rpe || ""}">${[1,2,3,4,5,6,7,8,9,10].map(n => `<span class="${rpe >= n ? "on" : ""}" style="--c:${RPE_C[n]}${steps ? ";height:" + (40 + n * 6) + "%" : ""}"></span>`).join("")}</div>
+    <div class="eff-ends"><span>1</span><span>10</span></div></section>`;
+}
+function paintEff(el, n){ [...el.children].forEach((x, i) => x.classList.toggle("on", n >= i + 1)); el.setAttribute("aria-valuenow", n); const v = el.closest(".eff").querySelector(".eff-v"); if (v) v.innerHTML = effHead(n); }
+// What a new value does, per place the bar is used.
+const EFF_SET = {
+  note(n, el){ const s = current(); if (s.rpe === n) return; s.rpe = n; commitSession(s, true); paintEff(el, n); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); },
+  lab(n, el){ if (Lab.rpe === n) return; Lab.rpe = n; Lab.msg = ""; paintEff(el, n); const b = $("[data-lab=save]"); if (b) b.disabled = false; }
+};
+// Pointer events update the bar in place, so a drag is not cut short by a re-render.
+function bindEff(){
+  document.querySelectorAll(".eff-bar[data-eff]").forEach(el => {
+    if (el.dataset.bound) return; el.dataset.bound = "1"; let on = false;
+    const set = e => { const r = el.getBoundingClientRect(), t = Math.min(.9999, Math.max(0, (e.clientX - r.left) / r.width)), f = EFF_SET[el.dataset.eff]; if (f) f(Math.floor(t * 10) + 1, el); };
+    el.addEventListener("pointerdown", e => { on = true; try { el.setPointerCapture(e.pointerId); } catch(_){} set(e); });
+    el.addEventListener("pointermove", e => { if (on) set(e); });
+    ["pointerup", "pointercancel"].forEach(k => el.addEventListener(k, () => { on = false; }));
+  });
+}
+/* ---------- prototype: looks of the effort bar (compare, then keep one) ---------- */
 const Lab = {
-  v:"S", rpe:null, msg:"", RW:56,
-  VARS:[["S", "Suwak"], ["B", "Pasek"], ["R", "Linijka"]],
-  head(){ return this.rpe ? `<b>${this.rpe}</b>${RPE_TXT[this.rpe]}` : `<b>–</b>`; },
-  pct(){ return this.rpe ? (this.rpe - 1) / 9 * 100 : 0; },
-  control(){
-    if (this.v === "S") return `<div class="eff-sl ${this.rpe ? "" : "unset"}" id="effS" role="slider" aria-label="Wysiłek" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${this.rpe || ""}"><span class="eff-tr"><i style="width:${this.pct()}%"></i></span><span class="eff-th" style="left:${this.pct()}%"></span></div><div class="eff-ends"><span>1</span><span>10</span></div>`;
-    if (this.v === "B") return `<div class="eff-bar" id="effB" role="slider" aria-label="Wysiłek" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${this.rpe || ""}">${[1,2,3,4,5,6,7,8,9,10].map(n => `<span class="${this.rpe >= n ? "on" : ""}"></span>`).join("")}</div><div class="eff-ends"><span>1</span><span>10</span></div>`;
-    return `<div class="eff-ru-wrap"><div class="eff-ru" id="effR"><i></i>${["–",1,2,3,4,5,6,7,8,9,10].map(n => `<b>${n}</b>`).join("")}<i></i></div></div>`;
-  },
+  rpe:null, msg:"",
+  LOOKS:[["F", "Płaski"], ["S", "Schody"], ["W", "Ciepło"], ["SW", "Oba"]],
   render(){
     return `<section class="screen"><header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="settings" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">Jak poszło?</h1></div></header>
-      <div class="lab-seg" role="tablist" style="grid-template-columns:repeat(3,1fr)">${this.VARS.map(([k, n]) => `<button class="${this.v === k ? "on" : ""}" role="tab" aria-selected="${this.v === k}" data-lab="v" data-v="${k}">${n}</button>`).join("")}</div>
+      <div class="lab-seg" role="tablist">${this.LOOKS.map(([k, n]) => `<button class="${EFF_LOOK === k ? "on" : ""}" role="tab" aria-selected="${EFF_LOOK === k}" data-lab="look" data-v="${k}">${n}</button>`).join("")}</div>
       <div class="card"><label class="lab-row"><span>Czas treningu<small>Z Warm-up</small></span><input type="checkbox" class="sw" checked disabled aria-label="Podaj czas"></label><div class="lab-ms"><label><input value="24" disabled>min</label><b>:</b><label><input value="30" disabled>s</label></div></div>
-      <section class="sec"><div class="eff-h"><h2 class="sec-h">Wysiłek</h2><p id="effHead">${this.head()}</p></div>${this.control()}</section>
+      ${effHtml(this.rpe, "lab")}
       <div class="field" style="min-height:110px"><textarea placeholder="Podyktuj lub napisz" style="text-align:left;min-height:84px"></textarea></div>
       <div class="push">${this.msg ? `<p class="note" style="text-align:center">${esc(this.msg)}</p>` : ""}<button class="btn" data-lab="save" ${this.rpe ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
   },
-  // Updates in place while the finger moves, so the drag is not interrupted by a re-render.
-  paint(){
-    const h = $("#effHead"); if (h) h.innerHTML = this.head();
-    const b = $("[data-lab=save]"); if (b) b.disabled = !this.rpe;
-    const sl = $("#effS"); if (sl){ sl.classList.toggle("unset", !this.rpe); sl.querySelector(".eff-tr i").style.width = this.pct() + "%"; sl.querySelector(".eff-th").style.left = this.pct() + "%"; sl.setAttribute("aria-valuenow", this.rpe || ""); }
-    const bar = $("#effB"); if (bar) [...bar.children].forEach((x, i) => x.classList.toggle("on", this.rpe >= i + 1));
-  },
-  after(){
-    const drag = (el, f) => { if (!el) return; let on = false;
-      const set = e => { const r = el.getBoundingClientRect(), t = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), n = f(t); if (n !== this.rpe){ this.rpe = n; this.msg = ""; this.paint(); } };
-      el.addEventListener("pointerdown", e => { on = true; try { el.setPointerCapture(e.pointerId); } catch(_){} set(e); });
-      el.addEventListener("pointermove", e => { if (on) set(e); });
-      ["pointerup", "pointercancel"].forEach(k => el.addEventListener(k, () => { on = false; })); };
-    drag($("#effS"), t => 1 + Math.round(t * 9));
-    drag($("#effB"), t => Math.min(10, Math.floor(t * 10) + 1));
-    const ru = $("#effR");
-    if (ru){
-      const w = ru.clientWidth, mark = n => ru.querySelectorAll("b").forEach((x, i) => x.classList.toggle("on", i === n));
-      ru.querySelectorAll("i").forEach(x => x.style.width = (w - this.RW) / 2 + "px"); ru.scrollLeft = (this.rpe || 0) * this.RW; mark(this.rpe || 0);
-      let tm; ru.addEventListener("scroll", () => { clearTimeout(tm); tm = setTimeout(() => { const n = Math.max(0, Math.min(10, Math.round(ru.scrollLeft / this.RW))); this.rpe = n || null; this.msg = ""; this.paint(); mark(n); }, 60); }, {passive:true});
-      ru.querySelectorAll("b").forEach((x, i) => x.addEventListener("click", () => ru.scrollTo({left:i * this.RW, behavior:"smooth"})));
-    }
-  },
+  after(){},
   click(el){
     const k = el.dataset.lab;
-    if (k === "v"){ this.v = el.dataset.v; this.rpe = null; this.msg = ""; render(); return; }
+    if (k === "look"){ EFF_LOOK = el.dataset.v; try { localStorage.setItem("trening:eff-look", EFF_LOOK); } catch(e){} render(); return; }
     if (k === "save"){ this.msg = "Prototyp, nic nie zapisano: wysiłek " + this.rpe; render(); }
   }
 };
+try { EFF_LOOK = localStorage.getItem("trening:eff-look") || "F"; } catch(e){}
 document.addEventListener("click", e => { const el = e.target.closest("[data-lab]"); if (el && el.tagName !== "INPUT") Lab.click(el); });
 
 /* ---------- sheets ---------- */
@@ -1571,7 +1562,7 @@ function render(){
   $("#app").innerHTML = html;
   fitDayTitle();
   renderSheet();
-  if (v === "lab") Lab.after();
+  bindEff();
 }
 function fitDayTitle(){
   const h = $(".day-h"); if (!h) return;
@@ -1602,7 +1593,7 @@ function finishSession(){
     const sec = m ? +m[1] * 60 + +m[2] : 0; if (sec >= 300 && sec <= 900) s.bench = {...(s.bench || {}), row2000:sec}; }
   S.micHint = false;
   const had = reviewFor(s.id);
-  if (!timeOk(s)) return;
+  if (!noteOk(s)) return;
   if (s.kind === "strength") s.dur = s.timed ? tmSecs(tmOf(s)) : null;
   if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0))){
     s.reviewedDur = s.dur || 0;
@@ -1705,7 +1696,7 @@ document.addEventListener("input", e => {
   if (e.target.dataset.tm){ const s = current(), t = tmOf(s), k = e.target.dataset.tm; t[k] = e.target.value.replace(/\D/g, "").slice(0, 2); e.target.value = t[k];
     if (k === "m" && t.m.length === 2) $("#durS").focus();
     s.dur = tmSecs(t); commitSession(s, true);
-    const b = $("[data-act=finish]"); if (b) b.disabled = !timeOk(s); const ms = $(".lab-ms"); if (ms) ms.classList.toggle("bad", tmBad(s)); }
+    const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); const ms = $(".lab-ms"); if (ms) ms.classList.toggle("bad", tmBad(s)); }
 });
 document.addEventListener("change", e => {
   const t = e.target;
