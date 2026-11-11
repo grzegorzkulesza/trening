@@ -122,7 +122,9 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .grp-i{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
 .grp-i small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .grp-i.on small{color:var(--ink);font-weight:600}
-.cat.cat-g{flex-direction:row;align-items:center;gap:14px}
+.cat.cat-g{gap:12px;padding:16px 18px}
+.cat-g .grp-top{gap:14px}
+.cat-g .grp-lv{margin:0;font-size:14px}
 .cat-b{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
 .step > .badge{margin-top:-1px}
 .lvl-gauge{position:relative}
@@ -275,7 +277,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.27";
+const APP_VERSION = "2026-11-11.28";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1177,8 +1179,9 @@ function renderProgress(){
     const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level)), need = unlockN(c);
     if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
     const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
-    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}">${badge(g, 40)}<span class="cat-b"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>
-      <span class="s cat-next">${ng ? badge(ng, 18) + esc(tg || "od " + ng.min) : esc(last.text)}</span></span></button>`;
+    // Same pieces as the category screen: badge, group and level, track to the next group, the result that gets there.
+    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="grp-t"><span class="n">${c.name}</span><span class="grp-lv">${g.name} · <b>${last.level}</b> / 100 ${deltaChip(d)}</span></span></span>
+      ${ng ? groupTrack(g, ng, last.level, "") : ""}${ng && tg ? `<span class="cat-next">${badge(ng, 18)}${esc(tg)}</span>` : ""}</button>`;
   }).join("");
   const cov = coverageData();
   let hero;
