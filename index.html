@@ -129,6 +129,9 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .field textarea::placeholder{color:#8A8984}
 .mic{width:100%;height:54px;flex:none;border:0;border-radius:22px;background:var(--chip);display:grid;place-items:center}
 .hint{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.wait{display:flex;align-items:center;gap:12px}
+.wait i{width:10px;height:10px;border-radius:50%;background:var(--ink);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.2;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
 .input{width:100%;border:0;border-radius:14px;background:var(--surface);padding:14px 16px;font-size:16px}
 
 .verdict{background:var(--surface);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:10px}
@@ -175,7 +178,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.1";
+const APP_VERSION = "2026-11-11.2";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -361,7 +364,7 @@ function mergeProfile(p){
 }
 
 /* ---------- state ---------- */
-const S = {profile:defaultProfile(), sessions:{}, reviews:{}, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false};
+const S = {profile:defaultProfile(), sessions:{}, reviews:{}, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false, reviewing:null, reviewErr:null};
 const slotsOf = g => S.profile.slots.filter(s => s.group === g);
 const slotByKey = k => S.profile.slots.find(s => s.key === k);
 const today = () => ymd(new Date());
@@ -421,13 +424,13 @@ function commitSession(s, later = false){
 function commitProfile(){ S.profile.updatedAt = Date.now(); Store.saveProfile(); Sync.queue("profile"); }
 
 /* ---------- sync with Google Sheets (Apps Script web app) ---------- */
-const KEY_URL = "trening:sync:url", KEY_Q = "trening:sync:queue";
+const KEY_URL = "trening:sync:url", KEY_Q = "trening:sync:queue", KEY_PR = "trening:pending-review";
 const Sync = {
   url:null, q:new Set(), timer:null, busy:false, last:null, err:null,
   init(){
     try { this.url = localStorage.getItem(KEY_URL) || null; (JSON.parse(localStorage.getItem(KEY_Q) || "[]")).forEach(x => this.q.add(x)); } catch(e){}
     window.addEventListener("online", () => this.flush());
-    document.addEventListener("visibilitychange", () => { if (!document.hidden) this.flush(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden){ this.flush(); this.retryReview(); } });
   },
   saveQ(){ try { localStorage.setItem(KEY_Q, JSON.stringify([...this.q])); } catch(e){} },
   queue(id){ if (!this.url) return; this.q.add(id); this.saveQ(); clearTimeout(this.timer); this.timer = setTimeout(() => this.flush(), 1500); },
@@ -439,7 +442,7 @@ const Sync = {
     this.busy = true;
     const ids = [...this.q];
     const body = {sessions: ids.filter(id => id !== "profile" && S.sessions[id] && S.sessions[id].touched).map(id => this.row(S.sessions[id]))};
-    if (ids.includes("profile")){ body.profile = S.profile; body.planText = S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); }
+    if (ids.includes("profile")){ body.profile = S.profile; body.planText = this.planText(); }
     try {
       const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)});
       const j = await res.json();
@@ -475,6 +478,7 @@ const Sync = {
       if (changed) Store.replaceAll(S.profile, S.sessions);
       this.last = Date.now(); this.err = null;
       this.flush();
+      this.retryReview();
       return changed;
     } catch(e){ this.err = "Nie mogę połączyć się z arkuszem. Sprawdź adres i internet."; return false; }
   },
@@ -484,6 +488,45 @@ const Sync = {
     if (!this.err){ Object.keys(S.sessions).forEach(id => { if (S.sessions[id].touched) this.q.add(id); }); this.q.add("profile"); this.saveQ(); this.flush(); }
     return !this.err;
   },
+  pendingReview(){ try { return JSON.parse(localStorage.getItem(KEY_PR) || "null"); } catch(e){ return null; } },
+  setPendingReview(p){ try { p ? localStorage.setItem(KEY_PR, JSON.stringify(p)) : localStorage.removeItem(KEY_PR); } catch(e){} },
+  retryReview(){
+    const p = this.pendingReview();
+    if (!p || !this.url || S.reviewing) return;
+    const r = S.reviews[p.id], s = S.sessions[p.id];
+    if (!s || s.status !== "done" || (r && (r.title + r.text) !== p.prev)){ this.setPendingReview(null); return; }
+    this.review(p.id, p.force);
+  },
+  async review(id, force){
+    const s = S.sessions[id];
+    if (!this.url || !s || S.reviewing) return;
+    const redraw = () => { if (["home", "prep"].includes(S.view)) render(); };
+    if (!navigator.onLine){ S.reviewErr = "Brak internetu. Ocena przyjdzie, gdy telefon złapie sieć."; redraw(); return; }
+    S.reviewing = id; S.reviewErr = null; redraw();
+    for (let i = 0; i < 60 && this.busy; i++) await sleep(250);
+    this.busy = true; clearTimeout(this.timer);
+    const body = {sessions:[this.row(s)], review:id, force:!!force};
+    if (this.q.has("profile")){ body.profile = S.profile; body.planText = this.planText(); }
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 90000);
+    try {
+      const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body), signal:ctrl.signal});
+      const j = await res.json();
+      if (!j.ok) throw new Error(j.error || "błąd arkusza");
+      this.q.delete(id); if (body.profile) this.q.delete("profile");
+      if (j.profile){ S.profile = mergeProfile(j.profile); Store.saveProfile(); this.q.add("profile"); }
+      this.saveQ();
+      if (j.review){
+        S.reviews[j.review.id] = j.review; this.setPendingReview(null);
+        try { localStorage.setItem("trening:reviews", JSON.stringify(S.reviews)); if (S.view === "prep") localStorage.setItem("trening:seen-review", j.review.id); } catch(e){}
+      } else S.reviewErr = j.reviewError || "Claude nie odpowiedział.";
+      this.last = Date.now(); this.err = null;
+    } catch(e){
+      S.reviewErr = e.name === "AbortError" ? "Ocena trwa dłużej niż zwykle. Sprawdzę ją przy następnym otwarciu aplikacji." : "Nie udało się połączyć z arkuszem. Spróbuję ponownie przy następnym otwarciu aplikacji.";
+    }
+    clearTimeout(timer); this.busy = false; S.reviewing = null; redraw();
+    if (this.q.size) this.flush();
+  },
+  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
 };
 
@@ -520,7 +563,7 @@ function renderHome(){
   };
   let stSub;
   if (!sd) stSub = "Dziś wolne. Następny: " + nextStrengthLabel() + ".";
-  else if (st && st.status === "done") stSub = reviewFor(st.id) ? "Ocena od Claude jest gotowa." : Sync.url ? "Notatka zapisana. Claude oceni trening po południu albo wieczorem." : "Notatka zapisana.";
+  else if (st && st.status === "done") stSub = S.reviewing === st.id ? "Claude ocenia trening…" : reviewFor(st.id) ? "Ocena od Claude jest gotowa." : Sync.pendingReview() ? "Ocena przyjdzie, gdy uda się połączyć z arkuszem." : "Notatka zapisana.";
   else stSub = roundsText(S.profile.rounds) + " · " + slotsOf("circuit").length + " ćwiczeń";
   const mbSub = mb && mb.status === "done" ? "Zrobione na dziś." : slotsOf("mobility").length + " ćwiczeń · około 10 min";
   const doneN = [sd ? st : null, mb].filter(x => x && x.status === "done").length, total = sd ? 2 : 1;
@@ -532,6 +575,13 @@ function renderHome(){
     ${r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
     ${!Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
 }
+function reviewBlock(s, r){
+  if (S.reviewing === s.id) return `<section class="verdict"><div class="wait"><i></i><p class="t" style="margin:0">Claude ocenia trening…</p></div><p>Czyta notatkę i sprawdza plan. Zwykle trwa to kilkanaście sekund.</p></section>`;
+  const p = Sync.pendingReview();
+  if (p && p.id === s.id && S.reviewErr) return `<section class="verdict"><p class="t" style="margin:0">Oceny jeszcze nie ma</p><p>${esc(S.reviewErr)}</p><button class="btn outline" style="height:52px;font-size:16px" data-act="review">Spróbuj teraz</button></section>`;
+  if (r) return reviewHtml(r, false);
+  return `<p class="note">${Sync.url ? "Ocena pojawi się tutaj, gdy uda się połączyć z arkuszem." : "Połącz arkusz Google w ustawieniach, żeby Claude oceniał treningi zaraz po zapisaniu."}</p>`;
+}
 function renderPrep(){
   const s = current(), strength = s.kind === "strength";
   const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
@@ -539,7 +589,7 @@ function renderPrep(){
     const r = reviewFor(s.id);
     return `<section class="screen">${head("Zrobione")}
       ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
-      ${strength ? (r ? reviewHtml(r, false) : `<p class="note">${Sync.url ? "Claude oceni ten trening i w razie potrzeby zmieni plan. Ocena pojawi się na ekranie Dzisiaj." : "Połącz arkusz Google w ustawieniach, żeby Claude oceniał treningi."}</p>`) : ""}
+      ${strength ? reviewBlock(s, r) : ""}
       <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : "Mobilność na następny raz"}</h2><div class="card">${planItems(strength ? "circuit" : "mobility").map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
       <div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div></section>`;
   }
@@ -564,7 +614,7 @@ function renderNote(){
     <header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"}</p><h1 class="title">Jak poszło?</h1>
       <p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p></div></header>
     <div class="field"><button class="mic" data-act="mic" aria-label="Dyktuj notatkę">${MIC}</button><textarea id="sessionNote" data-note="1" rows="9" style="text-align:left" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
-    ${S.micHint ? `<p class="hint">Dotknij mikrofonu na klawiaturze iOS i mów. Tekst trafi do notatki.</p>` : ""}
+    ${S.micHint ? `<p class="hint">Dyktuj z klawiatury: mikrofonem iOS albo przyciskiem klawiatury Wispr Flow (przełączasz ją ikoną globusa).</p>` : ""}
     <div class="push"><button class="btn" data-act="finish">Zapisz i zakończ</button></div></section>`;
 }
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
@@ -703,7 +753,14 @@ function finishSession(){
   const t = $("#sessionNote"); if (t) s.note = t.value;
   s.status = "done"; s.finishedAt = Date.now();
   s.items.forEach(it => it.done = s.rounds);
-  commitSession(s); S.micHint = false; go("home");
+  S.micHint = false;
+  const had = reviewFor(s.id);
+  if (s.kind === "strength" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || ""))){
+    s.reviewedNote = s.note || "";
+    commitSession(s);
+    Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});
+    go("prep"); Sync.review(s.id, !!had);
+  } else { commitSession(s); go(s.kind === "strength" && Sync.url ? "prep" : "home"); }
 }
 
 async function backup(btn){
@@ -748,6 +805,7 @@ document.addEventListener("click", e => {
     case "back-prep": go("prep"); break;
     case "note": go("note"); break;
     case "finish": finishSession(); break;
+    case "review": Sync.retryReview(); break;
     case "seen": try { localStorage.setItem("trening:seen-review", b.dataset.id); } catch(e2){} render(); break;
     case "warmup": S.sheet = {type:"warmup"}; renderSheet(); break;
     case "warm-start": S.profile.warmStart = b.dataset.v; commitProfile(); renderSheet(); render(); break;
