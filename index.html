@@ -148,6 +148,47 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .stat b{display:block;font-size:34px;line-height:1.05;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat span{font-size:14px;color:var(--muted)}
 .hist{display:flex;flex-wrap:wrap;gap:6px}
+.lvl{background:var(--surface);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.lvl-top{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.lvl-num{margin:0;display:flex;align-items:baseline;gap:6px;flex:none;white-space:nowrap}
+.lvl-num b{font-size:64px;line-height:1;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.lvl-num span{font-size:20px;color:var(--muted)}
+.chip-d{font-size:13px;border-radius:999px;padding:6px 12px;white-space:nowrap;flex:none;color:var(--good);background:var(--good-bg)}
+.chip-d.down{color:var(--warn);background:var(--warn-bg)}
+.lvl svg{width:100%;height:auto;display:block}
+.bar{height:6px;width:100%;flex:none;align-self:stretch;border-radius:3px;background:#ECEBE6;display:flex;overflow:hidden}
+.bar i{display:block;border-radius:3px;background:var(--ink)}
+.cat{display:flex;flex-direction:column;gap:8px;padding:14px 18px;width:100%;border:0;background:transparent;text-align:left;color:inherit}
+.cat + .cat{border-top:1px solid var(--line)}
+.cat-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cat-top .n{font-size:17px;font-weight:500}
+.cat-top .v{display:flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums}
+.cat-top .v b{font-size:20px;font-weight:600}
+.cat-top .d{font-size:13px;color:var(--good)}
+.cat-top .d.down{color:var(--warn)}
+.cat .s{font-size:14px;color:var(--muted)}
+.cat.locked .n{color:var(--muted)}
+.step{display:flex;align-items:flex-start;gap:14px;padding:14px 18px}
+.step + .step{border-top:1px solid var(--line)}
+.step.cur{background:#FAFAF7}
+.step .mk{width:28px;height:28px;border-radius:14px;display:grid;place-items:center;flex:none}
+.step .mk.done,.step .mk.cur{background:var(--ink)}
+.step .mk.next i{width:12px;height:12px;border-radius:6px;border:2px solid #C9C8C2}
+.step .bd{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+.step .bd b{font-size:16px;font-weight:500}
+.step .bd span{font-size:14px;line-height:1.45;color:var(--muted)}
+.modbar{height:14px;border-radius:7px;overflow:hidden;display:flex;gap:2px;background:#ECEBE6}
+.legend{display:flex;flex-direction:column;gap:8px}
+.legend span{display:flex;align-items:center;gap:10px;font-size:15px}
+.legend i,.pdot{width:10px;height:10px;border-radius:5px;flex:none;display:inline-block}
+.legend em{flex:1;font-style:normal}
+.legend b{font-weight:600}
+.pat{display:flex;align-items:center;gap:12px;padding:12px 18px}
+.pat + .pat{border-top:1px solid var(--line)}
+.pat .bd{display:flex;flex-direction:column;gap:2px}
+.pat .bd b{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:500}
+.pat.off .bd b{color:var(--muted)}
+.pat .bd span{font-size:13px;color:var(--muted)}
 .hist span{font-size:13px;background:var(--chip);border-radius:8px;padding:3px 8px;color:var(--muted);font-variant-numeric:tabular-nums}
 .analysis{font-size:15px;line-height:1.5}
 .analysis h4{margin:14px 0 4px;font-size:16px;font-weight:600}
@@ -181,7 +222,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.10";
+const APP_VERSION = "2026-11-11.11";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -744,20 +785,142 @@ function renderHistory(){
       ${s.note ? `<div class="row"><span class="main"><span class="why">${esc(s.note)}</span></span></div>` : ""}
       ${r ? `<div class="row"><span class="main"><span class="name">${esc(r.title || "Ocena")}</span>${r.text ? `<span class="why">${esc(r.text)}</span>` : ""}${r.changes ? `<span class="why">Zmiany: ${esc(r.changes)}</span>` : ""}</span></div>` : ""}</div></section>`; }).join("")}</section>`;
 }
-function renderProgress(){
-  const from = new Date(); from.setDate(from.getDate() - 27);
-  const recent = doneSessions().filter(s => s.date >= ymd(from));
-  const str = recent.filter(s => s.kind === "strength").length, mob = recent.filter(s => s.kind === "mobility").length;
-  const hist = doneSessions().filter(s => s.kind === "strength").reverse();
-  let h = `<section class="screen">${backHead("Progres")}
-    <div class="stats"><div class="stat"><b>${str}</b><span>Strength w 4 tygodnie</span></div><div class="stat"><b>${mob}</b><span>Mobility w 4 tygodnie</span></div></div>
-    <section class="sec"><h2 class="sec-h">Circuit: plan teraz i ostatnie treningi</h2><div class="card">`;
-  for (const sl of slotsOf("circuit")){
-    const vals = hist.map(s => ({s, it:s.items.find(i => i.key === sl.key)})).filter(x => x.it).slice(-6);
-    h += `<div class="row" style="align-items:flex-start"><span class="main"><span class="name">${esc(exOf(sl.ex).name)}</span><span class="sub">${dotHtml(sl.load)}${esc(doseText(sl.ex, sl.load, sl.reps))}</span>
-      ${vals.length ? `<span class="hist">${vals.map(x => `<span>${esc(shortDate(x.s.date))}: ${esc((x.it.ex !== sl.ex ? exOf(x.it.ex).name + " " : "") + (LOADS[x.it.load]?.color ? LOADS[x.it.load].label + " " : "") + "× " + x.it.reps)}</span>`).join("")}</span>` : ""}</span></div>`;
+/* ---------- progress: level 0–100 per category (100 = goal), like a personal Fitness Level ---------- */
+// step: [exId, load ("*" = any), repsFrom, repsTo, levelFrom, levelTo]
+const LEVEL_CATS = [
+  {id:"pull", name:"Pull", pattern:"hpull", goal:"10 × Pull-up", steps:[["ring-row","*",6,12,0,20],["ring-row-box","*",6,12,20,40],["pullup-negative","*",2,5,40,55],["band-pullup","*",3,8,55,70],["pullup","*",1,10,70,100]]},
+  {id:"push", name:"Push", pattern:"hpush", goal:"8 × Ring Dip", steps:[["incline-pushup-75","*",6,15,0,15],["knee-pushup","*",6,15,15,30],["pushup-negative","*",3,8,30,40],["pushup","*",3,20,40,80],["ring-dip","*",1,8,80,100]]},
+  {id:"press", name:"Press", pattern:"vpush", goal:"KB Clean & Strict Press 20 kg × 8 per side", steps:[["kb-clean-press","kb8",5,10,0,15],["kb-clean-press","kb16",3,8,15,45],["kb-strict-press","kb16",3,8,45,70],["kb-strict-press","kb20",1,8,70,100]]},
+  {id:"hinge", name:"Hinge", pattern:"hinge", goal:"One-arm KB Swing 20 kg × 15 per side", steps:[["kb-swing","kb16",10,20,0,25],["kb-swing","kb20",10,20,25,55],["kb-swing-1a","kb20",5,15,55,100]]},
+  {id:"legs", name:"Legs", pattern:"lunge", goal:"Bulgarian Split Squat 2 × 15 kg × 10 per side", steps:[["bss","bw",5,12,0,15],["bss","kb8",5,10,15,35],["bss","kb16",5,10,35,55],["bss","kb20",5,10,55,70],["bss","db15x2",5,10,70,100]]},
+  {id:"carry", name:"Core & Carry", pattern:"carry", goal:"Farmer's Carry 2 × 22,5 kg × 40 m", steps:[["suitcase-carry","kb8",20,40,0,20],["suitcase-carry","kb16",20,40,20,45],["suitcase-carry","kb20",20,40,45,70],["farmer-carry","db15x2",20,40,70,85],["farmer-carry","db225x2",20,40,85,100]]},
+  {id:"cond", name:"Conditioning", kind:"cond", goal:"12 rounds Intervals i 45 min Steady", steps:[]}
+];
+const MOD_COLORS = {W:"#1F4E8C", G:"#E39A3B", M:"#3E9C7F"};
+const stepName = st => { const ex = exOf(st[0]); return ex.name + (ex.tag ? " (" + ex.tag + ")" : "") + (st[1] !== "*" && st[1] !== "bw" ? " " + (LOADS[st[1]]?.label || st[1]) : ""); };
+const ddmm = d => { const x = parseYmd(d); return x.getDate() + "." + (x.getMonth() + 1); };
+function stepFor(cat, it){ const id = EX_ALIAS[it.ex] || it.ex; return cat.steps.findIndex(st => st[0] === id && (st[1] === "*" || st[1] === it.load)); }
+function stepLevel(st, reps){ const r = Math.max(st[2], Math.min(st[3], reps)); return Math.round(st[4] + (r - st[2]) / Math.max(1, st[3] - st[2]) * (st[5] - st[4])); }
+function condLevel(it){ const ex = exOf(it.ex); if (ex.interval) return Math.round(Math.max(0, Math.min(1, (it.reps - 6) / 6)) * 100); if (ex.minutes) return Math.round(Math.max(0, Math.min(1, (it.reps - 20) / 25)) * 100); return null; }
+// Every done session gives at most one result per category: the best one in that session.
+function levelHistory(){
+  const out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []]));
+  const sess = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && (x.kind === "strength" || x.kind === "cond")).sort((a, b) => a.date.localeCompare(b.date));
+  const lastCond = {};
+  for (const x of sess){
+    if (x.kind === "cond"){
+      for (const it of x.items || []){ const l = condLevel(it); if (l == null) continue; lastCond[exOf(it.ex).interval ? "int" : "steady"] = {l, it}; }
+      const parts = Object.values(lastCond);
+      if (parts.length){ const it = x.items[0]; out.cond.push({date:x.date, level:Math.round(parts.reduce((a, p) => a + p.l, 0) / parts.length), text:exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps), it}); }
+      continue;
+    }
+    for (const c of LEVEL_CATS){
+      if (!c.pattern) continue;
+      let best = null;
+      for (const it of x.items || []){ const i = stepFor(c, it); if (i < 0) continue; const l = stepLevel(c.steps[i], it.reps); if (!best || l > best.level) best = {date:x.date, level:l, text:exOf(it.ex).name + (exOf(it.ex).tag ? " (" + exOf(it.ex).tag + ")" : "") + " " + doseText(it.ex, it.load, it.reps).replace(/^.* · /, "").replace(/^Bodyweight /, "").replace(/^Feet on box /, ""), it, step:i}; }
+      if (best) out[c.id].push(best);
+    }
   }
-  return h + `</div></section></section>`;
+  return out;
+}
+const lastChange = arr => { if (!arr.length) return 0; const v = arr[arr.length - 1]; for (let i = arr.length - 2; i >= 0; i--) if (arr[i] !== v) return v - arr[i]; return 0; };
+function overallSeries(H){
+  const dates = [...new Set(Object.values(H).flat().map(r => r.date))].sort();
+  return dates.map(d => { const lv = LEVEL_CATS.map(c => H[c.id].filter(r => r.date <= d)).filter(a => a.length >= 2).map(a => a[a.length - 1].level);
+    return lv.length ? {date:d, level:Math.round(lv.reduce((a, b) => a + b, 0) / lv.length)} : null; }).filter(Boolean);
+}
+function levelChart(points, label){
+  const pts = points.slice(-8), n = pts.length, y = v => 78 - v / 100 * 70;
+  const xs = pts.map((_, i) => n === 1 ? 162 : Math.round(44 + i * (236 / (n - 1))));
+  const grid = [0, 50, 100].map(t => `<line x1="30" y1="${y(t)}" x2="302" y2="${y(t)}" stroke="#EEEDE8" stroke-width="1"/><text x="0" y="${y(t) + 4}" font-size="11" fill="#6B6B67">${t}</text>`).join("");
+  const labels = pts.map((p, i) => n <= 5 || i % 2 === (n - 1) % 2 ? `<text x="${xs[i]}" y="102" text-anchor="middle" font-size="11" fill="#6B6B67">${ddmm(p.date)}</text>` : "").join("");
+  const line = n > 1 ? `<polyline points="${pts.map((p, i) => xs[i] + "," + y(p.level).toFixed(1)).join(" ")}" fill="none" stroke="#121212" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
+  return `<svg viewBox="0 0 302 108" role="img" aria-label="${esc(label + ": " + pts.map(p => p.level).join(", "))}">${grid}${line}${n ? `<circle cx="${xs[n - 1]}" cy="${y(pts[n - 1].level).toFixed(1)}" r="4" fill="#121212"/>` : ""}${labels}</svg>`;
+}
+const deltaChip = d => d ? `<span class="chip-d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : "";
+const barHtml = v => `<span class="bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>`;
+function renderProgress(){
+  const H = levelHistory(), O = overallSeries(H), ov = O.length ? O[O.length - 1].level : null;
+  const rows = LEVEL_CATS.map(c => {
+    const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level));
+    if (h.length < 2) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${h.length} z 2</span></span><span class="s">${h.length ? esc(last.text) + " · " : ""}Odblokuje się po 2 treningach</span></button>`;
+    return `<button class="cat" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>${barHtml(last.level)}<span class="s">${esc(last.text)}</span></button>`;
+  }).join("");
+  const cov = coverageData();
+  return `<section class="screen">${backHead("Progres")}
+    <section class="lvl"><p class="kicker">Poziom ogólny</p>
+      ${ov == null ? `<p class="lead">Odblokuje się, gdy pierwsza kategoria będzie miała 2 treningi.</p>` : `<div class="lvl-top"><p class="lvl-num"><b>${ov}</b><span>/ 100</span></p>${deltaChip(lastChange(O.map(p => p.level)))}</div>${levelChart(O, "Poziom ogólny")}`}</section>
+    <section class="sec"><h2 class="sec-h">Kategorie</h2><div class="card">${rows}</div></section>
+    <div class="card"><button class="row" data-act="go" data-v="coverage" style="min-height:72px"><span class="main"><span class="name">Pokrycie</span><span class="sub">${cov.reg[0].done} z ${cov.reg[0].plan} Strength · ${cov.gaps} ${plural(cov.gaps, "wzorzec", "wzorce", "wzorców")} bez ćwiczeń</span></span>${CHEV}</button></div>
+  </section>`;
+}
+function renderCat(){
+  const c = LEVEL_CATS.find(x => x.id === S.cat) || LEVEL_CATS[0], h = levelHistory()[c.id], last = h[h.length - 1];
+  const head = `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="progress" aria-label="Wróć do progresu">${BACK}</button><h1 class="title" style="font-size:28px">${c.name}</h1></div></header>`;
+  const hero = h.length < 2 ? `<section class="lvl"><p class="lead">Odblokuje się po 2 treningach (${h.length} z 2). Cel: ${esc(c.goal)}.</p></section>`
+    : `<section class="lvl"><div class="lvl-top"><p class="lvl-num"><b>${last.level}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}</section>`;
+  let path;
+  if (c.id === "cond"){
+    const pick = f => { const r = [...h].reverse().find(x => (x.it && exOf(x.it.ex)[f])); return r ? r.it : null; };
+    const iv = pick("interval"), st = pick("minutes"), slI = slotByKey("c-int"), slS = slotByKey("c-steady");
+    const row = (title, from, to, val, unit) => `<li class="step cur"><span class="mk cur">${PIN}</span><span class="bd"><b>${title}</b>${barHtml(val == null ? 0 : (val - from) / (to - from) * 100)}<span>${from} → ${to} ${unit} · teraz ${val == null ? "brak" : val + " " + unit}</span></span></li>`;
+    path = `<ol class="card" style="margin:0;padding:0;list-style:none">${row("Intervals", 6, 12, iv ? iv.reps : slI && slI.reps, "rounds")}${row("Steady", 20, 45, st ? st.reps : slS && slS.reps, "min")}</ol>`;
+  } else {
+    const cur = last ? last.step : (() => { const sl = S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit"); return sl ? stepFor(c, sl) : 0; })();
+    path = `<ol class="card" style="margin:0;padding:0;list-style:none">${c.steps.map((st, i) => {
+      if (i < cur) return `<li class="step"><span class="mk done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg></span><span class="bd"><b>${esc(stepName(st))}</b><span>${st[4]}–${st[5]} · zaliczone</span></span></li>`;
+      if (i === cur){ const reps = last ? last.it.reps : st[2], within = (Math.max(st[2], Math.min(st[3], reps)) - st[2]) / Math.max(1, st[3] - st[2]) * 100, ex = exOf(st[0]);
+        const u = ex.dist ? " m" : ""; return `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${esc(stepName(st))}</b>${barHtml(within)}<span>${st[4]}–${st[5]} · teraz × ${reps}${u}. ${i < c.steps.length - 1 ? "Następny krok przy × " + st[3] + u + " z zapasem." : "Cel: × " + st[3] + u + "."}</span></span></li>`; }
+      return `<li class="step"><span class="mk next" aria-hidden="true"><i></i></span><span class="bd"><b>${esc(stepName(st))}</b><span>${st[4]}–${st[5]}</span></span></li>`;
+    }).join("")}</ol>`;
+  }
+  const results = h.length ? `<section class="sec"><h2 class="sec-h">Wyniki, które się liczą</h2><div class="card">${[...h].reverse().slice(0, 6).map(r =>
+    `<div class="row"><span class="main"><span class="name" style="font-size:15px">${esc(r.text)}</span><span class="sub" style="font-size:13px">${esc(shortDate(r.date))}</span></span><b style="font-size:17px">${r.level}</b></div>`).join("")}</div></section>` : "";
+  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Progresja</h2>${path}</section>${results}</section>`;
+}
+const PIN = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
+function coverageData(){
+  const to = today(), f = new Date(); f.setDate(f.getDate() - 27);
+  const first = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done").map(x => x.date).sort()[0] || to;
+  const from = ymd(f) > first ? ymd(f) : first, days = Math.round((parseYmd(to) - parseYmd(from)) / 86400000) + 1;
+  const done = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && x.date >= from && x.date <= to);
+  let planS = 0, planC = 0;
+  for (let i = 0; i < days; i++){ const d = new Date(); d.setDate(d.getDate() - i); const w = d.getDay();
+    if (S.profile.schedule.includes(w)) planS++; else if ((S.profile.condSchedule || []).includes(w)) planC++; }
+  const cnt = k => done.filter(x => x.kind === k).length;
+  const reg = [{n:"Strength", done:cnt("strength"), plan:planS, unit:"treningów"}, {n:"Mobility", done:cnt("mobility"), plan:days, unit:"dni"}, {n:"Conditioning", done:cnt("cond"), plan:planC, unit:"sesji"}];
+  const mins = {W:0, G:0, M:0};
+  for (const x of done){
+    if (x.kind === "strength") for (const it of x.items || []){ const ex = exOf(it.ex); if (ex.pattern === "shoulder") continue; mins[it.load && it.load !== "bw" ? "W" : "G"] += x.rounds || 1; }
+    if (x.kind === "cond") for (const it of x.items || []){ const ex = exOf(it.ex); mins.M += ex.interval ? it.reps * 2 : it.reps; }
+  }
+  const tot = mins.W + mins.G + mins.M, pct = k => tot ? Math.round(mins[k] / tot * 100) : 0;
+  const times = test => done.filter(x => (x.items || []).some(it => test({...it, ex:EX_ALIAS[it.ex] || it.ex}))).length;
+  const P = [
+    {n:"Horizontal Push", m:"G", c:times(it => exOf(it.ex).pattern === "hpush"), ex:"Push-up"},
+    {n:"Vertical Push", m:"W", c:times(it => exOf(it.ex).pattern === "vpush"), ex:"KB Clean & Press"},
+    {n:"Horizontal Pull", m:"G", c:times(it => ["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row"].includes(it.ex)), ex:"Ring Row"},
+    {n:"Vertical Pull", m:"G", c:times(it => ["pullup-negative", "band-pullup", "pullup"].includes(it.ex)), ex:"Pull-up", off:"Pojawi się z Pull-up Negative"},
+    {n:"Hinge", m:"W", c:times(it => exOf(it.ex).pattern === "hinge"), ex:"KB Swing"},
+    {n:"Single Leg", m:"W", c:times(it => exOf(it.ex).pattern === "lunge"), ex:"Bulgarian Split Squat"},
+    {n:"Squat", m:"G", c:0, part:cnt("mobility") ? "Tylko Deep Squat Hold w Mobility" : null},
+    {n:"Core & Carry", m:"W", c:times(it => exOf(it.ex).pattern === "carry"), ex:"Suitcase Carry"},
+    {n:"Conditioning", m:"M", c:cnt("cond"), ex:"Row, Run, Jump Rope", off:"Wt i czw w dni bez Strength"}
+  ];
+  return {reg, pct, tot, P, days, gaps:P.filter(p => !p.c && !p.part).length};
+}
+function renderCoverage(){
+  const c = coverageData();
+  const ICON_OK = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="pokryte"><path d="M5 12l5 5L20 7"/></svg>`;
+  const ICON_PART = `<svg width="20" height="20" viewBox="0 0 24 24" role="img" aria-label="częściowo"><circle cx="12" cy="12" r="8" fill="none" stroke="#9A9A94" stroke-width="2.5"/><path d="M12 4a8 8 0 0 1 0 16" fill="#9A9A94"/></svg>`;
+  const ICON_NO = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A9A94" stroke-width="2.5" stroke-linecap="round" role="img" aria-label="brak"><path d="M6 12h12"/></svg>`;
+  return `<section class="screen">${backHead("Pokrycie")}<p class="lead" style="margin-top:-8px">${c.days < 28 ? "Od pierwszego treningu, " + c.days + " " + plural(c.days, "dzień", "dni", "dni") : "Ostatnie 4 tygodnie"}</p>
+    <section class="sec"><h2 class="sec-h">Regularność</h2><div class="card">${c.reg.map(r => `<div class="cat"><span class="cat-top"><span class="n">${r.n}</span><span class="s">${r.done} z ${r.plan} ${r.unit}</span></span>${barHtml(r.plan ? r.done / r.plan * 100 : 0)}</div>`).join("")}</div></section>
+    <section class="sec"><h2 class="sec-h">Modality</h2><div class="lvl">
+      ${c.tot ? `<div class="modbar" role="img" aria-label="Weightlifting ${c.pct("W")}%, Gymnastics ${c.pct("G")}%, Monostructural ${c.pct("M")}%">${["W", "G", "M"].map(k => c.pct(k) ? `<span style="width:${c.pct(k)}%;background:${MOD_COLORS[k]}"></span>` : "").join("")}</div>` : `<p class="note">Brak treningów w ostatnich 4 tygodniach.</p>`}
+      <div class="legend">${[["W", "Weightlifting"], ["G", "Gymnastics"], ["M", "Monostructural"]].map(([k, n]) => `<span><i style="background:${MOD_COLORS[k]}"></i><em>${n}</em><b>${c.pct(k)}%</b></span>`).join("")}</div></div></section>
+    <section class="sec"><h2 class="sec-h">Wzorce ruchu</h2><div class="card">${c.P.map(p => `<div class="pat ${p.c || p.part ? "" : "off"}">${p.c ? ICON_OK : p.part ? ICON_PART : ICON_NO}<span class="bd"><b><i class="pdot" style="background:${MOD_COLORS[p.m]}"></i>${p.n}</b><span>${p.c ? esc(p.ex) + " · " + p.c + " " + plural(p.c, "raz", "razy", "razy") : esc(p.part || p.off || "Brak w ostatnich 4 tygodniach")}</span></span></div>`).join("")}</div></section>
+  </section>`;
 }
 function renderSettings(){
   const p = S.profile;
@@ -848,7 +1011,7 @@ function renderSheet(){
 /* ---------- render ---------- */
 function render(){
   const v = S.view;
-  const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "history" ? renderHistory() : v === "progress" ? renderProgress()
+  const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "history" ? renderHistory() : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
     : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
   renderSheet();
@@ -918,6 +1081,7 @@ document.addEventListener("click", e => {
   switch (act){
     case "menu": S.sheet = {type:"menu"}; renderSheet(); break;
     case "go": go(b.dataset.v); break;
+    case "cat": S.cat = b.dataset.c; go("cat"); break;
     case "home": go("home"); break;
     case "open": S.kind = b.dataset.kind; go("prep"); break;
     case "back-prep": go("prep"); break;
