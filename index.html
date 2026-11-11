@@ -124,7 +124,15 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .grp-i.on small{color:var(--ink);font-weight:600}
 .cat.cat-g{gap:12px;padding:16px 18px}
 .cat-g .grp-top{gap:14px}
-.cat-g .grp-lv{margin:0;font-size:14px}
+.cg-line{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.cg-line .n{font-size:17px;font-weight:500}
+.cg-v{display:flex;align-items:center;gap:8px}
+.cg-v b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.grp-pick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 0;border:0;background:transparent;color:inherit}
+.gp-ring{display:flex;border-radius:50%}
+.grp-pick.sel .gp-ring{box-shadow:0 0 0 2px #FFFFFF,0 0 0 4px var(--ink)}
+.grp-req{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--muted);min-height:22px;margin:8px 0 0}
+.grp-req b{color:var(--ink);font-weight:500}
 .cat-b{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
 .step > .badge{margin-top:-1px}
 .lvl-gauge{position:relative}
@@ -277,7 +285,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.33";
+const APP_VERSION = "2026-11-11.34";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1009,7 +1017,7 @@ const ANIMAL = {
   hedgehog: c => {
     const pts = []; const cx = 29, cy = 45;
     for (let i = 0; i <= 18; i++){ const a = Math.PI + i * Math.PI / 18 * 1.0, r = i % 2 ? 24 : 18; pts.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1)); }
-    return `<polygon points="${pts.join(" ")}" fill="#fff"/><path d="M40 45 L41 33 Q47 34 54 42 Q55 45 52 46 Z" fill="#fff"/><circle cx="54.5" cy="43.2" r="2.2" fill="${c}"/><circle cx="46" cy="38.5" r="1.7" fill="${c}"/><rect x="12" y="45" width="42" height="2.4" rx="1.2" fill="#fff"/>`;
+    return `<polygon points="${pts.join(" ")}" fill="#fff"/><path d="M40 45 L41 33 Q47 34 54 42 Q55 45 52 46 Z" fill="#fff"/><circle cx="54.5" cy="43.2" r="2.2" fill="${c}"/><rect x="12" y="45" width="42" height="2.4" rx="1.2" fill="#fff"/><circle cx="46" cy="38.5" r="1.7" fill="${c}"/>`;
   },
   hare: c => `<ellipse cx="25" cy="21" rx="4.6" ry="13" transform="rotate(-14 25 21)" fill="#fff"/><ellipse cx="39" cy="21" rx="4.6" ry="13" transform="rotate(14 39 21)" fill="#fff"/>
     <ellipse cx="25" cy="21" rx="1.8" ry="8.5" transform="rotate(-14 25 21)" fill="${c}" opacity=".35"/><ellipse cx="39" cy="21" rx="1.8" ry="8.5" transform="rotate(14 39 21)" fill="${c}" opacity=".35"/>
@@ -1181,7 +1189,7 @@ function renderProgress(){
     if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
     const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
     // Same pieces as the category screen: badge, group and level, track to the next group, the result that gets there.
-    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="grp-t"><span class="n">${c.name}</span><span class="grp-lv"><b>${last.level}</b> ${deltaChip(d)}</span></span></span>
+    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="cg-line"><span class="n">${c.name}</span><span class="cg-v">${deltaChip(d)}<b>${last.level}</b></span></span></span>
       ${ng ? groupTrack(g, ng, last.level, "") : ""}${ng && tg ? `<span class="cat-next">${badge(ng, 18)}${esc(tg)}</span>` : ""}</button>`;
   }).join("");
   const cov = coverageData();
@@ -1211,14 +1219,12 @@ function renderCat(){
         ${ng ? groupTrack(g, ng, lv, "") : ""}${ng && tg ? `<p class="cat-next" style="margin:0">${badge(ng, 18)}${esc(tg)}</p>` : ""}
         ${levelChart(h, "Poziom " + c.name)}</section>`; })();
   // Groups as the scale: the five that match a percentile show its standard, the others an example result for this category.
-  const std = typeof c.std === "function" ? c.std() : c.std, stdAt = {5:std[0], 20:std[1], 50:std[2], 80:std[3], 95:std[4]};
-  let scale = "", placed = lv == null;
-  GROUPS.forEach(g => {
-    if (!placed && lv < g.min){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
-    const ex = stdAt[g.min] || (g.min === 0 ? "" : last && !c.bench ? (t => t ? resText(t) : "")(targetFor(c, last.it, g.min)) : "");
-    scale += `<li class="step">${badge(g, 28, lv == null || lv < g.min)}<span class="bd"><b>${g.name} · ${g.min}</b>${ex ? `<span>${esc(ex)}</span>` : ""}</span></li>`;
-  });
-  if (!placed) scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`;
+  const std0 = typeof c.std === "function" ? c.std() : c.std, pre = (std0[0].match(/^([A-Za-z][A-Za-z &]*?)\s+\d/) || [])[1];
+  const std = std0.map((t, i) => i && pre && /^\d/.test(t) ? pre + " " + t : t), stdAt = {5:std[0], 20:std[1], 50:std[2], 80:std[3], 95:std[4]};
+  const reqOf = g => stdAt[g.min] || (g.min === 0 ? "" : last && !c.bench ? (t => t ? resText(t) : "")(targetFor(c, last.it, g.min)) : "");
+  const cur = lv == null ? null : groupOf(lv), pick = GROUPS.find(g => g.id === S.catGroup) || (cur && nextGroup(cur)) || GROUPS[1];
+  const groupsCard = `<section class="lvl" style="gap:6px"><div class="grp-all" role="tablist" aria-label="Grupy">${GROUPS.map(g => `<button class="grp-pick grp-i ${g === pick ? "sel" : ""} ${g === cur ? "on" : ""}" role="tab" aria-selected="${g === pick}" data-act="cat-g" data-g="${g.id}" aria-label="${g.name} od ${g.min}"><span class="gp-ring">${badge(g, 30, lv == null || lv < g.min)}</span><small>${g.min}</small></button>`).join("")}</div>
+    <p class="grp-req">${badge(pick, 20)}<b>${pick.name}</b>${reqOf(pick) ? `<span>${esc(reqOf(pick))}</span>` : ""}</p></section>`;
   let ladder = "";
   if (!c.bench){
     const ids = LADDERS[c.pattern] || [], slotEx = (S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit" && !x.bb) || {}).ex, curId = last && ids.includes(last.it.ex) ? last.it.ex : slotEx, ci = ids.indexOf(curId);
@@ -1227,7 +1233,7 @@ function renderCat(){
   }
   const results = h.length ? `<section class="sec"><h2 class="sec-h">Wyniki, które się liczą</h2><div class="card">${[...h].reverse().slice(0, 6).map(r =>
     `<div class="row"><span class="main"><span class="name" style="font-size:15px">${esc(r.text)}</span><span class="sub" style="font-size:13px">${esc(shortDate(r.date))}</span></span><b style="font-size:17px">${r.level}</b></div>`).join("")}</div></section>` : "";
-  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Grupy</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(typeof c.src === "function" ? c.src() : c.src)}.</p></section>${ladder}${results}</section>`;
+  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Grupy</h2>${groupsCard}</section>${ladder}${results}</section>`;
 }
 const PIN = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
 function coverageData(){
@@ -1438,11 +1444,12 @@ document.addEventListener("click", e => {
   const editIt = () => s.items.find(i => i.key === S.sheet?.key);
   switch (act){
     case "go": go(b.dataset.v); break;
-    case "cat": S.cat = b.dataset.c; go("cat"); break;
+    case "cat": S.cat = b.dataset.c; S.catGroup = null; go("cat"); break;
     case "home": go("home"); break;
     case "open": S.kind = b.dataset.kind; go("prep"); break;
     case "detail": S.detail = {id:b.dataset.id}; go("detail"); break;
     case "plan-detail": S.detail = {date:b.dataset.date, kind:b.dataset.kind}; go("plan"); break;
+    case "cat-g": S.catGroup = b.dataset.g; render(); break;
     case "pick-day": S.sel = b.dataset.date === today() ? null : b.dataset.date; render(); break;
     case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
