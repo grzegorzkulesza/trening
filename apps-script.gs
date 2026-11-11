@@ -135,7 +135,7 @@ function review_(id, force) {
     "Progresje: KB Halo to przygotowanie barków, najwyżej 8 kg × 8 per side. Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Przyciąganie: ring-row → ring-row-box → pullup-negative → band-pullup → pullup. " +
     "Pompki: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
     "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
-    "Nie dodawaj nowych ćwiczeń, nie zmieniaj mobilności, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń po angielsku, teksty po polsku, bez moralizowania i motywowania.\n" +
+    "Nie dodawaj nowych ćwiczeń, nie zmieniaj mobilności, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n" +
     "Dozwolone id i kody ciężaru dla każdego wzorca: " + JSON.stringify(ALLOWED) + "\n" +
     "Plan teraz (rundy: " + profile.rounds + "): " + JSON.stringify(plan) + "\n" +
     "Dzisiaj: " + JSON.stringify(brief(s)) + "\n" +

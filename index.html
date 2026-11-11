@@ -181,7 +181,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.8";
+const APP_VERSION = "2026-11-11.9";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -195,7 +195,7 @@ const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const dayLabel = d => cap(DAYS[d.getDay()]) + ", " + d.getDate() + " " + MONTHS[d.getMonth()];
 const shortDate = s => { const d = parseYmd(s); return DAYS_SHORT[d.getDay()]+" "+d.getDate()+"."+(d.getMonth()+1); };
 const plural = (n, one, few, many) => n === 1 ? one : (n%10 >= 2 && n%10 <= 4 && (n%100 < 10 || n%100 >= 20)) ? few : many;
-const roundsText = n => n + " " + plural(n, "runda", "rundy", "rund");
+const roundsText = n => n + " " + (n === 1 ? "round" : "rounds");
 const CHEV = `<svg class="chev" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9A9A95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>`;
 const XICON = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>`;
 const BACK = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>`;
@@ -222,8 +222,8 @@ const LOADS = {
 };
 
 /* ---------- exercises ---------- */
-const PATTERNS = {shoulder:"barki", vpush:"wyciskanie nad głowę", hpull:"przyciąganie", hinge:"zawias biodrowy", carry:"noszenie i core", "cond-int":"interwały", "cond-steady":"spokojna kondycja", hpush:"pchanie poziome", lunge:"jedna noga",
-  "mob-squat":"głęboki przysiad", "mob-hip":"biodra", "mob-ankle":"kostki i łydki", "mob-back":"tył ciała", "mob-tspine":"odcinek piersiowy i barki"};
+const PATTERNS = {shoulder:"Shoulder Prep", vpush:"Vertical Push", hpull:"Pull", hinge:"Hinge", carry:"Core & Carry", "cond-int":"Intervals", "cond-steady":"Steady", hpush:"Horizontal Push", lunge:"Single Leg",
+  "mob-squat":"Deep Squat", "mob-hip":"Hips", "mob-ankle":"Ankles & Calves", "mob-back":"Posterior Chain", "mob-tspine":"T-Spine & Shoulders"};
 const EX = {};
 const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, timed:false, req:[]}, o); };
 // circuit (plan)
@@ -556,7 +556,7 @@ const Sync = {
     if (got) { await this.pull(); redraw(); }
     else if (this.q.size) this.flush();
   },
-  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : sl.group === "cond" ? "Conditioning: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
+  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Circuit: " : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
 };
 
@@ -598,16 +598,16 @@ function renderHome(){
   else stSub = roundsText(S.profile.rounds) + " · " + slotsOf("circuit").length + " ćwiczeń";
   const mbSub = mb && mb.status === "done" ? "Zrobione na dziś." : slotsOf("mobility").length + " ćwiczeń · około 10 min";
   const ck = condKey(today()), cslot = slotByKey(ck);
-  const csSub = cs && cs.status === "done" ? doneSub(cs) : (cd ? "" : "Opcjonalnie: ") + (ck === "c-int" ? "interwały" : "spokojnie") + (cslot ? " · " + (ck === "c-int" ? cslot.reps + " " + plural(cslot.reps, "interwał", "interwały", "interwałów") : cslot.reps + " min") : "");
+  const csSub = cs && cs.status === "done" ? doneSub(cs) : (cd ? "" : "Opcjonalnie: ") + (ck === "c-int" ? "Intervals" : "Steady") + (cslot ? " · " + (ck === "c-int" ? roundsText(cslot.reps) : cslot.reps + " min") : "");
   const csDone = cs && cs.status === "done", showCond = csDone || !sd, condCounts = csDone || (cd && !sd);
   const doneN = [sd ? st : null, mb, condCounts ? cs : null].filter(x => x && x.status === "done").length, total = (sd ? 1 : 0) + 1 + (condCounts ? 1 : 0);
-  const names = [sd ? "Strength" : null, cd && !sd ? "Conditioning" : null, "mobilność"].filter(Boolean);
+  const names = [sd ? "Strength" : null, cd && !sd ? "Conditioning" : null, "Mobility"].filter(Boolean);
   const lead = doneN === total ? "Wszystko na dziś zrobione." : doneN ? "Zrobione " + doneN + " z " + total + "." : "Dziś " + names.slice(0, -1).join(", ") + (names.length > 1 ? " i " : "") + names[names.length - 1] + ".";
   const condCard = card("cond", "Conditioning", csSub, cs, true);
   const r = latestReview();
   return `<section class="screen"><header class="head"><div><p class="kicker">${dayLabel(d)}</p><h1 class="title">Dzisiaj</h1><p class="lead">${lead}</p></div><button class="icon-btn" data-act="menu" aria-label="Więcej">${DOTS}</button></header>
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
-    <div class="day-list">${card("strength", "Strength", stSub, st, sd)}${showCond ? condCard : ""}${card("mobility", "Mobilność", mbSub, mb, true)}</div>
+    <div class="day-list">${card("strength", "Strength", stSub, st, sd)}${showCond ? condCard : ""}${card("mobility", "Mobility", mbSub, mb, true)}</div>
     ${r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
     ${!Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
 }
@@ -626,23 +626,23 @@ function renderPrep(){
     return `<section class="screen">${head("Zrobione")}
       ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
       ${strength || cond ? reviewBlock(s, r) : ""}
-      <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : cond ? "Conditioning na następne razy" : "Mobilność na następny raz"}</h2><div class="card">${planItems(strength ? "circuit" : cond ? "cond" : "mobility").map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
+      <section class="sec"><h2 class="sec-h">${strength ? "Plan na następny trening · " + esc(nextStrengthLabel()) : cond ? "Conditioning na następne razy" : "Mobility na następny raz"}</h2><div class="card">${planItems(strength ? "circuit" : cond ? "cond" : "mobility").map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div></section>
       <div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div></section>`;
   }
   if (strength){
     const ws = WARM_START.find(w => w.id === S.profile.warmStart && eqOk(w.eq)) || WARM_START.find(w => eqOk(w.eq));
     const warmNames = [ws ? ws.name : null, ...WARMUP.map(w => w.name)].filter(Boolean).join(", ");
     return `<section class="screen">${head("Plan na dziś")}
-      <section class="sec"><h2 class="sec-h">Rozgrzewka</h2>
+      <section class="sec"><h2 class="sec-h">Warm-up</h2>
         <div class="card"><button class="row" data-act="warmup"><span class="main"><span class="name">Około 2 minut, bez przerw</span><span class="sub">${esc(warmNames)}</span></span>${CHEV}</button></div></section>
-      <section class="sec"><div class="sec-row"><h2 class="sec-h">Obwód</h2>
+      <section class="sec"><div class="sec-row"><h2 class="sec-h">Circuit</h2>
         <div class="stepper" role="group" aria-label="Liczba rund"><button class="round-btn" data-act="rounds" data-d="-1" aria-label="Mniej rund" ${s.rounds <= 1 ? "disabled" : ""}>−</button><span class="val">${roundsText(s.rounds)}</span><button class="round-btn" data-act="rounds" data-d="1" aria-label="Więcej rund" ${s.rounds >= 5 ? "disabled" : ""}>+</button></div></div>
         <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   if (cond){
     const it = s.items[0], intervals = it && exOf(it.ex).interval;
-    return `<section class="screen">${head(intervals ? "Interwały" : "Spokojnie")}
+    return `<section class="screen">${head(intervals ? "Intervals" : "Steady")}
       <section class="sec"><h2 class="sec-h">${intervals ? "Około 25 minut" : "Tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, true)).join("")}</div>
         <p class="note">${intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
@@ -651,7 +651,7 @@ function renderPrep(){
     <section class="sec"><h2 class="sec-h">Około 10 minut</h2><div class="card">${s.items.map(it => itemRow(it, null, true)).join("")}</div></section>
     <div class="push"><button class="btn" data-act="note">Zrobione</button></div></section>`;
 }
-const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobilność";
+const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
@@ -667,7 +667,7 @@ function renderHistory(){
   if (!list.length) return `<section class="screen">${backHead("Historia")}<p class="lead">Po pierwszej sesji zobaczysz tu plan, swoją notatkę i ocenę od Claude.</p></section>`;
   return `<section class="screen">${backHead("Historia")}${list.map(s => {
     const r = reviewFor(s.id);
-    return `<section class="sec"><h2 class="sec-h">${esc(shortDate(s.date))} · ${s.kind === "strength" ? "Strength · " + roundsText(s.rounds) : s.kind === "cond" ? "Conditioning" : "mobilność"}</h2><div class="card">
+    return `<section class="sec"><h2 class="sec-h">${esc(shortDate(s.date))} · ${s.kind === "strength" ? "Strength · " + roundsText(s.rounds) : s.kind === "cond" ? "Conditioning" : "Mobility"}</h2><div class="card">
       ${s.items.map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana</span>` : ""}</div>`).join("")}
       ${s.note ? `<div class="row"><span class="main"><span class="why">${esc(s.note)}</span></span></div>` : ""}
       ${r ? `<div class="row"><span class="main"><span class="name">${esc(r.title || "Ocena")}</span>${r.text ? `<span class="why">${esc(r.text)}</span>` : ""}${r.changes ? `<span class="why">Zmiany: ${esc(r.changes)}</span>` : ""}</span></div>` : ""}</div></section>`; }).join("")}</section>`;
@@ -678,8 +678,8 @@ function renderProgress(){
   const str = recent.filter(s => s.kind === "strength").length, mob = recent.filter(s => s.kind === "mobility").length;
   const hist = doneSessions().filter(s => s.kind === "strength").reverse();
   let h = `<section class="screen">${backHead("Progres")}
-    <div class="stats"><div class="stat"><b>${str}</b><span>Strength w 4 tygodnie</span></div><div class="stat"><b>${mob}</b><span>sesje mobilności w 4 tygodnie</span></div></div>
-    <section class="sec"><h2 class="sec-h">Obwód: plan teraz i ostatnie treningi</h2><div class="card">`;
+    <div class="stats"><div class="stat"><b>${str}</b><span>Strength w 4 tygodnie</span></div><div class="stat"><b>${mob}</b><span>Mobility w 4 tygodnie</span></div></div>
+    <section class="sec"><h2 class="sec-h">Circuit: plan teraz i ostatnie treningi</h2><div class="card">`;
   for (const sl of slotsOf("circuit")){
     const vals = hist.map(s => ({s, it:s.items.find(i => i.key === sl.key)})).filter(x => x.it).slice(-6);
     h += `<div class="row" style="align-items:flex-start"><span class="main"><span class="name">${esc(exOf(sl.ex).name)}</span><span class="sub">${dotHtml(sl.load)}${esc(doseText(sl.ex, sl.load, sl.reps))}</span>
@@ -694,7 +694,7 @@ function renderSettings(){
     <section class="sec"><h2 class="sec-h">Dni Strength</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Dni conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
-      <p class="note">Pierwszy dzień to interwały, drugi spokojnie. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
+      <p class="note">Pierwszy dzień to Intervals, drugi Steady. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
          <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`
@@ -720,13 +720,13 @@ function sheetHtml(){
     const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
-      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Obwód, ćwiczenie " + (idx+1) + " z " + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
+      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
         ${slot && slot.claudeNote && !it.swap ? `<p class="sub">Od Claude: ${esc(slot.claudeNote)}</p>` : ""}</header>
-      ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Wariant</h3><div class="chips">${variants.map(id => { const v = EX[id];
+      ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Variant</h3><div class="chips">${variants.map(id => { const v = EX[id];
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
-      ${loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Ciężar</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
+      ${loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">${ex.timed ? "Czas" : ex.dist ? "Dystans" : ex.minutes ? "Czas" : ex.interval ? "Interwały" : "Powtórzenia"}${s.kind === "strength" ? " w rundzie" : ""}${ex.side ? " (per side)" : ""}</h3>
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
         <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap ? "To zamiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
@@ -746,11 +746,11 @@ function sheetHtml(){
   }
   if (sh.type === "warmup"){
     const starts = WARM_START.filter(w => eqOk(w.eq));
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Rozgrzewka">${SHEET_X}
-      <header><h2>Rozgrzewka</h2><p class="sub">Około 2 minut, jedno po drugim, bez przerw. Ma podnieść tętno i rozruszać stawy.</p></header>
-      ${starts.length ? `<section class="sec"><h3 class="sec-h">Na start</h3><div class="choices" style="grid-template-columns:repeat(${starts.length},minmax(0,1fr))">${starts.map(w =>
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Warm-up">${SHEET_X}
+      <header><h2>Warm-up</h2><p class="sub">Około 2 minut, jedno po drugim, bez przerw. Ma podnieść tętno i rozruszać stawy.</p></header>
+      ${starts.length ? `<section class="sec"><h3 class="sec-h">Start</h3><div class="choices" style="grid-template-columns:repeat(${starts.length},minmax(0,1fr))">${starts.map(w =>
         `<button class="choice ${S.profile.warmStart === w.id ? "on" : ""}" style="min-height:64px" data-act="warm-start" data-v="${w.id}" aria-pressed="${S.profile.warmStart === w.id}">${w.name}<small>${w.dose}</small></button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">Potem</h3><div class="card">${WARMUP.map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">× ${w.reps}</span></span><span class="sub">${esc(w.cue)}</span></span></div>`).join("")}</div></section>
+      <section class="sec"><h3 class="sec-h">Then</h3><div class="card">${WARMUP.map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">× ${w.reps}</span></span><span class="sub">${esc(w.cue)}</span></span></div>`).join("")}</div></section>
       <button class="btn" data-act="close">Gotowe</button></div>`;
   }
   if (sh.type === "menu"){
