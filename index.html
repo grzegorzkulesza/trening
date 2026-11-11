@@ -305,7 +305,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.48";
+const APP_VERSION = "2026-11-11.49";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1101,10 +1101,10 @@ function renderNote(){
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
       ${cond ? "" : `<p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
     ${strength ? timeCard(s) : ""}
-    ${cond && eqOk("rower") ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie z PM5"><span>Zdjęcie z PM5</span><button data-act="photo-del">Usuń</button></div>`
-      : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie z PM5</label>`) : ""}
     ${s.kind !== "mobility" ? effHtml(s.rpe, "note") : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
+    ${cond && eqOk("rower") ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie z PM5"><span>Zdjęcie z PM5</span><button data-act="photo-del">Usuń</button></div>`
+      : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie z PM5</label>`) : ""}
     <div class="push"><button class="btn" data-act="finish" ${noteOk(s) ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
 }
 // Session time: switched off = not measured; switched on = minutes (and seconds) must be filled before saving.
