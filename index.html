@@ -244,7 +244,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.21";
+const APP_VERSION = "2026-11-11.22";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -514,6 +514,9 @@ function dayPlanItems(day){
   const slots = day.kind === "strength" ? circuitFor(day.date, day.bb) : slotsOf("cond").filter(x => x.key === day.condKey);
   return slots.map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 }
+// ISO 8601 week number (weeks start on Monday, week 1 holds the first Thursday of the year).
+function isoWeek(d){ const t = new Date(d.getFullYear(), d.getMonth(), d.getDate()); t.setDate(t.getDate() + 3 - (t.getDay() + 6) % 7);
+  const w1 = new Date(t.getFullYear(), 0, 4); return 1 + Math.round(((t - w1) / 86400000 - 3 + (w1.getDay() + 6) % 7) / 7); }
 const LETTERS = ["N", "P", "W", "Ś", "C", "P", "S"];
 const WK_MAX = 4;
 // The strip is also the history: it goes back to the week of the first done session.
@@ -522,8 +525,7 @@ function wkMin(){ const first = Object.values(S.sessions).filter(x => x.v === 2 
 const selDate = () => S.sel || today();
 function weekStripHtml(){
   const off = S.weekOff || 0, days = weekDays(off), sel = selDate(), a = parseYmd(days[0].date), z = parseYmd(days[6].date);
-  const label = off === 0 ? "Ten tydzień" : off === 1 ? "Następny tydzień" : off === -1 ? "Poprzedni tydzień"
-    : a.getDate() + (a.getMonth() !== z.getMonth() ? " " + MONTHS[a.getMonth()] : "") + "–" + z.getDate() + " " + MONTHS[z.getMonth()];
+  const label = "Tydzień " + isoWeek(a);
   const cell = d => {
     const dot = d.done ? "done" : d.kind && !d.past ? "plan" : d.kind ? "miss" : "";
     const dt = parseYmd(d.date), name = DAYS[d.w] + ", " + dt.getDate() + " " + MONTHS[dt.getMonth()] + (d.done ? ", zrobione" : d.kind ? ", " + (d.kind === "strength" ? "Strength" : "Conditioning") : "");
