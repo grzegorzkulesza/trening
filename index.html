@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.51";
+const APP_VERSION = "2026-11-11.52";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -743,7 +743,7 @@ const Store = {
 const debouncers = {};
 // Durations as m:ss (h:mm:ss from an hour).
 const mmss = t => { t = Math.round(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = String(t % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + sec : m + ":" + sec; };
-// PM5 photo waiting for Claude: kept on the phone (not in the sheet) until a review has read it.
+// A photo after the session (PM5, whiteboard, timer…) waiting for Claude: kept on the phone (not in the sheet) until a review has read it.
 const KEY_PHOTO = "trening:photo:", photoMem = {};
 const photoOf = id => { try { return localStorage.getItem(KEY_PHOTO + id) || photoMem[id] || null; } catch(e){ return photoMem[id] || null; } };
 function setPhoto(id, data){ photoMem[id] = data || null; try { data ? localStorage.setItem(KEY_PHOTO + id, data) : localStorage.removeItem(KEY_PHOTO + id); } catch(e){} }
@@ -821,7 +821,7 @@ const Coach = {
     const plan = slotsOf(g).filter(sl => !sl.bb || bbOn()).map(sl => ({key:sl.key, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps), sztangaZamiast:sl.bb}));
     const prev = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === s.kind && x.status === "done" && x.id !== s.id && x.date <= s.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
     const revs = Object.values(S.reviews || {}).filter(r => r.id !== s.id).sort((a, b) => String(a.date + a.id).localeCompare(String(b.date + b.id))).slice(-4);
-    return (photo ? "Do wiadomości dołączono zdjęcie wyświetlacza Concept2 PM5 zrobione po dzisiejszej sesji. Odczytaj z niego wyniki; tylko to, co widać, nieczytelne pomiń.\n" : "") +
+    return (photo ? "Do wiadomości dołączono zdjęcie zrobione po dzisiejszej sesji (może to być np. wyświetlacz Concept2 PM5, tablica z rozpisanym treningiem albo licznik czasu). Odczytaj z niego wszystko, co dotyczy tej sesji, i uwzględnij w ocenie i w polu done; tylko to, co widać, nieczytelne pomiń.\n" : "") +
       (s.kind === "cond" ? COND_RULES : "") + BASE_RULES +
       "Dozwolone id i kody ciężaru dla każdego key: " + this.allowedText(g) + "\n" +
       "Plan teraz" + (g === "circuit" ? " (rundy: " + S.profile.rounds + ")" : "") + ": " + JSON.stringify(plan) + "\n" +
@@ -830,7 +830,7 @@ const Coach = {
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
       'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening (taka sama albo mniejsza niż teraz),"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W changes tylko ćwiczenia, które zmieniasz. W done tylko ćwiczenia, przy których notatka mówi, że zrobił co innego niż w dzisiejszym planie (inny wariant, ciężar albo liczbę powtórzeń, np. w drugiej rundzie pełne Push-up zamiast Knee Push-up): podaj najlepszą serię, którą faktycznie zrobił; bez zgadywania. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".' +
-      (photo ? ' Dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
+      (photo ? ' Jeśli na zdjęciu jest wyświetlacz PM5, dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
   },
   parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
   apply(s, out){
@@ -1079,8 +1079,8 @@ function doneScreen(s){
   return `<section class="screen">${head}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
-    <section class="sec"><h2 class="sec-h">${(strength ? "Circuit · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (s.rpe ? " · wysiłek " + s.rpe : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${cond && s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
-      ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie z PM5 nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}</section>
+    <section class="sec"><h2 class="sec-h">${(strength ? "Circuit · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (s.rpe ? " · wysiłek " + s.rpe : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
+      ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}</section>
     ${isToday && strength ? `<section class="sec"><h2 class="sec-h">Plan na następny trening · ${esc(nextStrengthLabel())}</h2><div class="card">${planItems("circuit").map((it, i) => itemRow(it, i, false)).join("")}</div></section>` : ""}
     ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
 }
@@ -1105,8 +1105,8 @@ function renderNote(){
     ${strength ? timeCard(s) : ""}
     ${s.kind !== "mobility" ? effHtml(s.rpe, "note") : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
-    ${cond && eqOk("rower") ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie z PM5"><span>Zdjęcie z PM5</span><button data-act="photo-del">Usuń</button></div>`
-      : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie z PM5</label>`) : ""}
+    ${s.kind !== "mobility" ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie po treningu"><span>Zdjęcie</span><button data-act="photo-del">Usuń</button></div>`
+      : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie</label>`) : ""}
     <div class="push"><button class="btn" data-act="finish" ${noteOk(s) ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
 }
 // Session time: switched off = not measured; switched on = minutes (and seconds) must be filled before saving.
