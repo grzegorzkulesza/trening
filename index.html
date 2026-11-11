@@ -93,6 +93,8 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .btn.plain{background:transparent;color:var(--ink);font-weight:500;font-size:17px}
 .btn:disabled{opacity:.45;cursor:default}
 .push{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:4px}
+.home-head{align-items:center}
+.day-h{font-size:22px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .icon-btn{width:44px;height:44px;border-radius:22px;border:0;background:var(--surface);display:grid;place-items:center;flex:none;color:var(--ink)}
 .round-btn{width:44px;height:44px;border-radius:22px;border:0;background:var(--surface);font-size:22px;line-height:1;flex:none}
 .round-btn:disabled{opacity:.35}
@@ -238,7 +240,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.16";
+const APP_VERSION = "2026-11-11.17";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -858,13 +860,15 @@ function renderHome(){
   const condCard = card("cond", "Conditioning", csSub, cs, true);
   const r = latestReview(), sel = selDate();
   const menuBtn = `<button class="icon-btn" data-act="menu" aria-label="Więcej">${DOTS}</button>`;
+  // One compact line: the week strip below already shows where you are.
+  const sd2 = parseYmd(sel), yest = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
+  const when = sel === today() ? "Dziś" : sel === tomorrow() ? "Jutro" : sel === yest ? "Wczoraj" : cap(DAYS[sd2.getDay()]);
+  const head = `<header class="head home-head"><h1 class="title day-h">${when}, ${sd2.getDate()} ${MONTHS[sd2.getMonth()]}</h1>${menuBtn}</header>`;
   if (sel !== today()){
-    const day = dayFor(sel), sd2 = parseYmd(sel);
-    const title = sel === tomorrow() ? "Jutro" : cap(DAYS[sd2.getDay()]);
-    return `<section class="screen"><header class="head"><div><p class="kicker">${dayLabel(sd2)}</p><h1 class="title">${title}</h1><p class="lead">${esc(day ? dayLead(day) : "")}</p></div>${menuBtn}</header>
-      ${weekStripHtml()}${day ? dayDetailHtml(day) : ""}</section>`;
+    const day = dayFor(sel);
+    return `<section class="screen">${head}${weekStripHtml()}${day ? dayDetailHtml(day) : ""}</section>`;
   }
-  return `<section class="screen"><header class="head"><div><p class="kicker">${dayLabel(d)}</p><h1 class="title">Dzisiaj</h1><p class="lead">${lead}</p></div>${menuBtn}</header>
+  return `<section class="screen">${head}
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
     ${weekStripHtml()}
     <div class="day-list">${card("strength", "Strength", stSub, st, sd)}${showCond ? condCard : ""}${card("mobility", "Mobility", mbSub, mb, true)}</div>
