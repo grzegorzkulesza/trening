@@ -222,7 +222,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.12";
+const APP_VERSION = "2026-11-11.13";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -249,9 +249,19 @@ const EQUIP = [
   {id:"db15", label:"Hantle 2 × 15 kg"}, {id:"db225", label:"Hantle 2 × 22,5 kg"}, {id:"mb9", label:"Piłka lekarska 9 kg"},
   {id:"rings", label:"Kółka gimnastyczne"}, {id:"pullbar", label:"Drążek"}, {id:"bands", label:"Gumy oporowe"},
   {id:"box", label:"Skrzynia 50 / 60 / 75 cm"}, {id:"rower", label:"Wioślarz"}, {id:"rope", label:"Skakanka"},
-  {id:"barbell", label:"Sztanga i talerze", note:"Do wycofania. Domyślnie wyłączona, zamienniki jej nie używają."}
+  {id:"barbell", label:"Sztanga i stojaki", note:"Gryf 20 kg, bumpery 2 × 20 / 15 / 10 / 5 / 2,5 / 1,25 kg."}
 ];
-const DEFAULT_EQUIP = Object.fromEntries(EQUIP.map(e => [e.id, e.id !== "barbell"]));
+const DEFAULT_EQUIP = Object.fromEntries(EQUIP.map(e => [e.id, true]));
+// Barbell: 20 kg bar + one pair of each plate → 20–127.5 kg in 2.5 kg steps. Load codes: bb20, bb22.5 … bb127.5.
+const BAR = 20, PLATES = [20, 15, 10, 5, 2.5, 1.25];
+const BB_LOADS = [];
+for (let kg = BAR; kg <= BAR + 2 * PLATES.reduce((a, b) => a + b, 0) + 1e-9; kg += 2.5) BB_LOADS.push("bb" + kg);
+const plKg = n => String(n).replace(".", ",");
+function platesText(kg){
+  let side = (kg - BAR) / 2; const out = [];
+  for (const p of PLATES) if (side >= p - 1e-9){ out.push(p); side -= p; }
+  return out.length ? out.map(plKg).join(" + ") + " na stronę" : "pusty gryf";
+}
 const LOADS = {
   bw:{label:"Bodyweight"},
   kb4:{label:"4 kg", color:"#A3ABB4", eq:"kb4"}, kb8:{label:"8 kg", color:"#E98FB8", eq:"kb8"},
@@ -261,9 +271,10 @@ const LOADS = {
   mb9:{label:"9 kg ball", color:"#7B5639", eq:"mb9"},
   band:{label:"Band", eq:"bands"}, barbell:{label:"Barbell", eq:"barbell"}
 };
+BB_LOADS.forEach(l => { LOADS[l] = {label:plKg(+l.slice(2)) + " kg", eq:"barbell", bb:+l.slice(2)}; });
 
 /* ---------- exercises ---------- */
-const PATTERNS = {shoulder:"Shoulder Prep", vpush:"Vertical Push", hpull:"Pull", hinge:"Hinge", carry:"Core & Carry", "cond-int":"Intervals", "cond-steady":"Steady", hpush:"Horizontal Push", lunge:"Single Leg",
+const PATTERNS = {shoulder:"Shoulder Prep", vpush:"Vertical Push", hpull:"Pull", hinge:"Hinge", squat:"Squat", carry:"Core & Carry", "cond-int":"Intervals", "cond-steady":"Steady", hpush:"Horizontal Push", lunge:"Single Leg",
   "mob-squat":"Deep Squat", "mob-hip":"Hips", "mob-ankle":"Ankles & Calves", "mob-back":"Posterior Chain", "mob-tspine":"T-Spine & Shoulders"};
 const EX = {};
 const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, timed:false, req:[]}, o); };
@@ -287,6 +298,9 @@ X("incline-pushup-50", {name:"Incline Push-up", tag:"Box 50 cm", pattern:"hpush"
 X("pushup", {name:"Push-up", pattern:"hpush", def:["bw",5], cue:"Łokcie około 45° od tułowia."});
 X("ring-dip", {name:"Ring Dip", pattern:"hpush", req:["rings"], def:["bw",3], cue:"Kółka przy biodrach, barki w dół."});
 X("bss", {name:"Bulgarian Split Squat", pattern:"lunge", loads:["bw","kb8","kb16","kb20","db15x2","db225x2"], side:true, def:["kb16",6], cue:"Tylna stopa na skrzyni 50 cm, tułów lekko w przód."});
+X("bb-dl", {name:"Deadlift", pattern:"hinge", loads:BB_LOADS, bb:true, def:["bb60",5], cue:"Sztanga nad środkiem stopy, plecy płasko, gryf przy nogach. Odkładasz kontrolowanie, bez upuszczania."});
+X("bb-front-squat", {name:"Front Squat", pattern:"squat", loads:BB_LOADS, bb:true, def:["bb30",5], cue:"Ze stojaków. Łokcie wysoko, tułów pionowo, pełny przysiad. Chwyt na palcach albo skrzyżowany."});
+X("bb-push-press", {name:"Push Press", pattern:"vpush", loads:BB_LOADS, bb:true, def:["bb30",5], cue:"Ze stojaków. Krótki dip w kolanach, wypchnięcie nogami, łokcie zablokowane nad głową."});
 X("suitcase-carry", {name:"Suitcase Carry", pattern:"carry", loads:["kb8","kb16","kb20"], side:true, dist:true, def:["kb16",20], cue:"Kettlebell w jednej ręce. Tułów prosto, bez przechylania, bark w dół."});
 X("farmer-carry", {name:"Farmer's Carry", pattern:"carry", loads:["db15x2","db225x2"], dist:true, def:["db15x2",30], cue:"Ciężar w obu rękach, barki w dół, krótkie kroki."});
 X("row-int", {name:"Row Intervals", pattern:"cond-int", req:["rower"], interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki oddech, nie da się mówić. Spokojnie: luźne wiosłowanie."});
@@ -308,29 +322,30 @@ A("hk-kb-press", {name:"Half-kneeling KB Press", pattern:"vpush", loads:["kb8","
 A("bottoms-up", {name:"Bottoms-up KB Press", pattern:"vpush", loads:["kb8"], side:true, def:["kb8",5], rel:"łatwiej", why:"Lekki ciężar, dużo kontroli barku i chwytu."});
 A("pike-pushup", {name:"Pike Push-up", tag:"Feet on box", pattern:"vpush", req:["box"], def:["bw",6], rel:"podobnie", why:"Wyciskanie nad głowę masą ciała."});
 A("mb-thruster", {name:"Med Ball Thruster", pattern:"vpush", loads:["mb9"], def:["mb9",10], rel:"łatwiej", why:"Przysiad i wypchnięcie; więcej kondycji niż siły."});
-A("bb-push-press", {name:"Barbell Push Press", pattern:"vpush", loads:["barbell"], def:["barbell",5], rel:"podobnie", why:"Tylko póki sztanga jest w domu."});
+A("bb-strict-press", {name:"Strict Press", pattern:"vpush", loads:BB_LOADS, bb:true, def:["bb25",5], rel:"trudniej", why:"Sztanga bez pomocy nóg."});
 A("db-row", {name:"DB Bent-over Row", pattern:"hpull", loads:["db15x2","db225x2"], def:["db15x2",10], rel:"podobnie", why:"Wiosłowanie oburącz w opadzie, plecy płasko."});
 A("sa-db-row", {name:"Single-arm DB Row", pattern:"hpull", loads:["db15","db225"], side:true, def:["db225",8], rel:"trudniej", why:"Ręka na skrzyni, duży ciężar."});
 A("sa-kb-row", {name:"Single-arm KB Row", pattern:"hpull", loads:["kb16","kb20"], side:true, def:["kb20",10], rel:"podobnie", why:"Gdy kółka nie są zawieszone."});
 A("band-row", {name:"Band Row", pattern:"hpull", loads:["band"], def:["band",15], rel:"łatwiej", why:"Lekkie przyciąganie na gorszy dzień."});
 A("neg-chinup", {name:"Chin-up Negative", pattern:"hpull", req:["pullbar"], def:["bw",3], rel:"trudniej", why:"Wskakujesz na górę, schodzisz przez 5 sekund."});
-A("bb-row", {name:"Barbell Bent-over Row", pattern:"hpull", loads:["barbell"], def:["barbell",8], rel:"podobnie", why:"Tylko póki sztanga jest w domu."});
+A("bb-row", {name:"Barbell Bent-over Row", pattern:"hpull", loads:BB_LOADS, bb:true, def:["bb30",8], rel:"podobnie", why:"Wiosłowanie sztangą w opadzie, plecy płasko."});
 A("kb-dl", {name:"KB Deadlift", pattern:"hinge", loads:["kb16","kb20"], def:["kb20",10], rel:"łatwiej", why:"Ten sam zawias bez dynamiki."});
 A("db-rdl", {name:"DB Romanian Deadlift", pattern:"hinge", loads:["db15x2","db225x2"], def:["db225x2",8], rel:"podobnie", why:"Wolna praca tyłu ud."});
 A("sl-rdl", {name:"Single-leg KB RDL", pattern:"hinge", loads:["kb8","kb16"], side:true, def:["kb16",6], rel:"trudniej", why:"Zawias i równowaga naraz."});
 A("row-sprint", {name:"Row Sprint", pattern:"hinge", req:["rower"], timed:true, def:["bw",20], rel:"podobnie", why:"Gdy chodzi o tętno, nie o sam zawias."});
-A("bb-dl", {name:"Barbell Deadlift", pattern:"hinge", loads:["barbell"], def:["barbell",5], rel:"trudniej", why:"Tylko póki sztanga jest w domu."});
+A("bb-rdl", {name:"Romanian Deadlift", pattern:"hinge", loads:BB_LOADS, bb:true, def:["bb40",8], rel:"łatwiej", why:"Zawias bez odkładania na podłogę, cicho."});
 A("incline-pushup-60", {name:"Incline Push-up", tag:"Box 60 cm", pattern:"hpush", req:["box"], def:["bw",10], rel:"łatwiej", why:"Mniej masy na rękach."});
 A("db-floor", {name:"DB Floor Press", pattern:"hpush", loads:["db15x2","db225x2"], def:["db225x2",8], rel:"podobnie", why:"Odciąża nadgarstki."});
 A("ring-pushup", {name:"Ring Push-up", pattern:"hpush", req:["rings"], def:["bw",8], rel:"trudniej", why:"Niestabilność dokłada pracy barkom."});
 A("band-pushup", {name:"Band-resisted Push-up", pattern:"hpush", req:["bands"], def:["bw",6], rel:"trudniej", why:"Etap po pełnych pompkach."});
-A("bb-floor", {name:"Barbell Floor Press", pattern:"hpush", loads:["barbell"], def:["barbell",6], rel:"podobnie", why:"Tylko póki sztanga jest w domu."});
+A("bb-floor", {name:"Barbell Floor Press", pattern:"hpush", loads:BB_LOADS, bb:true, def:["bb30",6], rel:"podobnie", why:"Wyciskanie leżąc z podłogi, bez ławki."});
 A("rev-lunge", {name:"Reverse Lunge", pattern:"lunge", loads:["bw","kb8","kb16","db15x2","db225x2"], side:true, def:["db15x2",8], rel:"podobnie", why:"Łagodniejszy dla kolan niż wykrok w przód."});
 A("step-up", {name:"Goblet Box Step-up", tag:"Box 50 cm", pattern:"lunge", loads:["kb8","kb16","kb20"], req:["box"], side:true, def:["kb16",8], rel:"podobnie", why:"Kontrolowane zejście, bez odbicia."});
 A("goblet-squat", {name:"KB Goblet Squat", pattern:"lunge", loads:["kb16","kb20"], def:["kb20",10], rel:"łatwiej", why:"Obie nogi, gdy równowaga przeszkadza."});
 A("cossack", {name:"Cossack Squat", pattern:"lunge", loads:["bw","kb8","kb16"], side:true, def:["kb8",5], rel:"podobnie", why:"Do tego mobilność bioder."});
 A("split-squat", {name:"Split Squat", pattern:"lunge", loads:["bw","kb8","kb16","kb20"], side:true, def:["kb16",8], rel:"łatwiej", why:"Ten sam ruch, tylna stopa na podłodze."});
-A("bb-front-squat", {name:"Barbell Front Squat", pattern:"lunge", loads:["barbell"], def:["barbell",6], rel:"trudniej", why:"Tylko póki sztanga jest w domu."});
+A("bb-back-squat", {name:"Back Squat", pattern:"squat", loads:BB_LOADS, bb:true, def:["bb40",5], rel:"łatwiej", why:"Ze stojaków, gdy front rack przeszkadza."});
+A("goblet-sq", {name:"KB Goblet Squat", pattern:"squat", loads:["kb16","kb20"], def:["kb20",10], rel:"łatwiej", why:"Bez sztangi, ten sam przysiad."});
 // mobility (plan)
 X("deep-squat-hold", {name:"Deep Squat Hold", pattern:"mob-squat", timed:true, def:["bw",60], cue:"Możesz trzymać się framugi albo kółek."});
 X("z-sit", {name:"Z-Sit", pattern:"mob-hip", timed:true, side:true, def:["bw",30], cue:"Ręce mogą podpierać."});
@@ -353,11 +368,13 @@ A("wall-slide", {name:"Wall Slide + Chin Tuck", pattern:"mob-tspine", def:["bw",
 
 const UNKNOWN = {id:"?", name:"Nieznane ćwiczenie", pattern:"", loads:["bw"], side:false, timed:false, req:[], def:["bw",5]};
 const EX_ALIAS = {"ring-row-60":"ring-row", "ring-row-45":"ring-row", "ring-row-30":"ring-row", "ring-row-flat":"ring-row"};
+const ladderOf = sl => sl.bb ? [sl.ex] : (LADDERS[sl.pattern] || [sl.ex]);
 const LADDERS = {
   hpull:["ring-row","ring-row-box","pullup-negative","band-pullup","pullup"],
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
   vpush:["kb-clean-press","kb-strict-press"],
   hinge:["kb-swing","kb-swing-1a"],
+  squat:["bb-front-squat"],
   carry:["suitcase-carry","farmer-carry"],
   "cond-int":["row-int","run-int","rope-int"],
   "cond-steady":["row-steady","run-steady"]
@@ -392,6 +409,10 @@ const DEFAULT_SLOTS = [
   {key:"push", group:"circuit", pattern:"hpush", ex:"knee-pushup", load:"bw", reps:8},
   {key:"bss", group:"circuit", pattern:"lunge", ex:"bss", load:"kb16", reps:6},
   {key:"carry", group:"circuit", pattern:"carry", ex:"suitcase-carry", load:"kb16", reps:20},
+  // Barbell: one lift per Strength session, in turn. Each takes the place of the KB slot named in `bb`.
+  {key:"bb-dl", group:"circuit", pattern:"hinge", ex:"bb-dl", load:"bb60", reps:5, bb:"swing"},
+  {key:"bb-fs", group:"circuit", pattern:"squat", ex:"bb-front-squat", load:"bb30", reps:5, bb:"bss"},
+  {key:"bb-pp", group:"circuit", pattern:"vpush", ex:"bb-push-press", load:"bb30", reps:5, bb:"cp"},
   {key:"c-int", group:"cond", pattern:"cond-int", ex:"row-int", load:"bw", reps:8},
   {key:"c-steady", group:"cond", pattern:"cond-steady", ex:"row-steady", load:"bw", reps:30},
   {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:60},
@@ -407,14 +428,16 @@ const WARMUP = [
 ];
 const WARM_START = [{id:"rope", name:"Jump Rope", dose:"45 s", eq:"rope"}, {id:"row", name:"Row", dose:"1 min", eq:"rower"}];
 
+const MIG = 1; // 1: barbell switched on (Nov 2026)
 function defaultProfile(){
-  return {v:2, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
+  return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
 }
 function mergeProfile(p){
   const d = defaultProfile();
   if (!p || typeof p !== "object") return d;
   const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, condSchedule:Array.isArray(p.condSchedule) ? p.condSchedule : d.condSchedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
-    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2};
+    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2, mig:MIG};
+  if ((p.mig || 0) < 1) out.equip.barbell = true;
   if (p.v === 2 && Array.isArray(p.slots)){
     const byKey = Object.fromEntries(p.slots.map(s => [s.key, s]));
     out.slots = d.slots.map(s => byKey[s.key] && byKey[s.key].ex ? {...s, ...byKey[s.key]} : s);
@@ -426,6 +449,24 @@ function mergeProfile(p){
 /* ---------- state ---------- */
 const S = {profile:defaultProfile(), sessions:{}, reviews:{}, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false, reviewing:null, reviewErr:null};
 const slotsOf = g => S.profile.slots.filter(s => s.group === g);
+const BB_ORDER = ["bb-dl", "bb-fs", "bb-pp"];
+const bbOn = () => eqOk("barbell");
+// Barbell lift for a Strength session on dateStr: the one after the lift of the last done session before that day.
+function bbKey(dateStr){
+  const last = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === "strength" && x.status === "done" && x.date < dateStr && (x.items || []).some(it => BB_ORDER.includes(it.key)))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  if (!last) return BB_ORDER[0];
+  const k = last.items.find(it => BB_ORDER.includes(it.key)).key;
+  return BB_ORDER[(BB_ORDER.indexOf(k) + 1) % BB_ORDER.length];
+}
+// Circuit for one session: KB slots, with today's barbell lift in place of its KB counterpart.
+function circuitFor(dateStr){
+  const all = slotsOf("circuit"), base = all.filter(x => !x.bb);
+  if (!bbOn()) return base;
+  const bb = all.find(x => x.key === bbKey(dateStr));
+  return bb ? base.map(x => x.key === bb.bb ? bb : x) : base;
+}
+const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
 const slotByKey = k => S.profile.slots.find(s => s.key === k);
 const today = () => ymd(new Date());
 const isStrengthDay = dateStr => S.profile.schedule.includes(parseYmd(dateStr).getDay());
@@ -446,7 +487,7 @@ function nextStrengthLabel(fromToday = false){
 function fitLoad(ex, load){ const ls = loadsOf(ex); return ls.includes(load) ? load : (ls.includes(ex.def[0]) ? ex.def[0] : ls[0] || "bw"); }
 function buildSession(kind){
   const group = kind === "strength" ? "circuit" : kind === "cond" ? "cond" : "mobility";
-  const slots = kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(today())) : slotsOf(group);
+  const slots = kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(today())) : kind === "strength" ? circuitFor(today()) : slotsOf(group);
   return {v:2, id:sessionId(kind), date:today(), kind, status:"prep", touched:false, rounds: kind === "strength" ? S.profile.rounds : 1,
     finishedAt:null, note:"",
     items: slots.map(s => { const ex = exOf(s.ex), load = fitLoad(ex, s.load);
@@ -507,26 +548,30 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
   "Progresje: KB Halo to przygotowanie barków, najwyżej 8 kg × 8 per side. Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Pull: ring-row → ring-row-box → pullup-negative → band-pullup → pullup. " +
   "Push: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
   "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
-  "Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
+  "Sztanga (gryf 20 kg, bumpery, stojaki; kody ciężaru bb + kg, np. bb62.5, od bb20 do bb127.5 co 2,5 kg): w każdym Strength jedno ćwiczenie ze sztangą, po kolei Deadlift (key bb-dl), Front Squat (bb-fs), Push Press (bb-pp); w tej sesji zastępuje odpowiednio KB Swing, Bulgarian Split Squat albo KB Clean & Press. " +
+  "Na sztangę zawsze 5 reps na rundę. Za łatwo: Deadlift +5 kg, Front Squat i Push Press +2,5 kg. Trudno, sypiąca się technika, okrągłe plecy albo ból: ten sam ciężar albo −5 kg. Nie dokładaj szybciej, niż wynika z notatki; technika ważniejsza niż kilogramy. " +
+  "Zmieniaj tylko key z dzisiejszej sesji. Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
 const Coach = {
   group: s => s.kind === "cond" ? "cond" : "circuit",
   allowed(group){
     const out = {};
     slotsOf(group).forEach(sl => {
-      const ids = (LADDERS[sl.pattern] || [sl.ex]).filter(id => EX[id] && (id === sl.ex || exAvailable(EX[id])));
+      const ids = ladderOf(sl).filter(id => EX[id] && (id === sl.ex || exAvailable(EX[id])));
       if (!ids.includes(sl.ex) && EX[sl.ex]) ids.unshift(sl.ex);
-      out[sl.pattern] = Object.fromEntries(ids.map(id => [id, loadsOf(EX[id])]));
+      out[sl.key] = Object.fromEntries(ids.map(id => [id, loadsOf(EX[id])]));
     });
     return out;
   },
+  // Barbell load lists are long: one line instead of 44 codes.
+  allowedText(group){ return JSON.stringify(this.allowed(group), (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v); },
   brief: x => ({data:x.date, rundy:x.rounds, notatka:x.note || "", cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), zamianaNaDzis:it.swap ? true : undefined}))}),
   prompt(s, earlier){
     const g = this.group(s);
-    const plan = slotsOf(g).map(sl => ({key:sl.key, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps)}));
+    const plan = slotsOf(g).filter(sl => !sl.bb || bbOn()).map(sl => ({key:sl.key, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps), sztangaZamiast:sl.bb}));
     const prev = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === s.kind && x.status === "done" && x.id !== s.id && x.date <= s.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
     const revs = Object.values(S.reviews || {}).filter(r => r.id !== s.id).sort((a, b) => String(a.date + a.id).localeCompare(String(b.date + b.id))).slice(-4);
     return (s.kind === "cond" ? COND_RULES : "") + BASE_RULES +
-      "Dozwolone id i kody ciężaru dla każdego wzorca: " + JSON.stringify(this.allowed(g)) + "\n" +
+      "Dozwolone id i kody ciężaru dla każdego key: " + this.allowedText(g) + "\n" +
       "Plan teraz" + (g === "circuit" ? " (rundy: " + S.profile.rounds + ")" : "") + ": " + JSON.stringify(plan) + "\n" +
       "Dzisiaj: " + JSON.stringify(this.brief(s)) + "\n" +
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
@@ -538,8 +583,8 @@ const Coach = {
   apply(s, out){
     const g = this.group(s), allowed = this.allowed(g), now = Date.now(), changes = [];
     (Array.isArray(out.changes) ? out.changes : []).forEach(c => {
-      const sl = slotsOf(g).find(x => x.key === c.key); if (!sl) return;
-      const loads = (allowed[sl.pattern] || {})[c.ex]; if (!loads) return;
+      const sl = slotsOf(g).find(x => x.key === c.key); if (!sl || !(s.items || []).some(it => it.key === c.key)) return;
+      const loads = (allowed[sl.key] || {})[c.ex]; if (!loads) return;
       const load = loads.includes(c.load) ? c.load : (loads.includes(sl.load) ? sl.load : loads[0]);
       const ex = EX[c.ex], max = ex.minutes ? 45 : ex.interval ? 16 : 60;
       const reps = Math.max(1, Math.min(max, parseInt(c.reps, 10) || sl.reps));
@@ -671,7 +716,7 @@ const Sync = {
     if (got && !relay) { await this.pull(); redraw(); }
     else if (this.q.size) await this.flush();
   },
-  planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Circuit: " : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
+  planText(){ return S.profile.slots.filter(sl => !sl.bb || bbOn()).map(sl => [(sl.group === "circuit" ? (sl.bb ? "Circuit, sztanga zamiast " + exOf((slotByKey(sl.bb) || {}).ex).name + ": " : "Circuit: ") : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
 };
 
@@ -682,10 +727,10 @@ function itemRow(it, i, tappable){
   const changed = it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
   const byClaude = sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
   const tag = it.swap ? `<span class="tag">zamiana na dziś</span>` : changed ? `<span class="tag">zmienione</span>` : byClaude ? `<span class="tag up">od Claude</span>` : "";
-  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${tag}${tappable ? CHEV : ""}`;
+  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span>${LOADS[it.load] && LOADS[it.load].bb ? `<span class="sub">${esc(platesText(LOADS[it.load].bb))}</span>` : ""}</span>${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
-const planItems = group => slotsOf(group).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
+const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 function sessionFor(kind){ const x = S.sessions[sessionId(kind)]; return x && x.v === 2 ? x : null; }
 const reviewFor = id => (S.reviews || {})[id] || null;
 function latestReview(){ return Object.values(S.reviews || {}).sort((a, b) => String(b.date + b.id).localeCompare(String(a.date + a.id)))[0] || null; }
@@ -710,7 +755,7 @@ function renderHome(){
   let stSub;
   if (!sd) stSub = "Dziś wolne. Następny: " + nextStrengthLabel() + ".";
   else if (st && st.status === "done") stSub = doneSub(st);
-  else stSub = roundsText(S.profile.rounds) + " · " + slotsOf("circuit").length + " ćwiczeń";
+  else { const c = circuitFor(today()), bb = c.find(x => x.bb); stSub = roundsText(S.profile.rounds) + " · " + c.length + " ćwiczeń" + (bb ? " · " + exOf(bb.ex).name : ""); }
   const mbSub = mb && mb.status === "done" ? "Zrobione na dziś." : slotsOf("mobility").length + " ćwiczeń · około 10 min";
   const ck = condKey(today()), cslot = slotByKey(ck);
   const csSub = cs && cs.status === "done" ? doneSub(cs) : (cd ? "" : "Opcjonalnie: ") + (ck === "c-int" ? "Intervals" : "Steady") + (cslot ? " · " + (ck === "c-int" ? roundsText(cslot.reps) : cslot.reps + " min") : "");
@@ -752,7 +797,10 @@ function renderPrep(){
         <div class="card"><button class="row" data-act="warmup"><span class="main"><span class="name">Około 2 minut, bez przerw</span><span class="sub">${esc(warmNames)}</span></span>${CHEV}</button></div></section>
       <section class="sec"><div class="sec-row"><h2 class="sec-h">Circuit</h2>
         <div class="stepper" role="group" aria-label="Liczba rund"><button class="round-btn" data-act="rounds" data-d="-1" aria-label="Mniej rund" ${s.rounds <= 1 ? "disabled" : ""}>−</button><span class="val">${roundsText(s.rounds)}</span><button class="round-btn" data-act="rounds" data-d="1" aria-label="Więcej rund" ${s.rounds >= 5 ? "disabled" : ""}>+</button></div></div>
-        <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div></section>
+        <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div>
+        ${(() => { const b = s.items.find(it => LOADS[it.load] && LOADS[it.load].bb && LOADS[it.load].bb > BAR); if (!b) return "";
+          const half = Math.max(BAR, Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5);
+          return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą rundą: 5 × pusty gryf, 3 × ${plKg(half)} kg.</p>`; })()}</section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   if (cond){
@@ -791,7 +839,8 @@ function renderHistory(){
    Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
    Hinge (no community data for KB Swing) and Conditioning (Row 2000 m, men 40–49) are estimates. */
 const PCTS = [5, 20, 50, 80, 95], RIR = 2;
-const KGS = {bw:0, kb4:4, kb8:8, kb16:16, kb20:20, db15x2:30, db225x2:45};
+const KGS0 = {bw:0, kb4:4, kb8:8, kb16:16, kb20:20, db15x2:30, db225x2:45};
+const KGS = new Proxy(KGS0, {get:(t, k) => k in t ? t[k] : LOADS[k] && LOADS[k].bb ? LOADS[k].bb : undefined});
 const clamp01 = x => Math.max(0, Math.min(1, x));
 function pctFrom(v, a){
   if (!(v > 0)) return 0;
@@ -812,15 +861,27 @@ const LEVEL_CATS = [
       case "incline-pushup-75": case "incline-pushup-50": return 1.5 * clamp01(r / 15); case "knee-pushup": return 1.5 + 1.5 * clamp01(r / 15);
       case "pushup-negative": return 3 + clamp01(r / 8); case "pushup": return pctFrom(r + RIR, [1, 18, 41, 68, 99]);
       case "ring-dip": return Math.max(pctFrom(30, [1, 18, 41, 68, 99]), pctFrom(r + RIR, [1, 6, 13, 24, 34])); } return null; }},
-  {id:"press", name:"Press", pattern:"vpush", src:"Strength Level, Dumbbell Shoulder Press (1RM jedną ręką)", std:["13 kg", "21 kg", "32 kg", "45 kg", "60 kg"],
+  {id:"press", name:"Press", pattern:"vpush",
+    src:() => bbOn() ? "Strength Level, Push Press (1RM); KB Clean & Press przeliczony z Dumbbell Shoulder Press" : "Strength Level, Dumbbell Shoulder Press (1RM jedną ręką)",
+    std:() => bbOn() ? ["Push Press 37 kg", "57 kg", "83 kg", "114 kg", "147 kg"] : ["13 kg", "21 kg", "32 kg", "45 kg", "60 kg"],
     score(it){ const kg = KGS[it.load]; if (!kg) return null;
+      if (it.ex === "bb-push-press") return pctFrom(e1rm(kg, it.reps), [37, 57, 83, 114, 147]);
       if (it.ex === "kb-clean-press") return pctFrom(e1rm(kg, it.reps) * 0.9, [13, 21, 32, 45, 60]);
       if (it.ex === "kb-strict-press") return pctFrom(e1rm(kg, it.reps), [13, 21, 32, 45, 60]); return null; }},
-  {id:"hinge", name:"Hinge", pattern:"hinge", src:"szacunek wg standardów StrongFirst (brak danych społeczności dla KB Swing)", std:["KB Swing 16 kg × 15", "24 kg × 15", "32 kg × 15", "40 kg × 15", "48 kg × 15"],
-    score(it){ const kg = KGS[it.load]; if (!kg) return null; const eq = it.ex === "kb-swing-1a" ? kg * 1.3 : it.ex === "kb-swing" ? kg : 0; if (!eq) return null;
+  {id:"hinge", name:"Hinge", pattern:"hinge",
+    src:() => bbOn() ? "Strength Level, Deadlift (1RM); KB Swing to szacunek wg StrongFirst" : "szacunek wg standardów StrongFirst (brak danych społeczności dla KB Swing)",
+    std:() => bbOn() ? ["Deadlift 80 kg", "113 kg", "154 kg", "202 kg", "253 kg"] : ["KB Swing 16 kg × 15", "24 kg × 15", "32 kg × 15", "40 kg × 15", "48 kg × 15"],
+    score(it){ const kg = KGS[it.load]; if (!kg) return null;
+      if (it.ex === "bb-dl") return pctFrom(e1rm(kg, it.reps), [80, 113, 154, 202, 253]);
+      const eq = it.ex === "kb-swing-1a" ? kg * 1.3 : it.ex === "kb-swing" ? kg : 0; if (!eq) return null;
       return Math.max(0, pctFrom(eq, [16, 24, 32, 40, 48]) + (Math.max(10, Math.min(30, it.reps)) - 15) * 0.4); }},
-  {id:"legs", name:"Legs", pattern:"lunge", src:"Strength Level, Dumbbell Bulgarian Split Squat (1RM, ciężar na rękę)", std:["2 × 10 kg", "2 × 18 kg", "2 × 30 kg", "2 × 44 kg", "2 × 60 kg"],
-    score(it){ if (it.ex !== "bss") return null; if (it.load === "bw") return 1.5 * clamp01(it.reps / 12); return pctFrom(e1rm(KGS[it.load] / 2, it.reps), [10, 18, 30, 44, 60]); }},
+  {id:"legs", name:"Legs", pattern:"lunge",
+    src:() => bbOn() ? "Strength Level, Front Squat (1RM); Bulgarian Split Squat z Dumbbell Bulgarian Split Squat" : "Strength Level, Dumbbell Bulgarian Split Squat (1RM, ciężar na rękę)",
+    std:() => bbOn() ? ["Front Squat 55 kg", "77 kg", "105 kg", "137 kg", "172 kg"] : ["2 × 10 kg", "2 × 18 kg", "2 × 30 kg", "2 × 44 kg", "2 × 60 kg"],
+    score(it){ const kg = KGS[it.load];
+      if (it.ex === "bb-front-squat" && kg) return pctFrom(e1rm(kg, it.reps), [55, 77, 105, 137, 172]);
+      if (it.ex === "bb-back-squat" && kg) return pctFrom(e1rm(kg, it.reps), [64, 93, 130, 173, 219]);
+      if (it.ex !== "bss") return null; if (it.load === "bw") return 1.5 * clamp01(it.reps / 12); return pctFrom(e1rm(KGS[it.load] / 2, it.reps), [10, 18, 30, 44, 60]); }},
   {id:"carry", name:"Core & Carry", pattern:"carry", src:"Strength Level, Farmers Walk (ciężar na rękę, 20 m)", std:["2 × 9 kg", "2 × 20 kg", "2 × 37 kg", "2 × 58 kg", "2 × 84 kg"],
     score(it){ const kg = KGS[it.load]; if (!kg) return null; const hand = it.ex === "suitcase-carry" ? kg : it.ex === "farmer-carry" ? kg / 2 : 0; if (!hand) return null;
       return pctFrom(hand, [9, 20, 37, 58, 84]) + (Math.max(20, Math.min(60, it.reps)) - 20) / 10; }},
@@ -832,18 +893,24 @@ const ddmm = d => { const x = parseYmd(d); return x.getDate() + "." + (x.getMont
 const exLabel = id => { const ex = exOf(id); return ex.name + (ex.tag ? " (" + ex.tag + ")" : ""); };
 const resText = it => exLabel(it.ex) + " " + doseText(it.ex, it.load, it.reps).replace(/^.* · /, "").replace(/^(Bodyweight|Feet on box) /, "");
 const unlockN = c => c.bench ? 1 : 2;
-// Every done session gives at most one result per category: the best one in that session.
+const FRESH_DAYS = 42;
+// Category level = best of the latest results of each exercise from the last 6 weeks.
 function levelHistory(){
-  const out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []]));
+  const out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []])), latest = Object.fromEntries(LEVEL_CATS.map(c => [c.id, {}]));
   const sess = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && (x.kind === "strength" || x.kind === "cond")).sort((a, b) => a.date.localeCompare(b.date));
   for (const x of sess){
     for (const c of LEVEL_CATS){
       if (c.bench){ const t = x.bench && x.bench.row2000; if (t) out[c.id].push({date:x.date, level:Math.round(c.scoreBench(t)), text:"Row 2000 m " + fmtTime(t)}); continue; }
       if (x.kind !== "strength") continue;
-      let best = null;
+      const mine = {};
       for (const it0 of x.items || []){ const it = {...it0, ex:EX_ALIAS[it0.ex] || it0.ex}; const v = c.score(it); if (v == null) continue;
-        const l = Math.round(v); if (!best || l > best.level) best = {date:x.date, level:l, text:resText(it), it}; }
-      if (best) out[c.id].push(best);
+        const l = Math.round(v); if (!mine[it.ex] || l > mine[it.ex].level) mine[it.ex] = {date:x.date, level:l, text:resText(it), it}; }
+      if (!Object.keys(mine).length) continue;
+      Object.assign(latest[c.id], mine);
+      // A light day on another exercise (e.g. first Deadlift after KB Swing) does not pull the level down.
+      const best = Object.values(latest[c.id]).filter(r => (parseYmd(x.date) - parseYmd(r.date)) / 86400000 <= FRESH_DAYS).sort((a, b) => b.level - a.level || b.date.localeCompare(a.date))[0];
+      const prev = out[c.id][out[c.id].length - 1];
+      if (!prev || best.date === x.date || best.level !== prev.level) out[c.id].push({...best, date:x.date});
     }
   }
   return out;
@@ -890,18 +957,18 @@ function renderCat(){
   names.forEach((n, i) => {
     if (!placed && lv < PCTS[i]){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
     const done = lv != null && lv >= PCTS[i];
-    scale += `<li class="step"><span class="mk ${done ? "done" : "next"}" aria-hidden="true">${done ? CHECK_W : "<i></i>"}</span><span class="bd"><b>${n} · ${PCTS[i]}</b><span>${esc(c.std[i])}</span></span></li>`;
+    scale += `<li class="step"><span class="mk ${done ? "done" : "next"}" aria-hidden="true">${done ? CHECK_W : "<i></i>"}</span><span class="bd"><b>${n} · ${PCTS[i]}</b><span>${esc((typeof c.std === "function" ? c.std() : c.std)[i])}</span></span></li>`;
   });
   if (!placed) scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`;
   let ladder = "";
   if (!c.bench){
-    const ids = LADDERS[c.pattern] || [], curId = last ? last.it.ex : (S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit") || {}).ex, ci = ids.indexOf(curId);
+    const ids = LADDERS[c.pattern] || [], slotEx = (S.profile.slots.find(x => x.pattern === c.pattern && x.group === "circuit" && !x.bb) || {}).ex, curId = last && ids.includes(last.it.ex) ? last.it.ex : slotEx, ci = ids.indexOf(curId);
     if (ids.length > 1) ladder = `<section class="sec"><h2 class="sec-h">Progresja</h2><ol class="card" style="margin:0;padding:0;list-style:none">${ids.map((id, i) =>
       `<li class="step ${i === ci ? "cur" : ""}"><span class="mk ${i < ci ? "done" : i === ci ? "cur" : "next"}" aria-hidden="true">${i < ci ? CHECK_W : i === ci ? PIN : "<i></i>"}</span><span class="bd"><b>${esc(exLabel(id))}</b></span></li>`).join("")}</ol></section>`;
   }
   const results = h.length ? `<section class="sec"><h2 class="sec-h">Wyniki, które się liczą</h2><div class="card">${[...h].reverse().slice(0, 6).map(r =>
     `<div class="row"><span class="main"><span class="name" style="font-size:15px">${esc(r.text)}</span><span class="sub" style="font-size:13px">${esc(shortDate(r.date))}</span></span><b style="font-size:17px">${r.level}</b></div>`).join("")}</div></section>` : "";
-  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Skala</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(c.src)}.</p></section>${ladder}${results}</section>`;
+  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Skala</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(typeof c.src === "function" ? c.src() : c.src)}.</p></section>${ladder}${results}</section>`;
 }
 const PIN = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
 function coverageData(){
@@ -920,16 +987,20 @@ function coverageData(){
     if (x.kind === "cond") for (const it of x.items || []){ const ex = exOf(it.ex); mins.M += ex.interval ? it.reps * 2 : it.reps; }
   }
   const tot = mins.W + mins.G + mins.M, pct = k => tot ? Math.round(mins[k] / tot * 100) : 0;
-  const times = test => done.filter(x => (x.items || []).some(it => test({...it, ex:EX_ALIAS[it.ex] || it.ex}))).length;
+  // How many sessions hit the pattern, and with which exercises (most frequent first).
+  const hit = test => { const names = {}; let c = 0;
+    for (const x of done){ const its = (x.items || []).map(it => ({...it, ex:EX_ALIAS[it.ex] || it.ex})).filter(test); if (!its.length) continue; c++;
+      new Set(its.map(it => exOf(it.ex).name)).forEach(n => names[n] = (names[n] || 0) + 1); }
+    return {c, ex:Object.entries(names).sort((a, b) => b[1] - a[1]).map(([n]) => n).join(", ")}; };
   const P = [
-    {n:"Horizontal Push", m:"G", c:times(it => exOf(it.ex).pattern === "hpush"), ex:"Push-up"},
-    {n:"Vertical Push", m:"W", c:times(it => exOf(it.ex).pattern === "vpush"), ex:"KB Clean & Press"},
-    {n:"Horizontal Pull", m:"G", c:times(it => ["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row"].includes(it.ex)), ex:"Ring Row"},
-    {n:"Vertical Pull", m:"G", c:times(it => ["pullup-negative", "band-pullup", "pullup"].includes(it.ex)), ex:"Pull-up", off:"Pojawi się z Pull-up Negative"},
-    {n:"Hinge", m:"W", c:times(it => exOf(it.ex).pattern === "hinge"), ex:"KB Swing"},
-    {n:"Single Leg", m:"W", c:times(it => exOf(it.ex).pattern === "lunge"), ex:"Bulgarian Split Squat"},
-    {n:"Squat", m:"G", c:0, part:cnt("mobility") ? "Tylko Deep Squat Hold w Mobility" : null},
-    {n:"Core & Carry", m:"W", c:times(it => exOf(it.ex).pattern === "carry"), ex:"Suitcase Carry"},
+    {n:"Horizontal Push", m:"G", ...hit(it => exOf(it.ex).pattern === "hpush")},
+    {n:"Vertical Push", m:"W", ...hit(it => exOf(it.ex).pattern === "vpush")},
+    {n:"Horizontal Pull", m:"G", ...hit(it => ["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row", "bb-row", "db-row", "sa-db-row", "sa-kb-row", "band-row"].includes(it.ex))},
+    {n:"Vertical Pull", m:"G", ...hit(it => ["pullup-negative", "band-pullup", "pullup", "neg-chinup"].includes(it.ex)), off:"Pojawi się z Pull-up Negative"},
+    {n:"Hinge", m:"W", ...hit(it => exOf(it.ex).pattern === "hinge")},
+    {n:"Single Leg", m:"W", ...hit(it => exOf(it.ex).pattern === "lunge")},
+    {n:"Squat", m:"W", ...hit(it => exOf(it.ex).pattern === "squat"), part:cnt("mobility") ? "Tylko Deep Squat Hold w Mobility" : null},
+    {n:"Core & Carry", m:"W", ...hit(it => exOf(it.ex).pattern === "carry")},
     {n:"Conditioning", m:"M", c:cnt("cond"), ex:"Row, Run, Jump Rope", off:"Wt i czw w dni bez Strength"}
   ];
   return {reg, pct, tot, P, days, gaps:P.filter(p => !p.c && !p.part).length};
@@ -976,7 +1047,7 @@ function sheetHtml(){
   if (sh.type === "edit"){
     const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotByKey(it.key);
     const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
-    const variants = it.swap ? [] : (LADDERS[slot.pattern] || []).filter(id => EX[id] && exAvailable(EX[id]));
+    const variants = it.swap ? [] : ladderOf(slot).filter(id => EX[id] && exAvailable(EX[id]));
     const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
@@ -984,7 +1055,9 @@ function sheetHtml(){
         ${slot && slot.claudeNote && !it.swap ? `<p class="sub">Od Claude: ${esc(slot.claudeNote)}</p>` : ""}</header>
       ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Variant</h3><div class="chips">${variants.map(id => { const v = EX[id];
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
-      ${loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
+      ${ex.bb ? (() => { const kg = LOADS[it.load] ? LOADS[it.load].bb : BAR, i = BB_LOADS.indexOf(it.load);
+        return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b><span>${esc(platesText(kg))}</span></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
+      : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
       <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
         <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
@@ -994,12 +1067,12 @@ function sheetHtml(){
   }
   if (sh.type === "swap"){
     const it = s.items.find(i => i.key === sh.key), slot = slotByKey(sh.key);
-    const lad = LADDERS[slot.pattern] || [];
+    const lad = ladderOf(slot), slotBb = !!exOf(slot.ex).bb;
     const order = {"łatwiej":1, "podobnie":2, "trudniej":3};
     const opts = Object.values(EX).filter(e => e.pattern === slot.pattern && e.id !== it.ex && exAvailable(e) && (e.id === slot.ex || !lad.includes(e.id)))
       .sort((a, b) => (a.id === slot.ex ? -1 : a.alt ? order[a.rel] || 4 : 0) - (b.id === slot.ex ? -1 : b.alt ? order[b.rel] || 4 : 0));
     const optRow = e => { const load = e.id === slot.ex ? fitLoad(e, slot.load) : fitLoad(e, e.def[0]), reps = e.id === slot.ex ? slot.reps : e.def[1];
-      return `<button class="row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span>${e.why ? `<span class="why">${esc(e.why)}</span>` : ""}</span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : "wariant"}</span></button>`; };
+      return `<button class="row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span>${e.why ? `<span class="why">${esc(e.why)}</span>` : ""}</span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : !!e.bb !== slotBb ? (e.bb ? "sztanga" : "bez sztangi") : "wariant"}</span></button>`; };
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zamiana ćwiczenia">${SHEET_X}
       <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
@@ -1119,6 +1192,7 @@ document.addEventListener("click", e => {
     case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
     case "set-variant": { const it = editIt(); if (!it) return; const ex = EX[b.dataset.ex]; if (!ex || ex.id === it.ex) return;
       setItem(s, it, {ex:ex.id, load:fitLoad(ex, loadsOf(ex).includes(it.load) ? it.load : ex.def[0]), reps:ex.def[1]}, true); renderSheet(); render(); break; }
+    case "bbload": { const it = editIt(); if (!it) return; const i = BB_LOADS.indexOf(it.load) + Number(b.dataset.d); if (i < 0 || i >= BB_LOADS.length) return; setItem(s, it, {load:BB_LOADS[i]}); renderSheet(); render(); break; }
     case "set-load": { const it = editIt(); if (!it) return; setItem(s, it, {load:b.dataset.l}); renderSheet(); render(); break; }
     case "reps": { const it = editIt(); if (!it) return; const r = it.reps + Number(b.dataset.d); if (r < 1) return; setItem(s, it, {reps:r}); renderSheet(); render(); break; }
     case "swap": S.sheet = {type:"swap", key:S.sheet.key}; renderSheet(); break;
