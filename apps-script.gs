@@ -41,6 +41,11 @@ function sheet_(name, head) {
   return sh;
 }
 
+// Arkusz potrafi zamienić tekst "2026-11-11" na datę; wtedy porównujemy datę w formacie RRRR-MM-DD.
+function idOf_(v) {
+  return v instanceof Date ? Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd") : String(v);
+}
+
 function out_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -162,7 +167,7 @@ function apply_(s, profile, out) {
   const rv = sheet_(REVIEWS, REVIEW_HEAD);
   const row = [review.id, review.date, review.title, review.text, review.changes, new Date()];
   const n = rv.getLastRow();
-  const ids = n > 1 ? rv.getRange(2, 1, n - 1, 1).getValues().map(function (x) { return String(x[0]); }) : [];
+  const ids = n > 1 ? rv.getRange(2, 1, n - 1, 1).getValues().map(function (x) { return idOf_(x[0]); }) : [];
   const i = ids.indexOf(String(review.id));
   if (i >= 0) rv.getRange(i + 2, 1, 1, row.length).setValues([row]); else rv.appendRow(row);
   return { review: review, profile: changes.length ? profile : null };
@@ -225,7 +230,7 @@ function upsert_(item) {
   ];
   const n = sh.getLastRow();
   if (n > 1) {
-    const ids = sh.getRange(2, 1, n - 1, 1).getValues().map(function (r) { return String(r[0]); });
+    const ids = sh.getRange(2, 1, n - 1, 1).getValues().map(function (r) { return idOf_(r[0]); });
     const i = ids.indexOf(String(s.id));
     if (i >= 0) { sh.getRange(i + 2, 1, 1, row.length).setValues([row]); return; }
   }

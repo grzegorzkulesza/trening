@@ -127,6 +127,8 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .field{background:var(--surface);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:10px}
 .field textarea{width:100%;border:0;outline:none;resize:none;background:transparent;font-size:16px;line-height:1.45;padding:4px 4px;min-height:72px;text-align:center}
 .field textarea::placeholder{color:#8A8984}
+.note-field{flex:1;min-height:340px;padding:18px}
+.note-field textarea{flex:1;text-align:left;font-size:17px;line-height:1.5;padding:0}
 .mic{width:100%;height:54px;flex:none;border:0;border-radius:22px;background:var(--chip);display:grid;place-items:center}
 .hint{margin:6px 0 0;font-size:13px;color:var(--muted)}
 .wait{display:flex;align-items:center;gap:12px}
@@ -165,8 +167,9 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 /* sheets */
 .sheet-wrap{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;justify-content:flex-end;background:rgba(18,18,18,.42)}
 .sheet-wrap[hidden]{display:none}
-.sheet{position:relative;background:var(--bg);border-radius:28px 28px 0 0;padding:12px 24px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:24px;max-height:92%;overflow-y:auto;width:100%;max-width:480px;margin:0 auto}
-.grab{align-self:center;width:36px;height:5px;border-radius:3px;background:#D6D4CE;flex:none}
+.sheet{position:relative;background:var(--bg);border-radius:28px 28px 0 0;padding:24px 24px calc(env(safe-area-inset-bottom) + 28px);display:flex;flex-direction:column;gap:24px;max-height:92%;overflow-y:auto;width:100%;max-width:480px;margin:0 auto}
+.sheet-x{position:absolute;top:16px;right:16px;z-index:1}
+.sheet>header,.sheet>.head{padding-right:52px}
 .sheet h2{margin:0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.02em}
 .sheet .sub{margin:6px 0 0;font-size:15px;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
@@ -178,7 +181,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.4";
+const APP_VERSION = "2026-11-11.5";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -615,8 +618,7 @@ function renderNote(){
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${strength ? "Trening siłowy" : "Mobilność"}</p><h1 class="title">Jak poszło?</h1>
       <p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p></div></header>
-    <div class="field"><button class="mic" data-act="mic" aria-label="Dyktuj notatkę">${MIC}</button><textarea id="sessionNote" data-note="1" rows="9" style="text-align:left" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
-    ${S.micHint ? `<p class="hint">Dyktuj z klawiatury: mikrofonem iOS albo przyciskiem klawiatury Wispr Flow (przełączasz ją ikoną globusa).</p>` : ""}
+    <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
     <div class="push"><button class="btn" data-act="finish">Zapisz i zakończ</button></div></section>`;
 }
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
@@ -676,7 +678,7 @@ function sheetHtml(){
     const variants = it.swap ? [] : (LADDERS[slot.pattern] || []).filter(id => EX[id] && exAvailable(EX[id]));
     const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia"><span class="grab" aria-hidden="true"></span>
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
       <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Obwód, ćwiczenie " + (idx+1) + " z " + s.items.length : "Mobilność"} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
         ${slot && slot.claudeNote && !it.swap ? `<p class="sub">Od Claude: ${esc(slot.claudeNote)}</p>` : ""}</header>
       ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Wariant</h3><div class="chips">${variants.map(id => { const v = EX[id];
@@ -697,13 +699,13 @@ function sheetHtml(){
       .sort((a, b) => (a.id === slot.ex ? -1 : a.alt ? order[a.rel] || 4 : 0) - (b.id === slot.ex ? -1 : b.alt ? order[b.rel] || 4 : 0));
     const optRow = e => { const load = e.id === slot.ex ? fitLoad(e, slot.load) : fitLoad(e, e.def[0]), reps = e.id === slot.ex ? slot.reps : e.def[1];
       return `<button class="row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span>${e.why ? `<span class="why">${esc(e.why)}</span>` : ""}</span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : "wariant"}</span></button>`; };
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zamiana ćwiczenia"><span class="grab" aria-hidden="true"></span>
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zamiana ćwiczenia">${SHEET_X}
       <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
   }
   if (sh.type === "warmup"){
     const starts = WARM_START.filter(w => eqOk(w.eq));
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Rozgrzewka"><span class="grab" aria-hidden="true"></span>
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Rozgrzewka">${SHEET_X}
       <header><h2>Rozgrzewka</h2><p class="sub">Około 2 minut, jedno po drugim, bez przerw. Ma podnieść tętno i rozruszać stawy.</p></header>
       ${starts.length ? `<section class="sec"><h3 class="sec-h">Na start</h3><div class="choices" style="grid-template-columns:repeat(${starts.length},minmax(0,1fr))">${starts.map(w =>
         `<button class="choice ${S.profile.warmStart === w.id ? "on" : ""}" style="min-height:64px" data-act="warm-start" data-v="${w.id}" aria-pressed="${S.profile.warmStart === w.id}">${w.name}<small>${w.dose}</small></button>`).join("")}</div></section>` : ""}
@@ -712,17 +714,18 @@ function sheetHtml(){
   }
   if (sh.type === "menu"){
     const items = [["history", "Historia"], ["progress", "Progres"], ["settings", "Sprzęt i plan"]];
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Menu"><span class="grab" aria-hidden="true"></span>
-      <div class="card">${items.map(([v, t]) => `<button class="row" style="min-height:56px" data-act="go" data-v="${v}"><span class="main"><span class="name" style="font-weight:400">${t}</span></span>${CHEV}</button>`).join("")}</div>
-      <button class="btn outline" data-act="close">Zamknij</button></div>`;
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Menu">${SHEET_X}
+      <header><h2>Menu</h2></header>
+      <div class="card">${items.map(([v, t]) => `<button class="row" style="min-height:56px" data-act="go" data-v="${v}"><span class="main"><span class="name" style="font-weight:400">${t}</span></span>${CHEV}</button>`).join("")}</div></div>`;
   }
   if (sh.type === "confirm"){
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(sh.title)}"><span class="grab" aria-hidden="true"></span>
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(sh.title)}">${SHEET_X}
       <header><h2>${esc(sh.title)}</h2><p class="sub">${esc(sh.text)}</p></header>
       <div class="push" style="margin-top:0"><button class="btn" data-act="${sh.act}">${esc(sh.yes)}</button><button class="btn plain" data-act="close">${esc(sh.no)}</button></div></div>`;
   }
   return "";
 }
+const SHEET_X = `<button class="icon-btn sheet-x" data-act="close" aria-label="Zamknij"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
 function renderSheet(){
   const w = $("#sheet");
   if (!S.sheet){ w.hidden = true; w.innerHTML = ""; return; }
