@@ -305,7 +305,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.46";
+const APP_VERSION = "2026-11-11.47";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -665,13 +665,19 @@ function dayCardsHtml(date){
   return `<div class="day-list">${out.join("")}</div>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
-// Row 2000 m test: not a plan slot. It takes the place of the first Conditioning session while there is no result yet.
+// Row 2000 m test: not a plan slot. It takes the place of a Conditioning session when a test is due (none yet, or 8 weeks since the last).
 const TEST_SLOT = {key:"c-test", group:"cond", pattern:"cond-test", ex:"row-2k", load:"bw", reps:2000};
 const slotByKey = k => k === "c-test" ? TEST_SLOT : S.profile.slots.find(s => s.key === k);
-const hasRow2k = () => Object.values(S.sessions).some(x => x.v === 2 && x.bench && x.bench.row2000);
+// The test comes back 8 weeks after the last result, on the first Conditioning day from then on.
+const TEST_EVERY = 56;
+function testDue(){
+  const last = Object.values(S.sessions).filter(x => x.v === 2 && x.bench && x.bench.row2000).map(x => x.date).sort().pop();
+  if (!last) return today();
+  const d = parseYmd(last); d.setDate(d.getDate() + TEST_EVERY); return ymd(d);
+}
 function testDate(){
-  if (hasRow2k() || !eqOk("rower")) return null;
-  const d = parseYmd(today());
+  if (!eqOk("rower")) return null;
+  const due = testDue(), d = parseYmd(due > today() ? due : today());
   for (let i = 0; i < 8; i++){ const w = d.getDay(); if ((S.profile.condSchedule || []).includes(w) && !S.profile.schedule.includes(w)) return ymd(d); d.setDate(d.getDate() + 1); }
   return null;
 }
@@ -679,9 +685,9 @@ const today = () => ymd(new Date());
 const isStrengthDay = dateStr => S.profile.schedule.includes(parseYmd(dateStr).getDay());
 const sessionId = kind => kind === "strength" ? today() : today() + (kind === "cond" ? "-cond" : "-mob");
 const isCondDay = dateStr => (S.profile.condSchedule || []).includes(parseYmd(dateStr).getDay());
-// Wtorek: interwały, czwartek: spokojnie. W inny dzień: to, czego dawniej nie było. Bez wyniku Row 2000 m: najpierw test.
+// Wtorek: interwały, czwartek: spokojnie. W inny dzień: to, czego dawniej nie było. Gdy przypada test Row 2000 m: test.
 function condKey(dateStr){
-  const td = testDate(); if (td && (dateStr === td || dateStr === today())) return "c-test";
+  const td = testDate(); if (td && (dateStr === td || (dateStr === today() && testDue() <= today()))) return "c-test";
   const sc = (S.profile.condSchedule || []).slice().sort(), d = parseYmd(dateStr).getDay();
   if (sc.includes(d)) return sc.indexOf(d) % 2 === 0 ? "c-int" : "c-steady";
   const last = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === "cond" && x.status === "done" && x.date < dateStr).sort((a, b) => b.date.localeCompare(a.date))[0];
