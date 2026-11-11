@@ -248,7 +248,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.23";
+const APP_VERSION = "2026-11-11.24";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1163,7 +1163,7 @@ function renderSettings(){
     <section class="sec"><h2 class="sec-h">Sprzęt</h2><div class="card">${EQUIP.map(e => `<div class="opt"><label for="eq-${e.id}">${esc(e.label)}${e.note ? `<small>${esc(e.note)}</small>` : ""}</label><input type="checkbox" class="sw" id="eq-${e.id}" data-eq="${e.id}" ${p.equip[e.id] ? "checked" : ""}></div>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Dni Strength</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
-    <section class="sec"><h2 class="sec-h">Dni conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
+    <section class="sec"><h2 class="sec-h">Dni Conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Pierwszy dzień to Intervals, drugi Steady. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
