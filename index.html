@@ -98,6 +98,27 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .push{margin-top:auto;display:flex;flex-direction:column;gap:8px;padding-top:4px}
 .home-head{align-items:center}
 .head-btns{display:flex;gap:8px;flex:none}
+.lvl-pill{height:44px;border:0;border-radius:22px;background:var(--surface);display:flex;align-items:center;gap:7px;padding:0 13px 0 6px;color:var(--ink);flex:none}
+.lvl-pill b{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums}
+.lvl-pill .tr{font-size:13px;font-weight:600;color:var(--good)}
+.lvl-pill .tr.down{color:var(--warn)}
+.grp-hero{gap:16px}
+.grp-top{display:flex;align-items:center;gap:16px}
+.grp-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.grp-name{margin:0;font-size:32px;line-height:1.1;font-weight:600;letter-spacing:-.02em}
+.grp-lv{margin:4px 0 0;font-size:15px;color:var(--muted);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.grp-lv b{color:var(--ink);font-weight:600}
+.grp-next{display:flex;flex-direction:column;gap:8px}
+.grp-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px;color:var(--muted)}
+.grp-row b{color:var(--ink);font-weight:600}
+.grp-to{display:inline-flex;align-items:center;gap:6px}
+.grp-all{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:2px;padding-top:4px;border-top:1px solid var(--line)}
+.grp-i{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
+.grp-i small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.grp-i.on small{color:var(--ink);font-weight:600}
+.cat.cat-g{flex-direction:row;align-items:center;gap:14px}
+.cat-b{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.step > .badge{margin-top:-1px}
 .lvl-gauge{position:relative}
 .lvl-gauge svg{position:absolute;inset:0}
 .lvl-gauge b{position:relative;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
@@ -248,7 +269,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.24";
+const APP_VERSION = "2026-11-11.25";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -886,9 +907,8 @@ function renderHome(){
   const d = new Date(), r = latestReview(), sel = selDate();
   // Overall level as a small ring gauge (tap: Progres) and a gear (tap: Sprzęt i plan) instead of a menu.
   const O = overallSeries(levelHistory()), ov = O.length ? O[O.length - 1].level : null, C = 2 * Math.PI * 19;
-  const gauge = `<button class="icon-btn lvl-gauge" data-act="go" data-v="progress" aria-label="${ov == null ? "Progres" : "Poziom ogólny " + ov + " na 100. Progres"}">
-    <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="19" fill="none" stroke="#EEEDE8" stroke-width="3"/>${ov ? `<circle cx="22" cy="22" r="19" fill="none" stroke="#121212" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(C * Math.min(ov, 100) / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 22 22)"/>` : ""}</svg>
-    <b>${ov == null ? "–" : ov}</b></button>`;
+  const dl = O.length ? lastChange(O.map(p => p.level)) : 0, g = groupOf(ov);
+  const gauge = `<button class="lvl-pill" data-act="go" data-v="progress" aria-label="${ov == null ? "Progres" : g.name + ", poziom ogólny " + ov + " na 100" + (dl ? ", " + (dl > 0 ? "wzrost o " : "spadek o ") + Math.abs(dl) : "") + ". Progres"}">${badge(g, 32, ov == null)}<b>${ov == null ? "–" : ov}</b>${dl ? `<span class="tr ${dl < 0 ? "down" : ""}">${dl > 0 ? "↑" : "↓"}${Math.abs(dl)}</span>` : ""}</button>`;
   const menuBtn = `<span class="head-btns">${gauge}<button class="icon-btn" data-act="go" data-v="settings" aria-label="Sprzęt i plan">${GEAR}</button></span>`;
   // One compact line: the week strip below already shows where you are.
   const sd2 = parseYmd(sel), yest = ymd(new Date(d.getFullYear(), d.getMonth(), d.getDate() - 1));
@@ -974,6 +994,74 @@ function renderNote(){
 }
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
 function doneSessions(){ return Object.values(S.sessions).filter(s => s.v === 2 && s.status === "done").sort((a, b) => (b.date + b.kind).localeCompare(a.date + a.kind)); }
+/* ---------- groups: animals for level ranges, like the old BTWB badges ----------
+   Hare starts at Beginner (5), Wolf at Novice (20), Bison at Intermediate (50), Bear at Advanced (80), Eagle at Elite (95). */
+const ANIMAL = {
+  hedgehog: c => {
+    const pts = []; const cx = 29, cy = 45;
+    for (let i = 0; i <= 18; i++){ const a = Math.PI + i * Math.PI / 18 * 1.0, r = i % 2 ? 24 : 18; pts.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1)); }
+    return `<polygon points="${pts.join(" ")}" fill="#fff"/><path d="M40 45 L41 33 Q47 34 54 42 Q55 45 52 46 Z" fill="#fff"/><circle cx="54.5" cy="43.2" r="2.2" fill="${c}"/><circle cx="46" cy="38.5" r="1.7" fill="${c}"/><rect x="12" y="45" width="42" height="2.4" rx="1.2" fill="#fff"/>`;
+  },
+  hare: c => `<ellipse cx="25" cy="21" rx="4.6" ry="13" transform="rotate(-14 25 21)" fill="#fff"/><ellipse cx="39" cy="21" rx="4.6" ry="13" transform="rotate(14 39 21)" fill="#fff"/>
+    <ellipse cx="25" cy="21" rx="1.8" ry="8.5" transform="rotate(-14 25 21)" fill="${c}" opacity=".35"/><ellipse cx="39" cy="21" rx="1.8" ry="8.5" transform="rotate(14 39 21)" fill="${c}" opacity=".35"/>
+    <ellipse cx="32" cy="40" rx="13" ry="12" fill="#fff"/><circle cx="27" cy="38" r="1.8" fill="${c}"/><circle cx="37" cy="38" r="1.8" fill="${c}"/><path d="M30 43 h4 l-2 2.4 z" fill="${c}"/>`,
+  fox: c => `<polygon points="13,13 27,25 32,27 37,25 51,13 52,31 32,53 12,31" fill="#fff"/><polygon points="17,19 24,26 18,28" fill="${c}" opacity=".35"/><polygon points="47,19 40,26 46,28" fill="${c}" opacity=".35"/>
+    <polygon points="22,36 28,35 27,38" fill="${c}"/><polygon points="42,36 36,35 37,38" fill="${c}"/><circle cx="32" cy="49" r="2.2" fill="${c}"/>`,
+  wolf: c => `<polygon points="17,8 27,23 37,23 47,8 49,26 54,35 42,42 38,54 26,54 22,42 10,35 15,26" fill="#fff"/><polygon points="19,14 24,22 19,24" fill="${c}" opacity=".35"/><polygon points="45,14 40,22 45,24" fill="${c}" opacity=".35"/>
+    <polygon points="22,32 29,33 27,35.5" fill="${c}"/><polygon points="42,32 35,33 37,35.5" fill="${c}"/><polygon points="29,50 35,50 32,53" fill="${c}"/><path d="M32 26 V40" stroke="${c}" stroke-width="1.6" opacity=".35"/>`,
+  lynx: c => `<path d="M17 9 L17 7 M47 9 L47 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><polygon points="17,9 26,22 13,25" fill="#fff"/><polygon points="47,9 38,22 51,25" fill="#fff"/>
+    <path d="M14 24 Q32 16 50 24 L52 38 L56 42 L50 44 L52 48 L42 50 L32 55 L22 50 L12 48 L14 44 L8 42 L12 38 Z" fill="#fff"/>
+    <path d="M23 34 Q26 31.5 29 34 Q26 36 23 34Z M35 34 Q38 31.5 41 34 Q38 36 35 34Z" fill="${c}"/><path d="M30 42 h4 l-2 2.4 z" fill="${c}"/><path d="M32 44.5 v2.5" stroke="${c}" stroke-width="1.3"/>`,
+  bison: c => `<path d="M17 27 Q8 24 10 13 Q14 21 21 21" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><path d="M47 27 Q56 24 54 13 Q50 21 43 21" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/>
+    <path d="M18 22 Q20 14 26 16 Q29 11 32 14 Q35 11 38 16 Q44 14 46 22 L48 32 L44 44 L39 49 L25 49 L20 44 L16 32 Z" fill="#fff"/><path d="M25 48 L32 59 L39 48 Z" fill="#fff"/>
+    <circle cx="25" cy="32" r="1.9" fill="${c}"/><circle cx="39" cy="32" r="1.9" fill="${c}"/><ellipse cx="29" cy="44" rx="1.6" ry="1.2" fill="${c}"/><ellipse cx="35" cy="44" rx="1.6" ry="1.2" fill="${c}"/>`,
+  bear: c => `<circle cx="19" cy="21" r="7" fill="#fff"/><circle cx="45" cy="21" r="7" fill="#fff"/><circle cx="19" cy="21" r="3.2" fill="${c}" opacity=".35"/><circle cx="45" cy="21" r="3.2" fill="${c}" opacity=".35"/>
+    <ellipse cx="32" cy="36" rx="17" ry="16" fill="#fff"/><ellipse cx="32" cy="43" rx="7.5" ry="5.6" fill="${c}" opacity=".2"/><circle cx="25.5" cy="33" r="1.9" fill="${c}"/><circle cx="38.5" cy="33" r="1.9" fill="${c}"/><ellipse cx="32" cy="40.6" rx="2.8" ry="2" fill="${c}"/>`,
+  eagle: c => `<path d="M50 58 Q55 32 45 18 Q37 8 25 13 Q16 17 12 25 Q7 28 8 35 Q11 30 16 30 Q20 34 27 33 Q33 35 35 42 Q37 50 34 58 Z" fill="#fff"/>
+    <path d="M12 25 Q7 28 8 35 Q11 30 16 30 Q21 30 25 26 Z" fill="#E3B341"/><circle cx="27" cy="21" r="2.3" fill="${c}"/><path d="M23 17.5 Q28 15.5 33 18" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M40 30 Q44 40 42 52 M45 27 Q49 38 47 54" stroke="${c}" stroke-width="1.4" fill="none" opacity=".3"/>`,
+};
+const GROUPS = [
+  {id:"hedgehog", name:"Hedgehog", min:0, color:"#8C8279"}, {id:"hare", name:"Hare", min:5, color:"#B49870"},
+  {id:"fox", name:"Fox", min:12, color:"#C8642F"}, {id:"wolf", name:"Wolf", min:20, color:"#5F6B78"},
+  {id:"lynx", name:"Lynx", min:35, color:"#A7782F"}, {id:"bison", name:"Bison", min:50, color:"#6A4A33"},
+  {id:"bear", name:"Bear", min:80, color:"#3D302B"}, {id:"eagle", name:"Eagle", min:95, color:"#1F3A5F"}
+];
+const groupOf = lv => GROUPS.filter(g => (lv || 0) >= g.min).pop();
+const nextGroup = g => GROUPS[GROUPS.indexOf(g) + 1] || null;
+const badge = (g, size, dim) => `<svg class="badge" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="width:${size}px;height:${size}px;clip-path:circle(50%);flex:none${dim ? ";opacity:.35" : ""}"><circle cx="32" cy="32" r="32" fill="${g.color}"/>${ANIMAL[g.id](g.color)}</svg>`;
+// Exercises that count for each category, easiest first: where to look for "what result gets me to the next group".
+const CAT_EX = {pull:["ring-row", "ring-row-box", "pullup-negative", "band-pullup", "pullup"], push:["incline-pushup-75", "knee-pushup", "pushup-negative", "pushup", "ring-dip"],
+  press:["kb-clean-press", "kb-strict-press", "bb-push-press"], hinge:["kb-swing", "kb-swing-1a", "bb-dl"], legs:["bss", "bb-front-squat"], carry:["suitcase-carry", "farmer-carry"]};
+// Sensible rep range for a suggestion: at least a few reps (swings 10, carries 20 m), at most what fits the training style.
+const repFloor = (e, load) => e.dist ? 20 : e.pattern === "hinge" && !e.bb ? 10 : load === "bw" ? 1 : 3;
+const repCap = (e, load) => e.dist ? 60 : e.bb ? 8 : e.pattern === "hinge" ? 20 : load === "bw" ? 15 : 10;
+// The nearest result that lifts category c to targetLevel: more reps of the same, then a heavier load, then the next exercise.
+function targetFor(c, it, targetLevel){
+  if (!it || !CAT_EX[c.id] || !EX[it.ex]) return null;
+  const score = (ex, load, reps) => { const v = c.score({ex, load, reps}); return v == null ? -1 : Math.round(v); };
+  const minReps = (id, load, from) => { const e = EX[id], step = e.dist ? 10 : 1; for (let r = Math.max(from, repFloor(e, load)); r <= repCap(e, load); r += step) if (score(id, load, r) >= targetLevel) return r; return null; };
+  const cur = EX[it.ex];
+  let r = minReps(it.ex, it.load, it.reps + (cur.dist ? 10 : 1)); if (r) return {ex:it.ex, load:it.load, reps:r};
+  const loads = loadsOf(cur);
+  for (const l of loads.slice(loads.indexOf(it.load) + 1)){ r = minReps(it.ex, l, 1); if (r) return {ex:it.ex, load:l, reps:r}; }
+  const list = CAT_EX[c.id];
+  for (const id of list.slice(list.indexOf(it.ex) + 1)){ const e = EX[id]; if (!e || !exAvailable(e)) continue;
+    for (const l of loadsOf(e)){ r = minReps(id, l, 1); if (r) return {ex:id, load:l, reps:r}; } }
+  return null;
+}
+const targetText = t => t ? resText(t) : null;
+// Weeks to the next group at the recent pace (needs a couple of weeks of data).
+function etaText(O, gap){
+  const t = today(), pts = O.filter(p => (parseYmd(t) - parseYmd(p.date)) / 86400000 <= 42);
+  if (pts.length < 3 || (parseYmd(pts[pts.length - 1].date) - parseYmd(pts[0].date)) / 86400000 < 14) return "Tempo policzę po dwóch tygodniach treningów.";
+  const xs = pts.map(p => (parseYmd(p.date) - parseYmd(pts[0].date)) / 86400000), ys = pts.map(p => p.level), n = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / (xs.reduce((a, x) => a + (x - mx) ** 2, 0) || 1);
+  if (slope <= 0) return "Ostatnio bez wzrostu.";
+  const w = Math.max(1, Math.ceil(gap / (slope * 7)));
+  return "Przy obecnym tempie: około " + w + " " + plural(w, "tydzień", "tygodnie", "tygodni") + ".";
+}
 /* ---------- progress: level 0–100 like BTWB Fitness Level = percentile among people who train ----------
    Thresholds: Beginner 5, Novice 20, Intermediate 50, Advanced 80, Elite 95 (strengthlevel.com community standards, men).
    Hinge (no community data for KB Swing) and Conditioning (Row 2000 m, men 40–49) are estimates. */
@@ -1072,15 +1160,28 @@ const deltaChip = d => d ? `<span class="chip-d ${d < 0 ? "down" : ""}">${d > 0 
 const barHtml = v => `<span class="bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>`;
 function renderProgress(){
   const H = levelHistory(), O = overallSeries(H), ov = O.length ? O[O.length - 1].level : null;
+  const open = LEVEL_CATS.filter(c => H[c.id].length >= unlockN(c));
   const rows = LEVEL_CATS.map(c => {
     const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level)), need = unlockN(c);
     if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
-    return `<button class="cat" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>${barHtml(last.level)}<span class="s">${esc(last.text)}</span></button>`;
+    const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
+    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}">${badge(g, 40)}<span class="cat-b"><span class="cat-top"><span class="n">${c.name}</span><span class="v">${d ? `<span class="d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : ""}<b>${last.level}</b></span></span>
+      <span class="s">${ng ? `Do ${ng.name} brakuje ${ng.min - last.level}${tg ? ": np. " + esc(tg) : ""}` : esc(last.text)}</span></span></button>`;
   }).join("");
   const cov = coverageData();
-  return `<section class="screen">${backHead("Progres")}
-    <section class="lvl"><p class="kicker">Poziom ogólny</p>
-      ${ov == null ? `<p class="lead">Odblokuje się, gdy pierwsza kategoria będzie miała 2 treningi.</p>` : `<div class="lvl-top"><p class="lvl-num"><b>${ov}</b><span>/ 100</span></p>${deltaChip(lastChange(O.map(p => p.level)))}</div>${levelChart(O, "Poziom ogólny")}`}</section>
+  let hero;
+  if (ov == null) hero = `<section class="lvl"><p class="kicker">Poziom ogólny</p><p class="lead">Odblokuje się, gdy pierwsza kategoria będzie miała 2 treningi.</p></section>`;
+  else {
+    const g = groupOf(ov), ng = nextGroup(g), pct = ng ? (ov - g.min) / (ng.min - g.min) * 100 : 100;
+    hero = `<section class="lvl grp-hero">
+      <div class="grp-top">${badge(g, 88)}<div class="grp-t"><p class="kicker">Twoja grupa</p><h2 class="grp-name">${g.name}</h2><p class="grp-lv">Poziom ogólny <b>${ov}</b> / 100 ${deltaChip(lastChange(O.map(p => p.level)))}</p></div></div>
+      ${ng ? `<div class="grp-next"><div class="grp-row"><span class="grp-to">Do ${badge(ng, 22)} <b>${ng.name}</b> (${ng.min})</span><span>brakuje <b>${ng.min - ov}</b></span></div>${barHtml(pct)}
+        <p class="note">${esc(etaText(O, ng.min - ov))} ${open.length > 1 ? "Poziom to średnia z " + open.length + " kategorii: +" + (ng.min - ov) + " w każdej albo więcej w najsłabszych." : ""}</p></div>` : `<p class="note">Najwyższa grupa.</p>`}
+      ${levelChart(O, "Poziom ogólny")}
+      <div class="grp-all" role="list" aria-label="Wszystkie grupy">${GROUPS.map(x => `<span class="grp-i ${x === g ? "on" : ""}" role="listitem" aria-label="${x.name} od ${x.min}">${badge(x, 30, x.min > ov)}<small>${x.min}</small></span>`).join("")}</div>
+    </section>`;
+  }
+  return `<section class="screen">${backHead("Progres")}${hero}
     <section class="sec"><h2 class="sec-h">Kategorie</h2><div class="card">${rows}</div></section>
     <div class="card"><button class="row" data-act="go" data-v="coverage" style="min-height:72px"><span class="main"><span class="name">Pokrycie</span><span class="sub">${cov.reg[0].done} z ${cov.reg[0].plan} Strength · ${cov.gaps} ${plural(cov.gaps, "wzorzec", "wzorce", "wzorców")} bez ćwiczeń</span></span>${CHEV}</button></div>
   </section>`;
@@ -1090,13 +1191,17 @@ function renderCat(){
   const c = LEVEL_CATS.find(x => x.id === S.cat) || LEVEL_CATS[0], h = levelHistory()[c.id], last = h[h.length - 1], need = unlockN(c), lv = last ? last.level : null;
   const head = `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="progress" aria-label="Wróć do progresu">${BACK}</button><h1 class="title" style="font-size:28px">${c.name}</h1></div></header>`;
   const hero = h.length < need ? `<section class="lvl"><p class="lead">${c.bench ? "Zrób test Row 2000 m na maksa w sesji Conditioning i podaj czas w notatce, np. „Row 2000 m 8:45”." : "Odblokuje się po 2 treningach (" + h.length + " z 2)."}</p></section>`
-    : `<section class="lvl"><div class="lvl-top"><p class="lvl-num"><b>${lv}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}</section>`;
-  const names = ["Beginner", "Novice", "Intermediate", "Advanced", "Elite"];
+    : (() => { const g = groupOf(lv), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
+      return `<section class="lvl"><div class="grp-top">${badge(g, 64)}<div class="grp-t"><p class="kicker">Grupa w ${c.name}</p><h2 class="grp-name" style="font-size:26px">${g.name}</h2></div></div>
+        <div class="lvl-top"><p class="lvl-num"><b>${lv}</b><span>/ 100</span></p>${deltaChip(lastChange(h.map(r => r.level)))}</div>${levelChart(h, "Poziom " + c.name)}
+        ${ng ? `<div class="grp-next"><div class="grp-row"><span class="grp-to">Do ${badge(ng, 22)} <b>${ng.name}</b> (${ng.min})</span><span>brakuje <b>${ng.min - lv}</b></span></div>${barHtml((lv - g.min) / (ng.min - g.min) * 100)}${tg ? `<p class="note">Wystarczy np. <b style="color:var(--ink);font-weight:500">${esc(tg)}</b>.</p>` : ""}</div>` : ""}</section>`; })();
+  // Groups as the scale: the five that match a percentile show its standard, the others an example result for this category.
+  const std = typeof c.std === "function" ? c.std() : c.std, stdAt = {5:std[0], 20:std[1], 50:std[2], 80:std[3], 95:std[4]};
   let scale = "", placed = lv == null;
-  names.forEach((n, i) => {
-    if (!placed && lv < PCTS[i]){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
-    const done = lv != null && lv >= PCTS[i];
-    scale += `<li class="step"><span class="mk ${done ? "done" : "next"}" aria-hidden="true">${done ? CHECK_W : "<i></i>"}</span><span class="bd"><b>${n} · ${PCTS[i]}</b><span>${esc((typeof c.std === "function" ? c.std() : c.std)[i])}</span></span></li>`;
+  GROUPS.forEach(g => {
+    if (!placed && lv < g.min){ placed = true; scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`; }
+    const ex = stdAt[g.min] || (g.min === 0 ? "Start" : last && !c.bench ? (t => t ? "np. " + resText(t) : "")(targetFor(c, last.it, g.min)) : "");
+    scale += `<li class="step">${badge(g, 28, lv == null || lv < g.min)}<span class="bd"><b>${g.name} · ${g.min}</b>${ex ? `<span>${esc(ex)}</span>` : ""}</span></li>`;
   });
   if (!placed) scale += `<li class="step cur"><span class="mk cur" role="img" aria-label="tu jesteś">${PIN}</span><span class="bd"><b>${lv}</b><span>${esc(last.text)}</span></span></li>`;
   let ladder = "";
@@ -1107,7 +1212,7 @@ function renderCat(){
   }
   const results = h.length ? `<section class="sec"><h2 class="sec-h">Wyniki, które się liczą</h2><div class="card">${[...h].reverse().slice(0, 6).map(r =>
     `<div class="row"><span class="main"><span class="name" style="font-size:15px">${esc(r.text)}</span><span class="sub" style="font-size:13px">${esc(shortDate(r.date))}</span></span><b style="font-size:17px">${r.level}</b></div>`).join("")}</div></section>` : "";
-  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Skala</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(typeof c.src === "function" ? c.src() : c.src)}.</p></section>${ladder}${results}</section>`;
+  return `<section class="screen">${head}${hero}<section class="sec"><h2 class="sec-h">Grupy</h2><ol class="card" style="margin:0;padding:0;list-style:none">${scale}</ol><p class="note">Progi: ${esc(typeof c.src === "function" ? c.src() : c.src)}.</p></section>${ladder}${results}</section>`;
 }
 const PIN = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg>`;
 function coverageData(){
