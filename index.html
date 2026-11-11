@@ -283,7 +283,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.36";
+const APP_VERSION = "2026-11-11.37";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -336,7 +336,7 @@ const LOADS = {
 BB_LOADS.forEach(l => { LOADS[l] = {label:plKg(+l.slice(2)) + " kg", eq:"barbell", bb:+l.slice(2)}; });
 
 /* ---------- exercises ---------- */
-const PATTERNS = {shoulder:"Shoulder Prep", vpush:"Vertical Push", hpull:"Pull", hinge:"Hinge", squat:"Squat", carry:"Core & Carry", "cond-int":"Intervals", "cond-steady":"Steady", hpush:"Horizontal Push", lunge:"Single Leg",
+const PATTERNS = {shoulder:"Shoulder Prep", vpush:"Vertical Push", hpull:"Pull", hinge:"Hinge", squat:"Squat", carry:"Core & Carry", "cond-int":"Intervals", "cond-steady":"Steady", "cond-test":"Test", hpush:"Horizontal Push", lunge:"Single Leg",
   "mob-squat":"Deep Squat", "mob-hip":"Hips", "mob-ankle":"Ankles & Calves", "mob-back":"Posterior Chain", "mob-tspine":"T-Spine & Shoulders"};
 const EX = {};
 const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, timed:false, req:[]}, o); };
@@ -368,6 +368,7 @@ X("farmer-carry", {name:"Farmer's Carry", pattern:"carry", loads:["db15x2","db22
 X("row-int", {name:"Row Intervals", pattern:"cond-int", req:["rower"], interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki oddech, nie da się mówić. Spokojnie: luźne wiosłowanie."});
 X("run-int", {name:"Run Intervals", pattern:"cond-int", interval:"1 min mocno / 1 min spokojnie", def:["bw",8], cue:"Mocno: szybki bieg, nie da się mówić. Spokojnie: trucht albo marsz."});
 X("rope-int", {name:"Jump Rope Intervals", pattern:"cond-int", req:["rope"], interval:"30 s skakania / 30 s przerwy", def:["bw",10], cue:"Nisko nad ziemią, na przodostopiu, nadgarstki kręcą skakanką."});
+X("row-2k", {name:"Row 2000 m", pattern:"cond-test", req:["rower"], test:true, def:["bw",2000], cue:"Równe tempo od startu, ostatnie 500 m na maksa."});
 X("row-steady", {name:"Steady Row", pattern:"cond-steady", req:["rower"], minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 X("run-steady", {name:"Steady Run", pattern:"cond-steady", minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 // alternatives
@@ -455,6 +456,7 @@ const sideTxt = ex => ex.side ? " per side" : "";
 function doseText(exId, load, reps){
   const ex = exOf(exId);
   if (ex.interval) return reps + " × (" + ex.interval + ")";
+  if (ex.test) return "na czas";
   if (ex.minutes) return reps + " min";
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
   return loadLabel(ex, load) + " × " + reps + (ex.dist ? " m" : "") + sideTxt(ex);
@@ -552,7 +554,7 @@ function weekDays(off = 0){
 }
 function dayPlanItems(day){
   if (day.session) return day.session.items;
-  const slots = day.kind === "strength" ? circuitFor(day.date, day.bb) : slotsOf("cond").filter(x => x.key === day.condKey);
+  const slots = day.kind === "strength" ? circuitFor(day.date, day.bb) : [slotByKey(day.condKey)].filter(Boolean);
   return slots.map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 }
 // ISO 8601 week number (weeks start on Monday, week 1 holds the first Thursday of the year).
@@ -594,7 +596,7 @@ function estSec(it){
 function estMin(kind, items, rounds){
   if (!items.length) return 0;
   let min;
-  if (kind === "cond"){ const it = items[0], ex = exOf(it.ex); min = ex.interval ? it.reps * (it.ex === "rope-int" ? 1 : 2) + 9 : it.reps; }
+  if (kind === "cond"){ const it = items[0], ex = exOf(it.ex); min = ex.test ? 24 : ex.interval ? it.reps * (it.ex === "rope-int" ? 1 : 2) + 9 : it.reps; }
   else {
     const trans = kind === "mobility" ? 30 : 15, r = kind === "strength" ? (rounds || 1) : 1;
     let sec = r * items.reduce((a, it) => a + estSec(it) + trans, 0);
@@ -641,13 +643,23 @@ function dayCardsHtml(date){
   return `<div class="day-list">${out.join("")}</div>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
-const slotByKey = k => S.profile.slots.find(s => s.key === k);
+// Row 2000 m test: not a plan slot. It takes the place of the first Conditioning session while there is no result yet.
+const TEST_SLOT = {key:"c-test", group:"cond", pattern:"cond-test", ex:"row-2k", load:"bw", reps:2000};
+const slotByKey = k => k === "c-test" ? TEST_SLOT : S.profile.slots.find(s => s.key === k);
+const hasRow2k = () => Object.values(S.sessions).some(x => x.v === 2 && x.bench && x.bench.row2000);
+function testDate(){
+  if (hasRow2k() || !eqOk("rower")) return null;
+  const d = parseYmd(today());
+  for (let i = 0; i < 8; i++){ const w = d.getDay(); if ((S.profile.condSchedule || []).includes(w) && !S.profile.schedule.includes(w)) return ymd(d); d.setDate(d.getDate() + 1); }
+  return null;
+}
 const today = () => ymd(new Date());
 const isStrengthDay = dateStr => S.profile.schedule.includes(parseYmd(dateStr).getDay());
 const sessionId = kind => kind === "strength" ? today() : today() + (kind === "cond" ? "-cond" : "-mob");
 const isCondDay = dateStr => (S.profile.condSchedule || []).includes(parseYmd(dateStr).getDay());
-// Wtorek: interwały, czwartek: spokojnie. W inny dzień: to, czego dawniej nie było.
+// Wtorek: interwały, czwartek: spokojnie. W inny dzień: to, czego dawniej nie było. Bez wyniku Row 2000 m: najpierw test.
 function condKey(dateStr){
+  const td = testDate(); if (td && (dateStr === td || dateStr === today())) return "c-test";
   const sc = (S.profile.condSchedule || []).slice().sort(), d = parseYmd(dateStr).getDay();
   if (sc.includes(d)) return sc.indexOf(d) % 2 === 0 ? "c-int" : "c-steady";
   const last = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === "cond" && x.status === "done" && x.date < dateStr).sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -661,7 +673,7 @@ function nextStrengthLabel(fromToday = false){
 function fitLoad(ex, load){ const ls = loadsOf(ex); return ls.includes(load) ? load : (ls.includes(ex.def[0]) ? ex.def[0] : ls[0] || "bw"); }
 function buildSession(kind){
   const group = kind === "strength" ? "circuit" : kind === "cond" ? "cond" : "mobility";
-  const slots = kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(today())) : kind === "strength" ? circuitFor(today()) : slotsOf(group);
+  const slots = kind === "cond" ? [slotByKey(condKey(today()))].filter(Boolean) : kind === "strength" ? circuitFor(today()) : slotsOf(group);
   return {v:2, id:sessionId(kind), date:today(), kind, status:"prep", touched:false, rounds: kind === "strength" ? S.profile.rounds : 1,
     finishedAt:null, note:"",
     items: slots.map(s => { const ex = exOf(s.ex), load = fitLoad(ex, s.load);
@@ -769,7 +781,7 @@ const Coach = {
     // What was actually done, when the note says it differs from the day's plan: the record (and the levels) follow the note.
     let fixed = false;
     (Array.isArray(out.done) ? out.done : []).forEach(c => {
-      const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex]) return;
+      const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex] || exOf(it.ex).test) return;
       const loads = ((allowed[c.key] || {})[c.ex]) || (c.ex === it.ex ? loadsOf(EX[c.ex]) : null); if (!loads) return;
       const load = loads.includes(c.load) ? c.load : it.load, reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || it.reps));
       if (!loads.includes(load) || (c.ex === it.ex && load === it.load && reps === it.reps)) return;
@@ -976,10 +988,10 @@ function renderPrep(){
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   if (cond){
-    const it = s.items[0], intervals = it && exOf(it.ex).interval;
-    return `<section class="screen">${head(intervals ? "Intervals" : "Steady")}
-      <section class="sec"><h2 class="sec-h">${cap(estText("cond", s.items))}${intervals ? "" : " · tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, true)).join("")}</div>
-        <p class="note">${intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
+    const it = s.items[0], intervals = it && exOf(it.ex).interval, test = it && exOf(it.ex).test;
+    return `<section class="screen">${head(test ? "Test" : intervals ? "Intervals" : "Steady")}
+      <section class="sec"><h2 class="sec-h">${cap(estText("cond", s.items))}${intervals || test ? "" : " · tempo rozmowy"}</h2><div class="card">${s.items.map(x => itemRow(x, null, !test)).join("")}</div>
+        <p class="note">${test ? "5 minut spokojnie, potem równe tempo, ostatnie 500 m na maksa. Czas podaj w notatce." : intervals ? "Najpierw 5 minut spokojnie, na koniec 4 minuty spokojnie." : "Masz więcej czasu? Wydłuż do 45 minut."}</p></section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   return `<section class="screen">${head("Plan na dziś")}
@@ -1001,13 +1013,14 @@ function doneScreen(s){
 function planScreen(date, kind){
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", bb:null})
-    : (kind === "cond" ? slotsOf("cond").filter(x => x.key === condKey(date)) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
+    : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">Plan</h1></div></header>`;
   return `<section class="screen">${head}
-    <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? (condKey(date) === "c-int" ? "Intervals" : "Steady") : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
+    <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? condLabel(condKey(date)) : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
 </section></section>`;
 }
+const condLabel = k => k === "c-int" ? "Intervals" : k === "c-test" ? "Test" : "Steady";
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
@@ -1255,7 +1268,7 @@ function coverageData(){
   const mins = {W:0, G:0, M:0};
   for (const x of done){
     if (x.kind === "strength") for (const it of x.items || []){ const ex = exOf(it.ex); if (ex.pattern === "shoulder") continue; mins[it.load && it.load !== "bw" ? "W" : "G"] += x.rounds || 1; }
-    if (x.kind === "cond") for (const it of x.items || []){ const ex = exOf(it.ex); mins.M += ex.interval ? it.reps * 2 : it.reps; }
+    if (x.kind === "cond") for (const it of x.items || []){ const ex = exOf(it.ex); mins.M += ex.test ? 9 : ex.interval ? it.reps * 2 : it.reps; }
   }
   const tot = mins.W + mins.G + mins.M, pct = k => tot ? Math.round(mins[k] / tot * 100) : 0;
   // How many sessions hit the pattern, and with which exercises (most frequent first).
@@ -1404,6 +1417,9 @@ function finishSession(){
   const t = $("#sessionNote"); if (t) s.note = t.value;
   s.status = "done"; s.finishedAt = Date.now();
   s.items.forEach(it => it.done = s.rounds);
+  // Row 2000 m time straight from the note ("8:45", "8 min 45 s"), so the level shows up even before Claude's review.
+  if (s.items.some(it => exOf(it.ex).test)){ const n = s.note || "", m = n.match(/(\d{1,2})\s*[:.]\s*(\d{2})\b/) || n.match(/(\d{1,2})\s*min\w*\s*(?:i\s*)?(\d{1,2})\s*s/i);
+    const sec = m ? +m[1] * 60 + +m[2] : 0; if (sec >= 300 && sec <= 900) s.bench = {...(s.bench || {}), row2000:sec}; }
   S.micHint = false;
   const had = reviewFor(s.id);
   if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || ""))){
