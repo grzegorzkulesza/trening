@@ -118,7 +118,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .grp-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:15px;color:var(--muted)}
 .grp-row b{color:var(--ink);font-weight:600}
 .grp-to{display:inline-flex;align-items:center;gap:6px}
-.grp-all{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:2px;padding-top:4px;border-top:1px solid var(--line)}
+.grp-all{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:2px}
 .grp-i{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
 .grp-i small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .grp-i.on small{color:var(--ink);font-weight:600}
@@ -277,7 +277,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.28";
+const APP_VERSION = "2026-11-11.29";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
