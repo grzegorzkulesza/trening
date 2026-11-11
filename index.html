@@ -181,7 +181,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.9";
+const APP_VERSION = "2026-11-11.10";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -453,6 +453,66 @@ function commitProfile(){ S.profile.updatedAt = Date.now(); Store.saveProfile();
 
 /* ---------- sync with Google Sheets (Apps Script web app) ---------- */
 const KEY_URL = "trening:sync:url", KEY_Q = "trening:sync:queue", KEY_PR = "trening:pending-review";
+/* ---------- Claude coach: rules, prompt and plan changes live in the app, so they update with it ---------- */
+const COACH_MODEL = "claude-sonnet-5-5";
+const COND_RULES = "To sesja Conditioning (osobna od Strength, wtorek Intervals, czwartek Steady; robi ją nieregularnie). " +
+  "Intervals (cond-int, reps = liczba rund): 6 → 8 → 10 → 12; przy 12 łatwych zaproponuj w tekście dłuższy odcinek mocny, nie zmieniaj go sam. Wariant to sprzęt (row-int, run-int, rope-int): ustaw ten, którego używał, jeśli mówi o tym w notatce. " +
+  "Steady (cond-steady, reps = minuty): 20 → 25 → 30 → 35 → 40 → 45; wyżej nie. Tempo ma pozwalać mówić pełnymi zdaniami; jeśli pisze, że brakowało tchu, nie podnoś. " +
+  "Zmieniaj tylko slot z dzisiejszej sesji. Pole rounds pomiń. Jeśli w notatce jest dystans albo tempo na 500 m, odnieś się do niego i porównaj z poprzednimi.\n";
+const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu obwodowo w stylu CrossFit z krótkimi przerwami; ten styl zostaje). " +
+  "Oceń jego dzisiejszy trening na podstawie notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens) i zdecyduj o planie na następny trening.\n" +
+  "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Najwyżej jedna zmiana na ćwiczenie i tylko taka, która wynika z notatki. Za łatwe: krok w górę. Trudne, ból albo sypiąca się technika: zostaje albo krok w dół; przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. " +
+  "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Ustaw liczbę rund na tyle, ile faktycznie robi, jeśli o tym mówi. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
+  "Progresje: KB Halo to przygotowanie barków, najwyżej 8 kg × 8 per side. Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Pull: ring-row → ring-row-box → pullup-negative → band-pullup → pullup. " +
+  "Push: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
+  "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
+  "Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
+const Coach = {
+  group: s => s.kind === "cond" ? "cond" : "circuit",
+  allowed(group){
+    const out = {};
+    slotsOf(group).forEach(sl => {
+      const ids = (LADDERS[sl.pattern] || [sl.ex]).filter(id => EX[id] && (id === sl.ex || exAvailable(EX[id])));
+      if (!ids.includes(sl.ex) && EX[sl.ex]) ids.unshift(sl.ex);
+      out[sl.pattern] = Object.fromEntries(ids.map(id => [id, loadsOf(EX[id])]));
+    });
+    return out;
+  },
+  brief: x => ({data:x.date, rundy:x.rounds, notatka:x.note || "", cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), zamianaNaDzis:it.swap ? true : undefined}))}),
+  prompt(s, earlier){
+    const g = this.group(s);
+    const plan = slotsOf(g).map(sl => ({key:sl.key, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps)}));
+    const prev = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === s.kind && x.status === "done" && x.id !== s.id && x.date <= s.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
+    const revs = Object.values(S.reviews || {}).filter(r => r.id !== s.id).sort((a, b) => String(a.date + a.id).localeCompare(String(b.date + b.id))).slice(-4);
+    return (s.kind === "cond" ? COND_RULES : "") + BASE_RULES +
+      "Dozwolone id i kody ciężaru dla każdego wzorca: " + JSON.stringify(this.allowed(g)) + "\n" +
+      "Plan teraz" + (g === "circuit" ? " (rundy: " + S.profile.rounds + ")" : "") + ": " + JSON.stringify(plan) + "\n" +
+      "Dzisiaj: " + JSON.stringify(this.brief(s)) + "\n" +
+      "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
+      "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
+      (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
+      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co z notatki wynika dla każdego ważnego ćwiczenia","rounds":liczba rund na następny trening,"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}]}. W changes tylko ćwiczenia, które zmieniasz.';
+  },
+  parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
+  apply(s, out){
+    const g = this.group(s), allowed = this.allowed(g), now = Date.now(), changes = [];
+    (Array.isArray(out.changes) ? out.changes : []).forEach(c => {
+      const sl = slotsOf(g).find(x => x.key === c.key); if (!sl) return;
+      const loads = (allowed[sl.pattern] || {})[c.ex]; if (!loads) return;
+      const load = loads.includes(c.load) ? c.load : (loads.includes(sl.load) ? sl.load : loads[0]);
+      const ex = EX[c.ex], max = ex.minutes ? 45 : ex.interval ? 16 : 60;
+      const reps = Math.max(1, Math.min(max, parseInt(c.reps, 10) || sl.reps));
+      if (c.ex === sl.ex && load === sl.load && reps === sl.reps) return;
+      changes.push(exOf(sl.ex).name + ": " + doseText(sl.ex, sl.load, sl.reps) + " → " + (c.ex !== sl.ex ? exOf(c.ex).name + " " : "") + doseText(c.ex, load, reps));
+      Object.assign(sl, {ex:c.ex, load, reps, claudeNote:String(c.reason || "").slice(0, 200), claudeAt:now});
+    });
+    const r = parseInt(out.rounds, 10);
+    if (g === "circuit" && r >= 1 && r <= 5 && r !== S.profile.rounds){ changes.push("Rounds: " + S.profile.rounds + " → " + r); S.profile.rounds = r; }
+    if (changes.length) commitProfile();
+    return {id:s.id, date:s.date, title:String(out.title || "Sesja zapisana.").slice(0, 120), text:String(out.text || "").slice(0, 1500), changes:changes.join("; ") || "bez zmian"};
+  }
+};
+
 const Sync = {
   url:null, q:new Set(), timer:null, busy:false, last:null, err:null,
   init(){
@@ -469,7 +529,8 @@ const Sync = {
     if (!this.url || this.busy || !this.q.size || !navigator.onLine) return;
     this.busy = true;
     const ids = [...this.q];
-    const body = {sessions: ids.filter(id => id !== "profile" && S.sessions[id] && S.sessions[id].touched).map(id => this.row(S.sessions[id]))};
+    const body = {sessions: ids.filter(id => id !== "profile" && S.sessions[id] && S.sessions[id].touched).map(id => this.row(S.sessions[id])),
+      reviews: ids.filter(id => id.startsWith("rv:")).map(id => S.reviews[id.slice(3)]).filter(Boolean)};
     if (ids.includes("profile")){ body.profile = S.profile; body.planText = this.planText(); }
     try {
       const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body)});
@@ -498,6 +559,7 @@ const Sync = {
       }
       if (Array.isArray(j.reviews)){
         const rv = {}; j.reviews.forEach(r => { if (r && r.id) rv[r.id] = r; });
+        for (const k of this.q) if (k.startsWith("rv:") && S.reviews[k.slice(3)]) rv[k.slice(3)] = S.reviews[k.slice(3)];
         if (JSON.stringify(rv) !== JSON.stringify(S.reviews)){ S.reviews = rv; changed = true; try { localStorage.setItem("trening:reviews", JSON.stringify(rv)); } catch(e){} }
       }
       if (j.profile && (j.profile.updatedAt || 0) > (S.profile.updatedAt || 0)){ S.profile = mergeProfile(j.profile); changed = true; this.q.add("profile"); }
@@ -533,8 +595,8 @@ const Sync = {
     S.reviewing = id; S.reviewErr = null; redraw();
     for (let i = 0; i < 60 && this.busy; i++) await sleep(250);
     this.busy = true; clearTimeout(this.timer);
-    const body = {sessions:[this.row(s)], review:id, force:!!force};
-    let got = false;
+    const body = {sessions:[this.row(s)], review:id, force:!!force, claude:{prompt:Coach.prompt(s, force ? reviewFor(id) : null), effort:"medium", model:COACH_MODEL}};
+    let got = false, relay = false;
     if (this.q.has("profile")){ body.profile = S.profile; body.planText = this.planText(); }
     const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 150000);
     try {
@@ -542,19 +604,29 @@ const Sync = {
       const j = await res.json();
       if (!j.ok) throw new Error(j.error || "błąd arkusza");
       this.q.delete(id); if (body.profile) this.q.delete("profile");
+      if (j.claude){
+        relay = true;
+        const out = j.claude.error ? null : Coach.parse(j.claude.text);
+        if (out){
+          const rv = Coach.apply(s, out); got = true; S.reviews[rv.id] = rv; this.q.add("rv:" + rv.id); this.setPendingReview(null);
+          try { localStorage.setItem("trening:reviews", JSON.stringify(S.reviews)); if (S.view === "prep") localStorage.setItem("trening:seen-review", rv.id); } catch(e){}
+        } else S.reviewErr = j.claude.error || "Nieczytelna odpowiedź Claude (" + (j.claude.stop || "?") + ").";
+        this.saveQ();
+      } else {
       if (j.profile){ S.profile = mergeProfile(j.profile); Store.saveProfile(); this.q.add("profile"); }
       this.saveQ();
       if (j.review){
         got = true; S.reviews[j.review.id] = j.review; this.setPendingReview(null);
         try { localStorage.setItem("trening:reviews", JSON.stringify(S.reviews)); if (S.view === "prep") localStorage.setItem("trening:seen-review", j.review.id); } catch(e){}
       } else S.reviewErr = j.reviewError || "Claude nie odpowiedział.";
+      }
       this.last = Date.now(); this.err = null;
     } catch(e){
       S.reviewErr = e.name === "AbortError" ? "Ocena trwa dłużej niż zwykle. Sprawdzę ją przy następnym otwarciu aplikacji." : "Nie udało się połączyć z arkuszem. Spróbuję ponownie przy następnym otwarciu aplikacji.";
     }
     clearTimeout(timer); this.busy = false; S.reviewing = null; redraw();
-    if (got) { await this.pull(); redraw(); }
-    else if (this.q.size) this.flush();
+    if (got && !relay) { await this.pull(); redraw(); }
+    else if (this.q.size) await this.flush();
   },
   planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Circuit: " : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
