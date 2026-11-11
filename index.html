@@ -277,7 +277,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.31";
+const APP_VERSION = "2026-11-11.32";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1181,7 +1181,7 @@ function renderProgress(){
     if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
     const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
     // Same pieces as the category screen: badge, group and level, track to the next group, the result that gets there.
-    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="grp-t"><span class="n">${c.name}</span><span class="grp-lv">${g.name} · <b>${last.level}</b> / 100 ${deltaChip(d)}</span></span></span>
+    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="grp-t"><span class="n">${c.name}</span><span class="grp-lv"><b>${last.level}</b> ${deltaChip(d)}</span></span></span>
       ${ng ? groupTrack(g, ng, last.level, "") : ""}${ng && tg ? `<span class="cat-next">${badge(ng, 18)}${esc(tg)}</span>` : ""}</button>`;
   }).join("");
   const cov = coverageData();
