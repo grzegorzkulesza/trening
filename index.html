@@ -277,7 +277,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.29";
+const APP_VERSION = "2026-11-11.30";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1003,7 +1003,7 @@ function renderNote(){
 const backHead = title => `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="home" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">${title}</h1></div></header>`;
 function doneSessions(){ return Object.values(S.sessions).filter(s => s.v === 2 && s.status === "done").sort((a, b) => (b.date + b.kind).localeCompare(a.date + a.kind)); }
 /* ---------- groups: animals for level ranges, like the old BTWB badges ----------
-   Hare starts at Beginner (5), Wolf at Novice (20), Bison at Intermediate (50), Bear at Advanced (80), Eagle at Elite (95). */
+   Hare starts at Beginner (5), Lynx at Novice (20), Bison at Intermediate (50), Bear at Advanced (80), Eagle at Elite (95). */
 const ANIMAL = {
   hedgehog: c => {
     const pts = []; const cx = 29, cy = 45;
@@ -1031,8 +1031,8 @@ const ANIMAL = {
 };
 const GROUPS = [
   {id:"hedgehog", name:"Hedgehog", min:0, color:"#8C8279"}, {id:"hare", name:"Hare", min:5, color:"#B49870"},
-  {id:"fox", name:"Fox", min:12, color:"#C8642F"}, {id:"wolf", name:"Wolf", min:20, color:"#5F6B78"},
-  {id:"lynx", name:"Lynx", min:35, color:"#A7782F"}, {id:"bison", name:"Bison", min:50, color:"#6A4A33"},
+  {id:"fox", name:"Fox", min:12, color:"#C8642F"}, {id:"lynx", name:"Lynx", min:20, color:"#A7782F"},
+  {id:"wolf", name:"Wolf", min:35, color:"#5F6B78"}, {id:"bison", name:"Bison", min:50, color:"#6A4A33"},
   {id:"bear", name:"Bear", min:80, color:"#3D302B"}, {id:"eagle", name:"Eagle", min:95, color:"#1F3A5F"}
 ];
 const groupOf = lv => GROUPS.filter(g => (lv || 0) >= g.min).pop();
