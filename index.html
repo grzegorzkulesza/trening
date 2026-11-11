@@ -181,7 +181,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.5";
+const APP_VERSION = "2026-11-11.6";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -222,7 +222,7 @@ const LOADS = {
 };
 
 /* ---------- exercises ---------- */
-const PATTERNS = {shoulder:"barki", vpush:"wyciskanie nad głowę", hpull:"przyciąganie", hinge:"zawias biodrowy", hpush:"pchanie poziome", lunge:"jedna noga",
+const PATTERNS = {shoulder:"barki", vpush:"wyciskanie nad głowę", hpull:"przyciąganie", hinge:"zawias biodrowy", carry:"noszenie i core", hpush:"pchanie poziome", lunge:"jedna noga",
   "mob-squat":"głęboki przysiad", "mob-hip":"biodra", "mob-ankle":"kostki i łydki", "mob-back":"tył ciała", "mob-tspine":"odcinek piersiowy i barki"};
 const EX = {};
 const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, timed:false, req:[]}, o); };
@@ -246,6 +246,8 @@ X("incline-pushup-50", {name:"Incline Push-up", tag:"Box 50 cm", pattern:"hpush"
 X("pushup", {name:"Push-up", pattern:"hpush", def:["bw",5], cue:"Łokcie około 45° od tułowia."});
 X("ring-dip", {name:"Ring Dip", pattern:"hpush", req:["rings"], def:["bw",3], cue:"Kółka przy biodrach, barki w dół."});
 X("bss", {name:"Bulgarian Split Squat", pattern:"lunge", loads:["bw","kb8","kb16","kb20","db15x2","db225x2"], side:true, def:["kb16",6], cue:"Tylna stopa na skrzyni 50 cm, tułów lekko w przód."});
+X("suitcase-carry", {name:"Suitcase Carry", pattern:"carry", loads:["kb8","kb16","kb20"], side:true, dist:true, def:["kb16",20], cue:"Kettlebell w jednej ręce. Tułów prosto, bez przechylania, bark w dół."});
+X("farmer-carry", {name:"Farmer's Carry", pattern:"carry", loads:["db15x2","db225x2"], dist:true, def:["db15x2",30], cue:"Ciężar w obu rękach, barki w dół, krótkie kroki."});
 // alternatives
 const A = (id, o) => X(id, Object.assign({alt:true}, o));
 A("band-pull-apart", {name:"Band Pull-Apart", pattern:"shoulder", loads:["band"], def:["band",15], rel:"podobnie", why:"Otwiera barki i budzi łopatki bez ciężaru."});
@@ -255,6 +257,7 @@ A("kb-arm-bar", {name:"KB Arm Bar", pattern:"shoulder", loads:["kb8","kb16"], si
 A("tgu", {name:"Turkish Get-up", pattern:"shoulder", loads:["kb8","kb16"], side:true, def:["kb8",1], rel:"trudniej", why:"Cały łańcuch i stabilność barku, wolno."});
 A("db-push-press", {name:"DB Push Press", pattern:"vpush", loads:["db15x2","db225x2"], def:["db15x2",6], rel:"podobnie", why:"Ten sam wzorzec, obie ręce naraz."});
 A("db-strict-press", {name:"DB Strict Press", pattern:"vpush", loads:["db15x2","db225x2"], def:["db15x2",5], rel:"trudniej", why:"Bez pomocy nóg."});
+A("suitcase-march", {name:"Suitcase March", pattern:"carry", loads:["kb8","kb16","kb20"], side:true, timed:true, def:["kb16",30], rel:"podobnie", why:"Marsz w miejscu, gdy nie ma gdzie chodzić."});
 A("hk-kb-press", {name:"Half-kneeling KB Press", pattern:"vpush", loads:["kb8","kb16","kb20"], side:true, def:["kb16",5], rel:"trudniej", why:"Klęk nie pozwala odchylać lędźwi."});
 A("bottoms-up", {name:"Bottoms-up KB Press", pattern:"vpush", loads:["kb8"], side:true, def:["kb8",5], rel:"łatwiej", why:"Lekki ciężar, dużo kontroli barku i chwytu."});
 A("pike-pushup", {name:"Pike Push-up", tag:"Feet on box", pattern:"vpush", req:["box"], def:["bw",6], rel:"podobnie", why:"Wyciskanie nad głowę masą ciała."});
@@ -308,7 +311,8 @@ const LADDERS = {
   hpull:["ring-row","ring-row-box","pullup-negative","band-pullup","pullup"],
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
   vpush:["kb-clean-press","kb-strict-press"],
-  hinge:["kb-swing","kb-swing-1a"]
+  hinge:["kb-swing","kb-swing-1a"],
+  carry:["suitcase-carry","farmer-carry"]
 };
 function exOf(id){
   if (EX_ALIAS[id]) id = EX_ALIAS[id];
@@ -324,9 +328,9 @@ const sideTxt = ex => ex.side ? " per side" : "";
 function doseText(exId, load, reps){
   const ex = exOf(exId);
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
-  return loadLabel(ex, load) + " × " + reps + sideTxt(ex);
+  return loadLabel(ex, load) + " × " + reps + (ex.dist ? " m" : "") + sideTxt(ex);
 }
-const shortDose = (exId, reps) => { const ex = exOf(exId); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${sideTxt(ex)}`; };
+const shortDose = (exId, reps) => { const ex = exOf(exId); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
 
 /* ---------- plan ---------- */
@@ -337,6 +341,7 @@ const DEFAULT_SLOTS = [
   {key:"swing", group:"circuit", pattern:"hinge", ex:"kb-swing", load:"kb20", reps:15},
   {key:"push", group:"circuit", pattern:"hpush", ex:"knee-pushup", load:"bw", reps:8},
   {key:"bss", group:"circuit", pattern:"lunge", ex:"bss", load:"kb16", reps:6},
+  {key:"carry", group:"circuit", pattern:"carry", ex:"suitcase-carry", load:"kb16", reps:20},
   {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:60},
   {key:"m-zsit", group:"mobility", pattern:"mob-hip", ex:"z-sit", load:"bw", reps:30},
   {key:"m-dog", group:"mobility", pattern:"mob-ankle", ex:"down-dog-press", load:"bw", reps:8},
@@ -674,9 +679,9 @@ function sheetHtml(){
   const s = current();
   if (sh.type === "edit"){
     const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotByKey(it.key);
-    const loads = loadsOf(ex), step = ex.timed ? 15 : 1;
+    const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist ? 5 : 1;
     const variants = it.swap ? [] : (LADDERS[slot.pattern] || []).filter(id => EX[id] && exAvailable(EX[id]));
-    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : "") + " względem planu";
+    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
       <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Obwód, ćwiczenie " + (idx+1) + " z " + s.items.length : "Mobilność"} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
@@ -685,8 +690,8 @@ function sheetHtml(){
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
       ${loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Ciężar</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">${ex.timed ? "Czas" : "Powtórzenia"}${s.kind === "strength" ? " w rundzie" : ""}${ex.side ? " (per side)" : ""}</h3>
-        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Czas" : ex.dist ? "Dystans" : "Powtórzenia"}${s.kind === "strength" ? " w rundzie" : ""}${ex.side ? " (per side)" : ""}</h3>
+        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap ? "To zamiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
@@ -860,6 +865,7 @@ document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ 
 Store.init();
 Sync.init();
 { const data = Store.load(); S.profile = mergeProfile(data.profile); S.sessions = data.sessions || {};
+  if (data.profile && Array.isArray(data.profile.slots) && DEFAULT_SLOTS.some(d => !data.profile.slots.some(x => x.key === d.key))) commitProfile();
   try { S.reviews = JSON.parse(localStorage.getItem("trening:reviews") || "{}"); } catch(e){ S.reviews = {}; } }
 S.loaded = true;
 document.body.classList.remove("loading");

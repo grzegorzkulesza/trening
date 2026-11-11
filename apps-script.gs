@@ -14,16 +14,19 @@ const ALLOWED = {
   hpull: { "ring-row": ["bw"], "ring-row-box": ["bw"], "pullup-negative": ["bw"], "band-pullup": ["bw"], "pullup": ["bw"] },
   hinge: { "kb-swing": ["kb16", "kb20"], "kb-swing-1a": ["kb16", "kb20"] },
   hpush: { "incline-pushup-75": ["bw"], "knee-pushup": ["bw"], "pushup-negative": ["bw"], "pushup": ["bw"], "ring-dip": ["bw"] },
-  lunge: { "bss": ["bw", "kb8", "kb16", "kb20", "db15x2", "db225x2"] }
+  lunge: { "bss": ["bw", "kb8", "kb16", "kb20", "db15x2", "db225x2"] },
+  carry: { "suitcase-carry": ["kb8", "kb16", "kb20"], "farmer-carry": ["db15x2", "db225x2"] }
 };
 const NAMES = { "kb-halo": "KB Halo", "kb-clean-press": "KB Clean & Press", "kb-strict-press": "KB Clean & Strict Press", "ring-row": "Ring Row",
   "ring-row-box": "Ring Row (Feet on box)", "pullup-negative": "Pull-up Negative", "band-pullup": "Band-assisted Pull-up", "pullup": "Pull-up",
   "kb-swing": "KB Swing", "kb-swing-1a": "One-arm KB Swing", "incline-pushup-75": "Incline Push-up (Box 75 cm)", "knee-pushup": "Knee Push-up",
-  "pushup-negative": "Push-up Negative", "pushup": "Push-up", "ring-dip": "Ring Dip", "bss": "Bulgarian Split Squat" };
-const PER_SIDE = ["kb-halo", "kb-clean-press", "kb-strict-press", "kb-swing-1a", "bss"];
+  "pushup-negative": "Push-up Negative", "pushup": "Push-up", "ring-dip": "Ring Dip", "bss": "Bulgarian Split Squat",
+  "suitcase-carry": "Suitcase Carry", "farmer-carry": "Farmer's Carry" };
+const PER_SIDE = ["kb-halo", "kb-clean-press", "kb-strict-press", "kb-swing-1a", "bss", "suitcase-carry"];
+const DIST = ["suitcase-carry", "farmer-carry"];
 const LOADS = { bw: "Bodyweight", kb4: "4 kg", kb8: "8 kg", kb16: "16 kg", kb20: "20 kg", db15x2: "2 × 15 kg", db225x2: "2 × 22,5 kg" };
 function name_(id) { return NAMES[id] || id; }
-function dose_(id, load, reps) { return (LOADS[load] || load) + " × " + reps + (PER_SIDE.indexOf(id) >= 0 ? " per side" : ""); }
+function dose_(id, load, reps) { return (LOADS[load] || load) + " × " + reps + (DIST.indexOf(id) >= 0 ? " m" : "") + (PER_SIDE.indexOf(id) >= 0 ? " per side" : ""); }
 
 function sheet_(name, head) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -118,6 +121,7 @@ function review_(id, force) {
     "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Ustaw liczbę rund na tyle, ile faktycznie robi, jeśli o tym mówi. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
     "Progresje: KB Halo to przygotowanie barków, najwyżej 8 kg × 8 per side. Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Przyciąganie: ring-row → ring-row-box → pullup-negative → band-pullup → pullup. " +
     "Pompki: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
+    "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
     "Nie dodawaj nowych ćwiczeń, nie zmieniaj mobilności, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń po angielsku, teksty po polsku, bez moralizowania i motywowania.\n" +
     "Dozwolone id i kody ciężaru dla każdego wzorca: " + JSON.stringify(ALLOWED) + "\n" +
     "Plan teraz (rundy: " + profile.rounds + "): " + JSON.stringify(plan) + "\n" +
