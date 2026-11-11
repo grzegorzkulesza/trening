@@ -305,7 +305,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.47";
+const APP_VERSION = "2026-11-11.48";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1099,7 +1099,7 @@ function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
-      <p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : cond ? "Co robiłeś (wioślarz, bieg, skakanka), ile minut albo interwałów, dystans albo tempo na 500 m i jak się czułeś. Claude oceni i dopasuje plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p></div></header>
+      ${cond ? "" : `<p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
     ${strength ? timeCard(s) : ""}
     ${cond && eqOk("rower") ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie z PM5"><span>Zdjęcie z PM5</span><button data-act="photo-del">Usuń</button></div>`
       : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie z PM5</label>`) : ""}
