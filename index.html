@@ -122,12 +122,10 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .grp-i{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:10px}
 .grp-i small{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .grp-i.on small{color:var(--ink);font-weight:600}
-.cat.cat-g{gap:12px;padding:16px 18px}
-.cat-g .grp-top{gap:14px}
-.cg-line{flex:1;display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
-.cg-line .n{font-size:17px;font-weight:500}
-.cg-v{display:flex;align-items:center;gap:8px}
-.cg-v b{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.row.cat-r{min-height:56px;gap:10px}
+.cat-r .lv{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;min-width:22px;text-align:right;flex:none}
+.cat-r.locked .name{color:var(--muted)}
+.cat-r .s{font-size:14px;color:var(--faint);white-space:nowrap;flex:none}
 .grp-pick{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0 0;border:0;background:transparent;color:inherit}
 .gp-ring{display:flex;border-radius:50%}
 .grp-pick.sel .gp-ring{box-shadow:0 0 0 2px #FFFFFF,0 0 0 4px var(--ink)}
@@ -285,7 +283,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.35";
+const APP_VERSION = "2026-11-11.36";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1196,11 +1194,9 @@ function renderProgress(){
   const open = LEVEL_CATS.filter(c => H[c.id].length >= unlockN(c));
   const rows = LEVEL_CATS.map(c => {
     const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level)), need = unlockN(c);
-    if (h.length < need) return `<button class="cat locked" data-act="cat" data-c="${c.id}"><span class="cat-top"><span class="n">${c.name}</span><span class="tag">${c.bench ? "test" : h.length + " z " + need}</span></span><span class="s">${c.bench ? "Odblokuje się po teście Row 2000 m" : (h.length ? esc(last.text) + " · " : "") + "Odblokuje się po 2 treningach"}</span></button>`;
-    const g = groupOf(last.level), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
-    // Same pieces as the category screen: badge, group and level, track to the next group, the result that gets there.
-    return `<button class="cat cat-g" data-act="cat" data-c="${c.id}"><span class="grp-top">${badge(g, 48)}<span class="cg-line"><span class="n">${c.name}</span><span class="cg-v">${deltaChip(d)}<b>${last.level}</b></span></span></span>
-      ${ng ? groupTrack(g, ng, last.level, "") : ""}${ng && tg ? `<span class="cat-next">${badge(ng, 18)}${esc(tg)}</span>` : ""}</button>`;
+    if (h.length < need) return `<button class="row cat-r locked" data-act="cat" data-c="${c.id}"><span class="main"><span class="name">${c.name}</span></span><span class="s">${c.bench ? "Row 2000 m" : h.length + " z " + need}</span></button>`;
+    // Name, last change, level. The group and the target live on the category screen.
+    return `<button class="row cat-r" data-act="cat" data-c="${c.id}"><span class="main"><span class="name">${c.name}</span></span>${deltaChip(d)}<b class="lv">${last.level}</b>${CHEV}</button>`;
   }).join("");
   const cov = coverageData();
   let hero;
