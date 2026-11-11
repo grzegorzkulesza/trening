@@ -320,7 +320,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.41";
+const APP_VERSION = "2026-11-11.42";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -796,8 +796,8 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
   "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
   "Sztanga (gryf 20 kg, bumpery, stojaki; kody ciężaru bb + kg, np. bb62.5, od bb20 do bb127.5 co 2,5 kg): w każdym Strength jedno ćwiczenie ze sztangą, po kolei Deadlift (key bb-dl), Front Squat (bb-fs), Push Press (bb-pp); w tej sesji zastępuje odpowiednio KB Swing, Bulgarian Split Squat albo KB Clean & Press. " +
   "Na sztangę zawsze 5 reps na rundę. Za łatwo: Deadlift +5 kg, Front Squat i Push Press +2,5 kg. Trudno, sypiąca się technika, okrągłe plecy albo ból: ten sam ciężar albo −5 kg. Nie dokładaj szybciej, niż wynika z notatki; technika ważniejsza niż kilogramy. " +
-"Budżet: Strength najwyżej 45 min (bez Warm-up). Gdy czas zbliża się do 45 min, progresja tylko ciężarem albo trudniejszym wariantem, nie powtórzeniami. " +
-  "Czas treningu (pole czas: od pierwszego ćwiczenia 1. rundy do końca ostatniej, bez Warm-up i serii rozgrzewkowych na sztandze) to druga miara obok ciężaru: mówi, jak szybko regeneruje się między ćwiczeniami i rundami. " +
+"Budżet: cały trening Strength najwyżej 45 min, razem z Warm-up. Gdy czas zbliża się do 45 min, progresja tylko ciężarem albo trudniejszym wariantem, nie powtórzeniami. " +
+  "Czas treningu (pole czas: cały trening, od początku Warm-up do końca ostatniej rundy, razem z seriami rozgrzewkowymi na sztandze) to druga miara obok ciężaru: mówi, jak szybko regeneruje się między ćwiczeniami i rundami. " +
   "Porównuj go z poprzednimi treningami o tym samym składzie (to samo ćwiczenie ze sztangą powtarza się co 3 treningi) i z szacunkiem aplikacji (pole szacunek). " +
   "Ten sam plan w krótszym czasie i bez trudności w notatce: podnieś ciężar albo trudność, nie skracaj czasu dalej. Czas rośnie przy tym samym planie albo notatka mówi o zmęczeniu: nie podnoś. Bez czasu oceniaj jak dotąd. " +
   "Zmieniaj tylko key z dzisiejszej sesji. Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
@@ -1456,7 +1456,7 @@ const Lab = {
   render(){
     return `<section class="screen"><header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="settings" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">Jak poszło?</h1></div></header>
       <div class="lab-seg" role="tablist">${this.VARS.map(([k, n]) => `<button class="${this.v === k ? "on" : ""}" role="tab" aria-selected="${this.v === k}" data-lab="v" data-v="${k}">${n}</button>`).join("")}</div>
-      <div class="card"><label class="lab-row"><span>Czas treningu<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-lab="on" ${this.on ? "checked" : ""} aria-label="Podaj czas"></label>${this.timeBody()}</div>
+      <div class="card"><label class="lab-row"><span>Czas treningu<small>Z Warm-up</small></span><input type="checkbox" class="sw" data-lab="on" ${this.on ? "checked" : ""} aria-label="Podaj czas"></label>${this.timeBody()}</div>
       <section class="sec"><h2 class="sec-h">Wysiłek</h2><div class="rpe" role="radiogroup" aria-label="Wysiłek od 1 do 10">${[1,2,3,4,5,6,7,8,9,10].map(n => `<button class="${this.rpe === n ? "on" : ""}" role="radio" aria-checked="${this.rpe === n}" data-lab="rpe" data-n="${n}">${n}</button>`).join("")}</div>
         <p class="rpe-t">${this.rpe ? RPE_TXT[this.rpe] : ""}</p></section>
       <div class="field" style="min-height:110px"><textarea placeholder="Podyktuj lub napisz" style="text-align:left;min-height:84px"></textarea></div>
