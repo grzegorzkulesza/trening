@@ -194,26 +194,11 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .photo img{width:64px;height:64px;object-fit:cover;border-radius:12px;flex:none}
 .photo span{flex:1;font-size:17px;font-weight:500}
 .photo button{border:0;background:none;font-size:15px;color:var(--muted);padding:8px 0}
-/* prototype: time and effort */
-.lab-seg{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;background:#E9E8E3;border-radius:14px;padding:4px}
-.lab-seg button{height:40px;border:0;border-radius:10px;background:transparent;font-size:14px;font-weight:500;color:var(--ink)}
-.lab-seg button.on{background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+/* session time and effort on the note screen */
 .lab-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;min-height:60px}
 .lab-row span{font-size:17px;font-weight:500}
 .lab-row small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
-.lab-time{display:block;width:100%;border:0;outline:none;background:transparent;font:inherit;font-size:44px;line-height:1.1;font-weight:600;text-align:center;font-variant-numeric:tabular-nums;padding:6px 0 18px;color:var(--ink);letter-spacing:-.01em}
-.lab-time::placeholder,.lab-time.empty{color:#C9C8C2}
-.lab-time.bad,.lab-ms.bad input{color:var(--warn)}
-.lab-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 14px 14px}
-.lab-pad button{height:54px;border:0;border-radius:14px;background:var(--bg);font-size:24px;font-weight:500;color:var(--ink)}
-.lab-pad button.ok{background:var(--ink);color:#FFFFFF;font-size:17px;font-weight:600}
-.wheels{position:relative;display:flex;justify-content:center;align-items:center;gap:6px;padding:0 18px 16px}
-.wheels::before{content:"";position:absolute;left:18px;right:18px;top:68px;height:44px;border-radius:12px;background:var(--bg)}
-.wheel{position:relative;height:180px;width:84px;overflow-y:scroll;scroll-snap-type:y mandatory;scrollbar-width:none;-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
-.wheel::-webkit-scrollbar{display:none}
-.wheel i{display:block;height:68px}
-.wheel b{display:grid;place-items:center;height:44px;font-size:26px;font-weight:600;scroll-snap-align:center;font-variant-numeric:tabular-nums}
-.wheels em{position:relative;font-style:normal;font-size:26px;font-weight:600}
+.lab-ms.bad input{color:var(--warn)}
 .lab-ms{display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:2px 18px 18px}
 .lab-ms label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .lab-ms input{width:88px;height:64px;border:0;border-radius:14px;background:var(--bg);font:inherit;font-size:32px;font-weight:600;text-align:center;color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
@@ -225,12 +210,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .eff-bar{display:flex;align-items:flex-end;gap:4px;height:52px;touch-action:pan-y;cursor:pointer;user-select:none;-webkit-user-select:none}
 .eff-bar span{flex:1;height:100%;border-radius:8px;background:#E2E0DA;transition:background .1s}
 .eff-bar span.on{background:var(--ink)}
-.eff-bar.warm span.on{background:var(--c)}
 .eff-ends{display:flex;justify-content:space-between;font-size:13px;color:var(--faint);margin-top:-4px}
-.rpe{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.rpe button{height:52px;border:0;border-radius:14px;background:var(--surface);font-size:18px;font-weight:600;color:var(--ink)}
-.rpe button.on{background:var(--ink);color:#FFFFFF}
-.rpe-t{margin:0;min-height:20px;font-size:15px;color:var(--muted);text-align:center}
 .note-field textarea{flex:1;text-align:left;font-size:17px;line-height:1.5;padding:0}
 .mic{width:100%;height:54px;flex:none;border:0;border-radius:22px;background:var(--chip);display:grid;place-items:center}
 .hint{margin:6px 0 0;font-size:13px;color:var(--muted)}
@@ -325,7 +305,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.45";
+const APP_VERSION = "2026-11-11.46";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -753,13 +733,8 @@ const Store = {
   replaceAll(profile, sessions){ localStorage.setItem(KEY_P, JSON.stringify(profile)); localStorage.setItem(KEY_S, JSON.stringify(sessions)); }
 };
 const debouncers = {};
-// Durations: "24:30", "24.30", "24" (minutes), "1:02:03".
+// Durations as m:ss (h:mm:ss from an hour).
 const mmss = t => { t = Math.round(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), sec = String(t % 60).padStart(2, "0"); return h ? h + ":" + String(m).padStart(2, "0") + ":" + sec : m + ":" + sec; };
-function parseDur(v){
-  const m = String(v || "").trim().match(/^(\d{1,3})(?:\s*[:.,]\s*(\d{1,2}))?(?:\s*[:.,]\s*(\d{1,2}))?$/); if (!m) return null;
-  const a = m.slice(1).filter(x => x != null).map(Number), t = a.length === 3 ? a[0] * 3600 + a[1] * 60 + a[2] : a.length === 2 ? a[0] * 60 + a[1] : a[0] * 60;
-  return t > 0 && t < 4 * 3600 ? t : null;
-}
 // PM5 photo waiting for Claude: kept on the phone (not in the sheet) until a review has read it.
 const KEY_PHOTO = "trening:photo:", photoMem = {};
 const photoOf = id => { try { return localStorage.getItem(KEY_PHOTO + id) || photoMem[id] || null; } catch(e){ return photoMem[id] || null; } };
@@ -1424,7 +1399,6 @@ function renderCoverage(){
 function renderSettings(){
   const p = S.profile;
   return `<section class="screen">${backHead("Sprzęt i plan")}
-    <section class="sec"><h2 class="sec-h">Prototyp</h2><div class="card"><button class="row" data-act="go" data-v="lab"><span class="main"><span class="name">Wysiłek</span></span>${CHEV}</button></div></section>
     <section class="sec"><h2 class="sec-h">Sprzęt</h2><div class="card">${EQUIP.map(e => `<div class="opt"><label for="eq-${e.id}">${esc(e.label)}${e.note ? `<small>${esc(e.note)}</small>` : ""}</label><input type="checkbox" class="sw" id="eq-${e.id}" data-eq="${e.id}" ${p.equip[e.id] ? "checked" : ""}></div>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Dni Strength</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
@@ -1447,20 +1421,17 @@ function renderSettings(){
 /* ---------- effort: session RPE (Foster's CR-10) as one row of 10 segments, tap or drag ---------- */
 // 6 and 8 sit between the anchors of the scale.
 const RPE_TXT = ["", "Bardzo, bardzo lekko", "Lekko", "Umiarkowanie", "Dość ciężko", "Ciężko", "Ciężko+", "Bardzo ciężko", "Bardzo ciężko+", "Prawie maksymalnie", "Maksymalnie"];
-const RPE_C = ["", "#E3D9C6", "#D6C4A0", "#C9AE7C", "#C2955A", "#C47A3C", "#B9642B", "#A04F24", "#833F20", "#5F2F1B", "#3D2015"];
-let EFF_LOOK = "F"; // the prototype switches it until one look is chosen
 const effHead = rpe => rpe ? `<b>${rpe}</b>${RPE_TXT[rpe]}` : `<b>–</b>`;
-function effHtml(rpe, key, look = EFF_LOOK){
-  const steps = look === "S" || look === "SW", warm = look === "W" || look === "SW";
+// Steps: the bars grow to the right, so a higher effort also looks bigger.
+function effHtml(rpe, key){
   return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek</h2><p class="eff-v">${effHead(rpe)}</p></div>
-    <div class="eff-bar ${steps ? "steps" : ""} ${warm ? "warm" : ""}" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 10" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${rpe || ""}">${[1,2,3,4,5,6,7,8,9,10].map(n => `<span class="${rpe >= n ? "on" : ""}" style="--c:${RPE_C[n]}${steps ? ";height:" + (40 + n * 6) + "%" : ""}"></span>`).join("")}</div>
+    <div class="eff-bar" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 10" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${rpe || ""}">${[1,2,3,4,5,6,7,8,9,10].map(n => `<span class="${rpe >= n ? "on" : ""}" style="height:${40 + n * 6}%"></span>`).join("")}</div>
     <div class="eff-ends"><span>1</span><span>10</span></div></section>`;
 }
 function paintEff(el, n){ [...el.children].forEach((x, i) => x.classList.toggle("on", n >= i + 1)); el.setAttribute("aria-valuenow", n); const v = el.closest(".eff").querySelector(".eff-v"); if (v) v.innerHTML = effHead(n); }
 // What a new value does, per place the bar is used.
 const EFF_SET = {
   note(n, el){ const s = current(); if (s.rpe === n) return; s.rpe = n; commitSession(s, true); paintEff(el, n); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); },
-  lab(n, el){ if (Lab.rpe === n) return; Lab.rpe = n; Lab.msg = ""; paintEff(el, n); const b = $("[data-lab=save]"); if (b) b.disabled = false; }
 };
 // Pointer events update the bar in place, so a drag is not cut short by a re-render.
 function bindEff(){
@@ -1472,28 +1443,6 @@ function bindEff(){
     ["pointerup", "pointercancel"].forEach(k => el.addEventListener(k, () => { on = false; }));
   });
 }
-/* ---------- prototype: looks of the effort bar (compare, then keep one) ---------- */
-const Lab = {
-  rpe:null, msg:"",
-  LOOKS:[["F", "Płaski"], ["S", "Schody"], ["W", "Ciepło"], ["SW", "Oba"]],
-  render(){
-    return `<section class="screen"><header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="settings" aria-label="Wróć">${BACK}</button><h1 class="title" style="font-size:28px">Jak poszło?</h1></div></header>
-      <div class="lab-seg" role="tablist">${this.LOOKS.map(([k, n]) => `<button class="${EFF_LOOK === k ? "on" : ""}" role="tab" aria-selected="${EFF_LOOK === k}" data-lab="look" data-v="${k}">${n}</button>`).join("")}</div>
-      <div class="card"><label class="lab-row"><span>Czas treningu<small>Z Warm-up</small></span><input type="checkbox" class="sw" checked disabled aria-label="Podaj czas"></label><div class="lab-ms"><label><input value="24" disabled>min</label><b>:</b><label><input value="30" disabled>s</label></div></div>
-      ${effHtml(this.rpe, "lab")}
-      <div class="field" style="min-height:110px"><textarea placeholder="Podyktuj lub napisz" style="text-align:left;min-height:84px"></textarea></div>
-      <div class="push">${this.msg ? `<p class="note" style="text-align:center">${esc(this.msg)}</p>` : ""}<button class="btn" data-lab="save" ${this.rpe ? "" : "disabled"}>Zapisz i zakończ</button></div></section>`;
-  },
-  after(){},
-  click(el){
-    const k = el.dataset.lab;
-    if (k === "look"){ EFF_LOOK = el.dataset.v; try { localStorage.setItem("trening:eff-look", EFF_LOOK); } catch(e){} render(); return; }
-    if (k === "save"){ this.msg = "Prototyp, nic nie zapisano: wysiłek " + this.rpe; render(); }
-  }
-};
-try { EFF_LOOK = localStorage.getItem("trening:eff-look") || "F"; } catch(e){}
-document.addEventListener("click", e => { const el = e.target.closest("[data-lab]"); if (el && el.tagName !== "INPUT") Lab.click(el); });
-
 /* ---------- sheets ---------- */
 function sheetHtml(){
   const sh = S.sheet; if (!sh) return "";
@@ -1558,7 +1507,7 @@ function renderSheet(){
 function render(){
   const v = S.view;
   const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "detail" ? (S.sessions[S.detail?.id] ? doneScreen(S.sessions[S.detail.id]) : renderHome()) : v === "plan" ? planScreen(S.detail.date, S.detail.kind) : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
-    : v === "settings" ? renderSettings() : v === "lab" ? Lab.render() : renderPrep();
+    : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
   fitDayTitle();
   renderSheet();
