@@ -178,7 +178,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.3";
+const APP_VERSION = "2026-11-11.4";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -472,7 +472,7 @@ const Sync = {
         const rv = {}; j.reviews.forEach(r => { if (r && r.id) rv[r.id] = r; });
         if (JSON.stringify(rv) !== JSON.stringify(S.reviews)){ S.reviews = rv; changed = true; try { localStorage.setItem("trening:reviews", JSON.stringify(rv)); } catch(e){} }
       }
-      if (j.profile && (j.profile.updatedAt || 0) > (S.profile.updatedAt || 0)){ S.profile = mergeProfile(j.profile); changed = true; }
+      if (j.profile && (j.profile.updatedAt || 0) > (S.profile.updatedAt || 0)){ S.profile = mergeProfile(j.profile); changed = true; this.q.add("profile"); }
       else if (!j.profile || (S.profile.updatedAt || 0) > (j.profile.updatedAt || 0)) this.q.add("profile");
       this.saveQ();
       if (changed) Store.replaceAll(S.profile, S.sessions);
@@ -506,6 +506,7 @@ const Sync = {
     for (let i = 0; i < 60 && this.busy; i++) await sleep(250);
     this.busy = true; clearTimeout(this.timer);
     const body = {sessions:[this.row(s)], review:id, force:!!force};
+    let got = false;
     if (this.q.has("profile")){ body.profile = S.profile; body.planText = this.planText(); }
     const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 150000);
     try {
@@ -516,7 +517,7 @@ const Sync = {
       if (j.profile){ S.profile = mergeProfile(j.profile); Store.saveProfile(); this.q.add("profile"); }
       this.saveQ();
       if (j.review){
-        S.reviews[j.review.id] = j.review; this.setPendingReview(null);
+        got = true; S.reviews[j.review.id] = j.review; this.setPendingReview(null);
         try { localStorage.setItem("trening:reviews", JSON.stringify(S.reviews)); if (S.view === "prep") localStorage.setItem("trening:seen-review", j.review.id); } catch(e){}
       } else S.reviewErr = j.reviewError || "Claude nie odpowiedział.";
       this.last = Date.now(); this.err = null;
@@ -524,7 +525,8 @@ const Sync = {
       S.reviewErr = e.name === "AbortError" ? "Ocena trwa dłużej niż zwykle. Sprawdzę ją przy następnym otwarciu aplikacji." : "Nie udało się połączyć z arkuszem. Spróbuję ponownie przy następnym otwarciu aplikacji.";
     }
     clearTimeout(timer); this.busy = false; S.reviewing = null; redraw();
-    if (this.q.size) this.flush();
+    if (got) { await this.pull(); redraw(); }
+    else if (this.q.size) this.flush();
   },
   planText(){ return S.profile.slots.map(sl => [(sl.group === "circuit" ? "Obwód: " : "Mobilność: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
