@@ -55,6 +55,8 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .row .name{font-size:17px;font-weight:500}
 .row .sub{display:flex;align-items:center;gap:6px;font-size:15px;color:var(--muted)}
 .row .why{font-size:14px;color:var(--muted)}
+.row.swap-row{padding:14px 18px;gap:12px}
+.swap-row .main{gap:5px}
 .dot{width:8px;height:8px;border-radius:4px;flex:none}
 .tag{font-size:13px;color:var(--muted);background:var(--chip);border-radius:999px;padding:4px 10px;white-space:nowrap;flex:none}
 .tag.up{color:var(--good);background:var(--good-bg)}
@@ -305,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.50";
+const APP_VERSION = "2026-11-11.51";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1481,7 +1483,7 @@ function sheetHtml(){
     const opts = Object.values(EX).filter(e => e.pattern === slot.pattern && e.id !== it.ex && exAvailable(e) && (e.id === slot.ex || !lad.includes(e.id)))
       .sort((a, b) => (a.id === slot.ex ? -1 : a.alt ? order[a.rel] || 4 : 0) - (b.id === slot.ex ? -1 : b.alt ? order[b.rel] || 4 : 0));
     const optRow = e => { const load = e.id === slot.ex ? fitLoad(e, slot.load) : fitLoad(e, e.def[0]), reps = e.id === slot.ex ? slot.reps : e.def[1];
-      return `<button class="row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span>${e.why ? `<span class="why">${esc(e.why)}</span>` : ""}</span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : !!e.bb !== slotBb ? (e.bb ? "sztanga" : "bez sztangi") : "wariant"}</span></button>`; };
+      return `<button class="row swap-row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span></span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : !!e.bb !== slotBb ? (e.bb ? "sztanga" : "bez sztangi") : "wariant"}</span></button>`; };
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zamiana ćwiczenia">${SHEET_X}
       <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
