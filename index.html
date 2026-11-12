@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-11.53";
+const APP_VERSION = "2026-11-12.1";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1096,7 +1096,9 @@ function planScreen(date, kind){
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", bb:null})
     : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">Plan</h1></div></header>`;
-  return `<section class="screen">${head}
+  // The plan of another day is what goes on the whiteboard, so the Warm-up is written out in full.
+  const warm = strength ? `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(its).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>` : "";
+  return `<section class="screen">${head}${warm}
     <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? condLabel(condKey(date)) : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
 </section></section>`;
