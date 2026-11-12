@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.19";
+const APP_VERSION = "2026-11-12.20";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -509,20 +509,20 @@ A("goblet-sq", {name:"KB Goblet Squat", pattern:"squat", loads:["kb16","kb20"], 
 // mobility (plan)
 X("deep-squat-hold", {name:"Deep Squat Hold", pattern:"mob-squat", timed:true, def:["bw",60], cue:"Możesz trzymać się framugi albo kółek."});
 X("z-sit", {name:"Z-Sit", pattern:"mob-hip", timed:true, side:true, def:["bw",30], cue:"Ręce mogą podpierać."});
-X("down-dog-press", {name:"Downward Dog Press", pattern:"mob-ankle", def:["bw",8], cue:"Pięty w stronę podłogi, bez wymuszania."});
-X("superman", {name:"Superman", pattern:"mob-back", def:["bw",10], cue:"Ręce i nogi nisko nad podłogą, szyja długa."});
-X("crab-press", {name:"Crab Press", pattern:"mob-tspine", side:true, def:["bw",6], cue:"Biodra wysoko, sięgasz ręką za siebie."});
+X("down-dog-press", {name:"Downward Dog Press", pattern:"mob-ankle", hold:"2 s w psie", def:["bw",8], cue:"Pięty w stronę podłogi, bez wymuszania."});
+X("superman", {name:"Superman", pattern:"mob-back", hold:"3 s w górze", def:["bw",10], cue:"Ręce i nogi nisko nad podłogą, szyja długa."});
+X("crab-press", {name:"Crab Press", pattern:"mob-tspine", side:true, hold:"2 s w górze", def:["bw",6], cue:"Biodra wysoko, sięgasz ręką za siebie."});
 A("goblet-hold", {name:"Goblet Squat Hold", pattern:"mob-squat", loads:["kb8","kb16"], timed:true, def:["kb8",45], rel:"podobnie", why:"Ciężar z przodu ułatwia zejście."});
-A("ankle-rocks", {name:"Ankle Rocks", pattern:"mob-ankle", side:true, def:["bw",10], rel:"łatwiej", why:"Kolano nad palcami, pięta przy podłodze."});
+A("ankle-rocks", {name:"Ankle Rocks", pattern:"mob-ankle", side:true, hold:"2 s z przodu", def:["bw",10], rel:"łatwiej", why:"Kolano nad palcami, pięta przy podłodze."});
 A("calf-box", {name:"Calf Stretch", tag:"Box", pattern:"mob-ankle", req:["box"], timed:true, side:true, def:["bw",45], rel:"podobnie", why:"Palce na krawędzi skrzyni, pięta w dół."});
 A("hip-switch", {name:"90/90 Hip Switch", pattern:"mob-hip", side:true, def:["bw",6], rel:"podobnie", why:"Rotacje bioder, dynamicznie."});
 A("couch", {name:"Couch Stretch", pattern:"mob-hip", timed:true, side:true, def:["bw",45], rel:"podobnie", why:"Zginacze bioder po siedzeniu."});
 A("pigeon", {name:"Pigeon Stretch", pattern:"mob-hip", timed:true, side:true, def:["bw",45], rel:"łatwiej", why:"Rotacja zewnętrzna biodra."});
 A("superman-hold", {name:"Superman Hold", pattern:"mob-back", timed:true, def:["bw",20], rel:"trudniej", why:"Ta sama pozycja, utrzymana."});
-A("bird-dog", {name:"Bird Dog", pattern:"mob-back", side:true, def:["bw",8], rel:"łatwiej", why:"Stabilizacja lędźwi."});
-A("ytw", {name:"Prone Y-T-W", pattern:"mob-back", def:["bw",6], rel:"podobnie", why:"Tył barków, przeciw zgarbieniu."});
-A("open-book", {name:"Open Book", pattern:"mob-tspine", side:true, def:["bw",8], rel:"podobnie", why:"Rotacja odcinka piersiowego w leżeniu."});
-A("thread", {name:"Thread the Needle", pattern:"mob-tspine", side:true, def:["bw",6], rel:"podobnie", why:"Rotacja z klęku podpartego."});
+A("bird-dog", {name:"Bird Dog", pattern:"mob-back", side:true, hold:"3 s w wyproście", def:["bw",8], rel:"łatwiej", why:"Stabilizacja lędźwi."});
+A("ytw", {name:"Prone Y-T-W", pattern:"mob-back", hold:"2 s w każdej literze", def:["bw",6], rel:"podobnie", why:"Tył barków, przeciw zgarbieniu."});
+A("open-book", {name:"Open Book", pattern:"mob-tspine", side:true, hold:"2 s otwarty", def:["bw",8], rel:"podobnie", why:"Rotacja odcinka piersiowego w leżeniu."});
+A("thread", {name:"Thread the Needle", pattern:"mob-tspine", side:true, hold:"2 s w skręcie", def:["bw",6], rel:"podobnie", why:"Rotacja z klęku podpartego."});
 A("hang", {name:"Passive Hang", pattern:"mob-tspine", req:["pullbar"], timed:true, def:["bw",30], rel:"podobnie", why:"Rozciąga barki i odcinek piersiowy."});
 A("wall-slide", {name:"Wall Slide + Chin Tuck", pattern:"mob-tspine", def:["bw",10], rel:"łatwiej", why:"Wprost na głowę wysuniętą do przodu."});
 
@@ -561,7 +561,8 @@ function doseText(exId, load, reps){
   if (ex.cal) return reps + " cal";
   if (ex.minutes) return reps + " min";
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
-  return loadLabel(ex, load) + " × " + reps + (ex.dist ? " m" : "") + sideTxt(ex);
+  const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
+  return (lbl ? lbl + " × " : "× ") + reps + (ex.dist ? " m" : "") + sideTxt(ex) + (ex.hold ? " · " + ex.hold : "");
 }
 const shortDose = (exId, reps) => { const ex = exOf(exId); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
