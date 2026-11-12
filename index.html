@@ -77,6 +77,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .wk-arrows{display:flex;gap:2px}
 .wk-arrows button{width:36px;height:36px;border:0;border-radius:50%;background:transparent;display:grid;place-items:center;color:var(--ink)}
 .wk-arrows button:disabled{opacity:.3}
+.wk-arrows .wk-today{width:auto;height:32px;padding:0 14px;margin-right:6px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;align-self:center}
 .wk-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
 .wk-c{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;padding:2px 0;color:inherit;min-width:0}
 .wk-c .l{font-size:13px;font-weight:500;color:var(--muted)}
@@ -307,7 +308,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.9";
+const APP_VERSION = "2026-11-12.10";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -692,7 +693,7 @@ function weekStripHtml(){
     const dt = parseYmd(d.date), name = DAYS[d.w] + ", " + dt.getDate() + " " + MONTHS[dt.getMonth()] + (d.done ? ", zrobione" : d.kind ? ", " + (d.kind === "strength" ? "Strength" : "Conditioning") : "");
     return `<button class="wk-c ${d.date === sel ? "on" : ""} ${d.today ? "today" : ""} ${d.past ? "past" : ""}" role="tab" aria-selected="${d.date === sel}" aria-label="${esc(name)}" data-act="pick-day" data-date="${d.date}"><span class="l">${LETTERS[d.w]}</span><span class="n">${dt.getDate()}${dot ? `<i class="dot ${dot}" aria-hidden="true"></i>` : ""}</span></button>`;
   };
-  return `<section class="wk"><div class="wk-nav"><h2 class="sec-h">${esc(label)}</h2><span class="wk-arrows">
+  return `<section class="wk"><div class="wk-nav"><h2 class="sec-h">${esc(label)}</h2><span class="wk-arrows">${off !== 0 || sel !== today() ? `<button class="wk-today" data-act="wk-today">Dziś</button>` : ""}
       <button data-act="wk" data-d="-1" aria-label="Poprzedni tydzień" ${off <= wkMin() ? "disabled" : ""}>${BACK}</button>
       <button data-act="wk" data-d="1" aria-label="Następny tydzień" ${off >= WK_MAX ? "disabled" : ""}><span style="display:inline-flex;transform:scaleX(-1)">${BACK}</span></button></span></div>
     <div class="wk-strip" role="tablist" aria-label="${esc(label)}">${days.map(cell).join("")}</div></section>`;
@@ -1814,6 +1815,7 @@ document.addEventListener("click", e => {
     case "pick-day": S.sel = b.dataset.date === today() ? null : b.dataset.date; render(); break;
     case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
+    case "wk-today": S.weekOff = 0; S.sel = null; render(); break;
     case "back-prep": go("prep"); break;
     case "note": go("note"); break;
     case "photo-del": setPhoto(current().id, null); render(); break;
