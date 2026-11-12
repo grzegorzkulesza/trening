@@ -71,7 +71,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .status{font-size:13px;font-weight:500;border-radius:999px;padding:4px 10px;background:var(--chip);color:var(--muted);white-space:nowrap}
 .status.done{background:var(--good-bg);color:var(--good)}
 .status.live{background:var(--ink);color:#FFFFFF}
-.day-card.off{opacity:.55}
+.day-card.off{cursor:default}
 .wk{display:flex;flex-direction:column;gap:6px;margin:0 -6px}
 .wk-nav{display:flex;align-items:center;justify-content:space-between;padding:0 6px}
 .wk-arrows{display:flex;gap:2px}
@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.3";
+const APP_VERSION = "2026-11-12.5";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -651,10 +651,11 @@ function dayCardsHtml(date){
   const strengthDay = S.profile.schedule.includes(w), condDay = (S.profile.condSchedule || []).includes(w);
   const card = (kind, title, sub, x, missed, optional) => {
     const done = isDone(x), off = past && !done;
-    const chip = done ? `<span class="status done">✓ Zrobione</span>` : missed ? `<span class="status">Pominięte</span>` : off ? "" : `<span class="status">${optional ? "Opcjonalnie" : isToday ? "Do zrobienia" : "Zaplanowane"}</span>`;
-    const inner = `<span class="day-main"><span class="day-top"><span class="day-title">${title}</span>${chip}</span><span class="day-sub">${esc(sub)}</span></span>`;
+    // Every card shows its state the same way, as a chip next to the title; a missed one only has nothing to open.
+    const chip = done ? `<span class="status done">✓ Zrobione</span>` : missed || off ? `<span class="status">Pominięte</span>` : `<span class="status">${optional ? "Opcjonalnie" : isToday ? "Do zrobienia" : "Zaplanowane"}</span>`;
+    const inner = `<span class="day-main"><span class="day-top"><span class="day-title">${title}</span>${chip}</span>${sub ? `<span class="day-sub">${esc(sub)}</span>` : ""}</span>`;
     const act = done ? `data-act="detail" data-id="${esc(x.id)}"` : isToday ? `data-act="open" data-kind="${kind}"` : !past ? `data-act="plan-detail" data-date="${date}" data-kind="${kind}"` : "";
-    return act ? `<button class="day-card" ${act}>${inner}${CHEV}</button>` : `<div class="day-card off">${inner}</div>`;
+    return act ? `<button class="day-card" ${act}>${inner}${CHEV}</button>` : `<div class="day-card off">${inner}<span style="width:16px;flex:none" aria-hidden="true"></span></div>`;
   };
   const out = [];
   if (strengthDay || isDone(st)){
@@ -670,7 +671,7 @@ function dayCardsHtml(date){
     const sub = isDone(cs) ? doneSub(cs) : sl ? estText("cond", [sl]) : "";
     out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
   }
-  out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "Nie zrobione." : estText("mobility", slotsOf("mobility")), mb, false));
+  out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "" : estText("mobility", slotsOf("mobility")), mb, false));
   return `<div class="day-list">${out.join("")}</div>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };
