@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.7";
+const APP_VERSION = "2026-11-12.8";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -343,11 +343,6 @@ const BAR = 20, PLATES = [20, 15, 10, 5, 2.5, 1.25];
 const BB_LOADS = [];
 for (let kg = BAR; kg <= BAR + 2 * PLATES.reduce((a, b) => a + b, 0) + 1e-9; kg += 2.5) BB_LOADS.push("bb" + kg);
 const plKg = n => String(n).replace(".", ",");
-function platesText(kg){
-  let side = (kg - BAR) / 2; const out = [];
-  for (const p of PLATES) if (side >= p - 1e-9){ out.push(p); side -= p; }
-  return out.length ? out.map(plKg).join(" + ") + " na stronę" : "pusty gryf";
-}
 const LOADS = {
   bw:{label:"Bodyweight"},
   kb4:{label:"4 kg", color:"#A3ABB4", eq:"kb4"}, kb8:{label:"8 kg", color:"#E98FB8", eq:"kb8"},
@@ -1185,7 +1180,7 @@ function itemRow(it, i, tappable){
   const changed = it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
   const byClaude = it.claudeAt ? Date.now() - it.claudeAt < CLAUDE_TAG_DAYS * 86400000 && !changed : sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
   const tag = it.swap ? `<span class="tag">zamiana na dziś</span>` : changed ? `<span class="tag">zmienione</span>` : byClaude ? `<span class="tag up">od Claude</span>` : "";
-  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps) + (LOADS[it.load] && LOADS[it.load].bb ? " · " + platesText(LOADS[it.load].bb) : ""))}</span></span>${tag}${tappable ? CHEV : ""}`;
+  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
 // A block day as sections, one per part: how it is done, then the items. rowFn draws one item.
@@ -1687,7 +1682,7 @@ function sheetHtml(){
       ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Variant</h3><div class="chips">${variants.map(id => { const v = EX[id];
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
       ${ex.bb ? (() => { const kg = LOADS[it.load] ? LOADS[it.load].bb : BAR, i = BB_LOADS.indexOf(it.load);
-        return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b><span>${esc(platesText(kg))}</span></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
+        return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
       : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
       <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
