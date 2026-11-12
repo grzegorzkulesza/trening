@@ -82,7 +82,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .fmt-h b{font-size:20px;font-weight:600}
 .fmt-h span{font-size:15px;color:var(--muted)}
 .fmt-sep{display:flex;align-items:center;gap:12px;margin:-6px 0;font-size:14px;color:var(--muted)}
-.fmt-sep::before,.fmt-sep::after{content:"";flex:1;height:1px;background:#DCDBD5}
+.fmt-sep i{flex:1;height:1px;background:#DCDBD5}
 .wk-arrows .wk-today{width:auto;height:32px;padding:0 14px;margin-right:6px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;align-self:center}
 .wk-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
 .wk-c{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;padding:2px 0;color:inherit;min-width:0}
@@ -314,7 +314,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.13";
+const APP_VERSION = "2026-11-12.14";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1207,7 +1207,7 @@ function fmtParts(f){
 // A block day as cards, one per part: its format as the first row, then the items. rowFn draws one item.
 function blockSections(b, items, rowFn, word = "serią"){
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
-    return `${f.before && pi ? `<p class="fmt-sep">${esc(f.before)}</p>` : ""}<section class="sec"><div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
+    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec"><div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
 const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
