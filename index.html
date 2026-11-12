@@ -13,7 +13,7 @@
 <title>Trening na dziś</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <style>
 :root{
   /* Layout: one full-height phone screen per step of the session; bottom sheets slide over Przygotowanie */
@@ -306,6 +306,61 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .sheet h2{margin:0;font-size:28px;line-height:1.15;font-weight:600;letter-spacing:-.02em}
 .sheet header .sub{margin:6px 0 0;font-size:15px;color:var(--muted)}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+/* Skin 2: black and white, condensed uppercase, square corners (Settings › Skórka) */
+html.skin2{--bg:#FFFFFF;--surface:#F2F2F2;--ink:#000000;--muted:#5A5A5A;--faint:#8A8A8A;--line:#D9D9D9;--chip:#E6E6E6;--hot:#D42A1E;--good:#000;--good-bg:#E6E6E6}
+html.skin2 .kicker{text-transform:uppercase;letter-spacing:.08em;font-size:13px;font-weight:600;color:var(--muted)}
+html.skin2 .title{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;text-transform:uppercase;font-size:44px;line-height:.95;letter-spacing:0}
+html.skin2 .day-h{font-size:34px}
+html.skin2 .lead{font-weight:500;color:var(--ink)}
+html.skin2 .sec-h{text-transform:uppercase;letter-spacing:.08em;font-size:13px;font-weight:700;color:var(--ink)}
+html.skin2 .card,html.skin2 .verdict,html.skin2 .field,html.skin2 .big-step,html.skin2 .choice,html.skin2 .pill,html.skin2 .input,html.skin2 .photo,html.skin2 .lab-ms input{border-radius:0}
+html.skin2 .card{background:var(--surface);border-top:3px solid var(--ink)}
+html.skin2 .row + .row{border-top:1px solid var(--line)}
+html.skin2 .row .name{font-weight:600}
+html.skin2 .row .num{color:var(--ink);font-weight:700}
+html.skin2 .tag{border-radius:0;text-transform:uppercase;letter-spacing:.05em;font-size:11px;font-weight:700;background:transparent;box-shadow:inset 0 0 0 1.5px currentColor;color:var(--ink)}
+html.skin2 .fmt-h{background:var(--ink);color:#FFFFFF;padding:12px 18px}
+html.skin2 .fmt-h b{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:26px;text-transform:uppercase;letter-spacing:.01em;line-height:1}
+html.skin2 .fmt-h span{color:#BDBDBD;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:600}
+html.skin2 .fmt-sep{text-transform:uppercase;letter-spacing:.08em;font-size:12px;font-weight:700;color:var(--ink)}
+html.skin2 .fmt-sep i{background:var(--ink);height:2px}
+html.skin2 .card .fmt-h + .row{border-top:0}
+html.skin2 .sec .card:has(.fmt-h){border-top:0}
+html.skin2 .day-list{gap:0;border-top:3px solid var(--ink)}
+html.skin2 .day-card{border-radius:0;background:transparent;border-bottom:1px solid var(--line);padding:18px 2px;min-height:88px}
+html.skin2 .day-title{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:30px;text-transform:uppercase;letter-spacing:.01em;line-height:1}
+html.skin2 .day-sub{color:var(--ink);font-weight:500}
+html.skin2 .status{border-radius:0;text-transform:uppercase;letter-spacing:.06em;font-size:11px;font-weight:700;background:transparent;box-shadow:inset 0 0 0 1.5px var(--ink);color:var(--ink);padding:5px 8px}
+html.skin2 .status.done{background:var(--ink);color:#FFFFFF;box-shadow:none}
+html.skin2 .wk-nav .sec-h{color:var(--muted)}
+html.skin2 .wk-c .l{text-transform:uppercase;font-weight:700;color:var(--ink);font-size:12px}
+html.skin2 .wk-c .n{border-radius:0;font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:24px}
+html.skin2 .wk-c.today .n{box-shadow:inset 0 -3px 0 var(--hot);color:var(--hot)}
+html.skin2 .wk-c.on .n{background:var(--ink);color:#FFFFFF}
+html.skin2 .wk-c .dot{border-radius:0}
+html.skin2 .wk-c .dot.done{background:var(--ink)}
+html.skin2 .wk-c.on .dot.done{background:#FFFFFF}
+html.skin2 .wk-arrows button{border-radius:0}
+html.skin2 .wk-arrows .wk-today{border-radius:0;background:var(--ink);color:#FFFFFF;text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700}
+html.skin2 .icon-btn{border-radius:0;background:var(--surface)}
+html.skin2 .btn{border-radius:0;height:60px;font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.04em}
+html.skin2 .btn.plain{font-family:Inter,sans-serif;font-size:15px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+html.skin2 .btn.outline{border-width:2px}
+html.skin2 .verdict{background:var(--surface);border-left:6px solid var(--ink)}
+html.skin2 .verdict .t{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;text-transform:uppercase;font-size:28px;line-height:1.05}
+html.skin2 .verdict p{color:var(--ink)}
+html.skin2 .eff-bar span{border-radius:0;background:#DADADA}
+html.skin2 .eff-bar span.on{background:var(--ink)}
+html.skin2 .eff-h p b{font-family:"Barlow Condensed",Inter,sans-serif;font-size:32px;font-weight:700}
+html.skin2 .lab-ms input{background:#FFFFFF;box-shadow:inset 0 0 0 2px var(--ink);font-family:"Barlow Condensed",Inter,sans-serif;font-size:40px;font-weight:700}
+html.skin2 .lab-ms b{font-family:"Barlow Condensed",Inter,sans-serif}
+html.skin2 .photo-btn{border-radius:0;border:2px dashed var(--ink);text-transform:uppercase;letter-spacing:.06em;font-size:15px;font-weight:700}
+html.skin2 .big-step .v b{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:56px}
+html.skin2 .big-step button{border-radius:0}
+html.skin2 .note{color:var(--muted)}
+html.skin2 .lvl,html.skin2 .stat,html.skin2 .banner,html.skin2 .sheet,html.skin2 .round-btn,html.skin2 .loadpill,html.skin2 .upnext,html.skin2 .bar,html.skin2 .bar i,html.skin2 .modbar,html.skin2 .chip-d,html.skin2 .lvl-pill{border-radius:0}
+html.skin2 .lvl{border-top:3px solid var(--ink)}
+html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0}
 </style>
 </head>
 <body class="loading">
@@ -314,7 +369,12 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.17";
+const APP_VERSION = "2026-11-12.18";
+// Skin: 1 light (default), 2 black and white. Kept on this phone only.
+const KEY_SKIN = "trening:skin";
+function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
+function applySkin(v){ document.documentElement.classList.toggle("skin2", v === "2"); const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = v === "2" ? "#FFFFFF" : "#F5F4F0"; }
+applySkin(skinOf());
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1647,6 +1707,7 @@ function renderSettings(){
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Dni Conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">W bloku treść każdego dnia wynika z kalendarza bloku. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
+    <section class="sec"><h2 class="sec-h">Skórka</h2><div class="choices" style="grid-template-columns:1fr 1fr">${[["1", "Jasna"], ["2", "Sportowa"]].map(([v, n]) => `<button class="choice ${skinOf() === v ? "on" : ""}" data-act="skin" data-v="${v}" aria-pressed="${skinOf() === v}">${n}</button>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
          <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`
@@ -1833,6 +1894,7 @@ document.addEventListener("click", e => {
     case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
     case "wk-today": S.weekOff = 0; S.sel = null; render(); break;
+    case "skin": try { localStorage.setItem(KEY_SKIN, b.dataset.v); } catch(e2){} applySkin(b.dataset.v); render(); break;
     case "back-prep": go("prep"); break;
     case "note": go("note"); break;
     case "photo-del": setPhoto(current().id, null); render(); break;
