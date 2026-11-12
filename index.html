@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.1";
+const APP_VERSION = "2026-11-12.2";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1054,10 +1054,8 @@ function renderPrep(){
   const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
   if (s.status === "done") return doneScreen(s);
   if (strength){
-    const warmNames = warmupFor(s.items).map(w => w.name).join(", ");
     return `<section class="screen">${head("Plan na dziś")}
-      <section class="sec"><h2 class="sec-h">Warm-up</h2>
-        <div class="card"><button class="row" data-act="warmup"><span class="main"><span class="name">Około 5 minut</span><span class="sub">${esc(warmNames)}</span></span>${CHEV}</button></div></section>
+      ${warmCard(s.items)}
       <section class="sec"><div class="sec-row"><h2 class="sec-h">Circuit</h2>
         <div class="stepper" role="group" aria-label="Liczba rund"><button class="round-btn" data-act="rounds" data-d="-1" aria-label="Mniej rund" ${s.rounds <= 1 ? "disabled" : ""}>−</button><span class="val">${roundsText(s.rounds)}</span><button class="round-btn" data-act="rounds" data-d="1" aria-label="Więcej rund" ${s.rounds >= 5 ? "disabled" : ""}>+</button></div></div>
         <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div>
@@ -1091,14 +1089,14 @@ function doneScreen(s){
     ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
 }
 // Plan of a future day, read-only.
+// Warm-up written out in full, as it goes on the whiteboard: the same on today's plan and on any other day.
+const warmCard = items => `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
 function planScreen(date, kind){
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", bb:null})
     : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">Plan</h1></div></header>`;
-  // The plan of another day is what goes on the whiteboard, so the Warm-up is written out in full.
-  const warm = strength ? `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(its).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>` : "";
-  return `<section class="screen">${head}${warm}
+  return `<section class="screen">${head}${strength ? warmCard(its) : ""}
     <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? condLabel(condKey(date)) : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
 </section></section>`;
@@ -1496,13 +1494,6 @@ function sheetHtml(){
       <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
       <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
   }
-  if (sh.type === "warmup"){
-    const ws = warmupFor(s.items);
-    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Warm-up">${SHEET_X}
-      <header><h2>Warm-up</h2><p class="sub">Około 5 minut, bez przerw.</p></header>
-      <div class="card">${ws.map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span>${w.cue ? `<span class="sub">${esc(w.cue)}</span>` : ""}</span></div>`).join("")}</div>
-      <button class="btn" data-act="close">Gotowe</button></div>`;
-  }
   if (sh.type === "confirm"){
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(sh.title)}">${SHEET_X}
       <header><h2>${esc(sh.title)}</h2><p class="sub">${esc(sh.text)}</p></header>
@@ -1618,7 +1609,6 @@ document.addEventListener("click", e => {
     case "finish": finishSession(); break;
     case "review": Sync.retryReview(); break;
     case "seen": try { localStorage.setItem("trening:seen-review", b.dataset.id); } catch(e2){} render(); break;
-    case "warmup": S.sheet = {type:"warmup"}; renderSheet(); break;
     case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
     case "set-variant": { const it = editIt(); if (!it) return; const ex = EX[b.dataset.ex]; if (!ex || ex.id === it.ex) return;
       setItem(s, it, {ex:ex.id, load:fitLoad(ex, loadsOf(ex).includes(it.load) ? it.load : ex.def[0]), reps:ex.def[1]}, true); renderSheet(); render(); break; }
