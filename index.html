@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.8";
+const APP_VERSION = "2026-11-12.9";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -597,7 +597,9 @@ const finRow = f => f ? `<section class="sec"><h2 class="sec-h">Finisher</h2><di
 const BLOCK_TITLE = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Conditioning", workout:"Workout"};
 const BLOCK_SUB = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Lekko", workout:"Workout"};
 const PRESS_NOTE = "+2,5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.";
-const BLOCK = {id:"b1", start:"2026-11-16", end:"2026-12-13", days:{
+const BLOCK = {id:"b1", start:"2026-11-13", end:"2026-12-13", days:{
+  // Start the day after the Row 2000 m test: legs and heart rate rest, upper body and midline work.
+  "2026-11-13":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min, równe tempo", items:[["kb-clean-press","kb16",5],["@row","bw",8],["@core","bw",12]]}]},
   "2026-11-16":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", note:"+5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.", items:[["bb-back-squat","bb40",5]]}]},
   "2026-11-17":{type:"engine", effort:"8", min:20, parts:[{fmt:"Death by Calories", note:"Koniec, gdy nie zdążysz w minucie.", items:[["row-death","bw",1]]}]},
   "2026-11-18":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", note:PRESS_NOTE, items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
