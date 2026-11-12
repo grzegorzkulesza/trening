@@ -314,7 +314,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.12";
+const APP_VERSION = "2026-11-12.13";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -603,30 +603,29 @@ const finRow = f => f ? `<section class="sec"><h2 class="sec-h">Finisher</h2><di
    of coming days (S.profile.over) and the variants in the slots; the structure stays. */
 const BLOCK_TITLE = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Conditioning", workout:"Workout"};
 const BLOCK_SUB = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Lekko", workout:"Workout"};
-const PRESS_NOTE = "+2,5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.";
 const BLOCK = {id:"b1", start:"2026-11-13", end:"2026-12-13", days:{
   // Start the day after the Row 2000 m test: legs and heart rate rest, upper body and midline work.
-  "2026-11-13":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min, równe tempo", items:[["kb-clean-press","kb16",5],["@row","bw",8],["@core","bw",12]]}]},
-  "2026-11-16":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", note:"+5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.", items:[["bb-back-squat","bb40",5]]}]},
-  "2026-11-17":{type:"engine", effort:"8", min:20, parts:[{fmt:"Death by Calories", note:"Koniec, gdy nie zdążysz w minucie.", items:[["row-death","bw",1]]}]},
-  "2026-11-18":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", note:PRESS_NOTE, items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-11-13":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min", items:[["kb-clean-press","kb16",5],["@row","bw",8],["@core","bw",12]]}]},
+  "2026-11-16":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", items:[["bb-back-squat","bb40",5]]}]},
+  "2026-11-17":{type:"engine", effort:"8", min:20, parts:[{fmt:"Death by Calories", items:[["row-death","bw",1]]}]},
+  "2026-11-18":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
   "2026-11-19":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",750],["air-squat","bw",15],["@core","bw",15]]}]},
   "2026-11-20":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
   "2026-11-23":{type:"hr", effort:"8", min:25, parts:[{fmt:"3 intervals for time · przerwa 3:00", items:[["bb-dl","bb60",10],["row-m","bw",500]]}]},
-  "2026-11-24":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 1000 m · przerwa 3:00", note:"Równe tempo.", items:[["row-m","bw",1000]]}]},
-  "2026-11-25":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", note:PRESS_NOTE, items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-11-24":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 1000 m · przerwa 3:00", items:[["row-m","bw",1000]]}]},
+  "2026-11-25":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
   "2026-11-26":{type:"cond", effort:"3–4", min:25, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["kb-swing","kb16",12],["@core","bw",12]]}]},
-  "2026-11-27":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min, równe tempo", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
-  "2026-11-30":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", note:"+5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.", items:[["bb-dl","bb60",5]]}]},
-  "2026-12-01":{type:"engine", effort:"7", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", note:"Albo 3 × 1000 m Row.", items:[["run-m","bw",800]]}]},
-  "2026-12-02":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", note:PRESS_NOTE, items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-11-27":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-30":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb60",5]]}]},
+  "2026-12-01":{type:"engine", effort:"7", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
+  "2026-12-02":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
   "2026-12-03":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["kb-swing","kb16",15]]}]},
   "2026-12-04":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"5 rounds for time, or not", items:[["goblet-sq","kb16",10],["@row","bw",8],["@core","bw",12]]}]},
   "2026-12-07":{type:"hr", effort:"8", min:25, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb35",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@core","bw",20]]}]},
-  "2026-12-08":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", note:"Równe tempo. Albo 3 × 1000 m Row.", items:[["run-m","bw",800]]}]},
-  "2026-12-09":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", note:PRESS_NOTE, items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
-  "2026-12-10":{type:"cond", effort:"3–4", min:40, parts:[{fmt:"Steady", note:"Tempo rozmowy.", items:[["row-steady","bw",40]]}]},
-  "2026-12-11":{type:"workout", effort:"5–6", min:30, parts:[{fmt:"AMRAP 20 min, równe tempo", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
+  "2026-12-08":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
+  "2026-12-09":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-12-10":{type:"cond", effort:"3–4", min:40, parts:[{fmt:"Steady", items:[["row-steady","bw",40]]}]},
+  "2026-12-11":{type:"workout", effort:"5–6", min:30, parts:[{fmt:"AMRAP 20 min", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
 }};
 const SLOT_EX = {row:"ring-row", vpull:"band-pullup", push:"pushup", core:"abmat-situp"};
 const blockDay = date => BLOCK.days[date] || null;
@@ -1208,7 +1207,7 @@ function fmtParts(f){
 // A block day as cards, one per part: its format as the first row, then the items. rowFn draws one item.
 function blockSections(b, items, rowFn, word = "serią"){
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
-    return `${f.before && pi ? `<p class="fmt-sep">${esc(f.before)}</p>` : ""}<section class="sec"><div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div>${p.note ? `<p class="note">${esc(p.note)}</p>` : ""}${pi === 0 && word ? bbWarmNote(its, word) : ""}</section>`; }).join("");
+    return `${f.before && pi ? `<p class="fmt-sep">${esc(f.before)}</p>` : ""}<section class="sec"><div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
 const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
