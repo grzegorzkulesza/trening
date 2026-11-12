@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.6";
+const APP_VERSION = "2026-11-12.7";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -394,10 +394,14 @@ X("run-int", {name:"Run Intervals", pattern:"cond-int", interval:"1 min mocno / 
 X("rope-int", {name:"Jump Rope Intervals", pattern:"cond-int", req:["rope"], interval:"30 s skakania / 30 s przerwy", def:["bw",10], cue:"Nisko nad ziemią, na przodostopiu, nadgarstki kręcą skakanką."});
 X("abmat-situp", {name:"AbMat Sit-up", pattern:"core", req:["abmat"], def:["bw",15], cue:"Stopy razem, kolana na boki, pełny zakres."});
 X("row-cal", {name:"Row", pattern:"cond-fin", req:["rower"], cal:true, def:["bw",10], cue:"Kalorie na wyświetlaczu PM5; reszta minuty to odpoczynek."});
-X("air-squat", {name:"Air Squat", pattern:"cond-fin", def:["bw",15], cue:"Pełny zakres, pięty przy podłodze."});
+X("air-squat", {name:"Air Squat", pattern:"squat", def:["bw",15], cue:"Pełny zakres, pięty przy podłodze."});
 X("row-2k", {name:"Row 2000 m", pattern:"cond-test", req:["rower"], test:true, def:["bw",2000], cue:"Na maksa, po 5 minutach spokojnego wiosłowania."});
 X("row-steady", {name:"Steady Row", pattern:"cond-steady", req:["rower"], minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
 X("run-steady", {name:"Steady Run", pattern:"cond-steady", minutes:true, def:["bw",30], cue:"Tempo, przy którym mówisz pełnymi zdaniami."});
+// Distances and Death by for the block (reps = metres; Death by has none).
+X("row-m", {name:"Row", pattern:"cond-m", req:["rower"], m:true, def:["bw",500], cue:"Dystans na PM5."});
+X("run-m", {name:"Run", pattern:"cond-m", m:true, def:["bw",400], cue:"Płasko, równym krokiem."});
+X("row-death", {name:"Row", pattern:"cond-m", req:["rower"], deathby:true, def:["bw",1], cue:"Minuta 1: 1 cal, minuta 2: 2 cal i tak dalej. Koniec, gdy nie zdążysz w minucie."});
 // alternatives
 const A = (id, o) => X(id, Object.assign({alt:true}, o));
 A("band-pull-apart", {name:"Band Pull-Apart", pattern:"shoulder", loads:["band"], def:["band",15], rel:"podobnie", why:"Otwiera barki i budzi łopatki bez ciężaru."});
@@ -460,7 +464,7 @@ A("wall-slide", {name:"Wall Slide + Chin Tuck", pattern:"mob-tspine", def:["bw",
 
 const UNKNOWN = {id:"?", name:"Nieznane ćwiczenie", pattern:"", loads:["bw"], side:false, timed:false, req:[], def:["bw",5]};
 const EX_ALIAS = {"ring-row-60":"ring-row", "ring-row-45":"ring-row", "ring-row-30":"ring-row", "ring-row-flat":"ring-row"};
-const ladderOf = sl => sl.bb ? [sl.ex] : (LADDERS[sl.pattern] || [sl.ex]);
+const ladderOf = sl => sl.block || sl.bb ? [sl.ex] : (LADDERS[sl.pattern] || [sl.ex]);
 const LADDERS = {
   hpull:["ring-row","ring-row-box","pullup-negative","band-pullup","pullup"],
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
@@ -488,6 +492,8 @@ function doseText(exId, load, reps){
   const ex = exOf(exId);
   if (ex.interval) return reps + " × (" + ex.interval + ")";
   if (ex.test) return "na czas";
+  if (ex.m) return reps + " m";
+  if (ex.deathby) return "1 cal w 1. minucie, +1 cal co minutę";
   if (ex.cal) return reps + " cal";
   if (ex.minutes) return reps + " min";
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
@@ -522,33 +528,28 @@ const DEFAULT_SLOTS = [
   {key:"m-super", group:"mobility", pattern:"mob-back", ex:"superman", load:"bw", reps:10},
   {key:"m-crab", group:"mobility", pattern:"mob-tspine", ex:"crab-press", load:"bw", reps:6}
 ];
-// Warm-up, about 5 minutes: Row to warm up in general, then moves for what today's circuit works (A: squat and push; B: hinge and pull).
+// Warm-up, about 5 minutes: Row to warm up in general, then moves for the patterns the day works.
 function warmupFor(items){
-  const has = id => (items || []).some(it => it.ex === id);
-  const kb = ["kb16", "kb20", "kb8"].find(k => eqOk(k)), kbKg = kb ? kb.slice(2) : null;
+  const pat = p => (items || []).some(it => exOf(it.ex).pattern === p || (p === "squat" && exOf(it.ex).pattern === "lunge"));
   const out = [eqOk("rower") ? {name:"Row", dose:"2 min", cue:"Spokojnie, ostatnie 20 s żywiej."} : {name:"Jumping Jacks", dose:"× 40"}];
   if (eqOk("bands")) out.push({name:"Band Pull-apart", dose:"× 10"});
-  const hinge = (items || []).some(it => exOf(it.ex).pattern === "hinge");
-  if (hinge){ // B: hinge and pull
-    out.push(eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8", cue:"Kij na plecach: głowa, łopatki, kość krzyżowa."} : kbKg ? {name:"KB Deadlift", dose:kbKg + " kg × 8"} : {name:"Hip Hinge", dose:"× 8"});
-    out.push(eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : {name:"Band Row", dose:"× 10"});
-  } else { // A: squat and push
-    out.push(eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5", cue:"2 s pauzy na dole."} : {name:"Air Squat", dose:"× 8", cue:"2 s pauzy na dole."});
-    if (eqOk("broom")) out.push({name:"Broomstick Pass-through", dose:"× 10"});
-    out.push({name:"Push-up", dose:"× 5"});
-  }
+  if (pat("squat")) out.push(eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5", cue:"2 s pauzy na dole."} : {name:"Air Squat", dose:"× 8", cue:"2 s pauzy na dole."});
+  if (pat("hinge")) out.push(eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8", cue:"Kij na plecach: głowa, łopatki, kość krzyżowa."} : eqOk("kb16") ? {name:"KB Deadlift", dose:"16 kg × 8"} : {name:"Hip Hinge", dose:"× 8"});
+  if (pat("vpush") && eqOk("broom")) out.push({name:"Broomstick Pass-through", dose:"× 10"});
+  if (pat("hpull")) out.push(eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : {name:"Band Row", dose:"× 10"});
+  if (pat("hpush")) out.push({name:"Push-up", dose:"× 5"});
   return out;
 }
 
 const MIG = 3; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026)
 function defaultProfile(){
-  return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null};
+  return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null, over:{}};
 }
 function mergeProfile(p){
   const d = defaultProfile();
   if (!p || typeof p !== "object") return d;
   const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, condSchedule:Array.isArray(p.condSchedule) ? p.condSchedule : d.condSchedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
-    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, finStart:p.finStart || null, finMax:p.finMax || 10, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2, mig:MIG};
+    warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, over:p.over && typeof p.over === "object" ? p.over : {}, finStart:p.finStart || null, finMax:p.finMax || 10, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2, mig:MIG};
   if ((p.mig || 0) < 1) out.equip.barbell = true;
   if (p.v === 2 && Array.isArray(p.slots)){
     const byKey = Object.fromEntries(p.slots.map(s => [s.key, s]));
@@ -593,6 +594,63 @@ function finFor(dateStr){
 }
 const finDose = f => f.ex === "row-cal" ? f.reps + " cal" : "× " + f.reps;
 const finRow = f => f ? `<section class="sec"><h2 class="sec-h">Finisher</h2><div class="card"><div class="row"><span class="main"><span class="name">EMOM ${f.min} min</span><span class="sub">${esc(exOf(f.ex).name)} ${esc(finDose(f))} co minutę</span></span></div></div></section>` : "";
+/* ---------- block: 4 weeks planned day by day (Linchpin, Nov 2026) ----------
+   Mon–Fri with no day off in between, so fatigue is spread in the plan: Mon Heavy (legs), Tue Engine, Wed Heavy (upper body),
+   Thu easy, Fri medium. Each day: type, planned effort (sRPE 1–10), estimate in minutes and parts. A part: how it is done (fmt),
+   an optional note and items [exercise, load, reps]; "@row" takes the variant from that plan slot. Claude changes loads and reps
+   of coming days (S.profile.over) and the variants in the slots; the structure stays. */
+const BLOCK_TITLE = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Conditioning", workout:"Workout"};
+const BLOCK_SUB = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Lekko", workout:"Workout"};
+const PRESS_NOTE = "+2,5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.";
+const BLOCK = {id:"b1", start:"2026-11-16", end:"2026-12-13", days:{
+  "2026-11-16":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", note:"+5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.", items:[["bb-back-squat","bb40",5]]}]},
+  "2026-11-17":{type:"engine", effort:"8", min:20, parts:[{fmt:"Death by Calories", note:"Koniec, gdy nie zdążysz w minucie.", items:[["row-death","bw",1]]}]},
+  "2026-11-18":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", note:PRESS_NOTE, items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-11-19":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",750],["air-squat","bw",15],["@core","bw",15]]}]},
+  "2026-11-20":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-23":{type:"hr", effort:"8", min:25, parts:[{fmt:"3 intervals for time · przerwa 3:00", items:[["bb-dl","bb60",10],["row-m","bw",500]]}]},
+  "2026-11-24":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 1000 m · przerwa 3:00", note:"Równe tempo.", items:[["row-m","bw",1000]]}]},
+  "2026-11-25":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", note:PRESS_NOTE, items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-11-26":{type:"cond", effort:"3–4", min:25, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["kb-swing","kb16",12],["@core","bw",12]]}]},
+  "2026-11-27":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min, równe tempo", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-30":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", note:"+5 kg na serię, póki technika trzyma. Zapas 2 powtórzeń.", items:[["bb-dl","bb60",5]]}]},
+  "2026-12-01":{type:"engine", effort:"7", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", note:"Albo 3 × 1000 m Row.", items:[["run-m","bw",800]]}]},
+  "2026-12-02":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", note:PRESS_NOTE, items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-12-03":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["kb-swing","kb16",15]]}]},
+  "2026-12-04":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"5 rounds for time, or not", items:[["goblet-sq","kb16",10],["@row","bw",8],["@core","bw",12]]}]},
+  "2026-12-07":{type:"hr", effort:"8", min:25, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb35",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@core","bw",20]]}]},
+  "2026-12-08":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", note:"Równe tempo. Albo 3 × 1000 m Row.", items:[["run-m","bw",800]]}]},
+  "2026-12-09":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", note:PRESS_NOTE, items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-12-10":{type:"cond", effort:"3–4", min:40, parts:[{fmt:"Steady", note:"Tempo rozmowy.", items:[["row-steady","bw",40]]}]},
+  "2026-12-11":{type:"workout", effort:"5–6", min:30, parts:[{fmt:"AMRAP 20 min, równe tempo", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
+}};
+const SLOT_EX = {row:"ring-row", vpull:"band-pullup", push:"pushup", core:"abmat-situp"};
+const blockDay = date => BLOCK.days[date] || null;
+const blockKind = b => b.type === "engine" || b.type === "cond" ? "cond" : "strength";
+const blockFor = (date, kind) => { const b = blockDay(date); return b && blockKind(b) === kind ? b : null; };
+const blockInfo = b => ({id:BLOCK.id, type:b.type, effort:b.effort, min:b.min, parts:b.parts.map(p => ({fmt:p.fmt, note:p.note || ""}))});
+const blockHead = b => "Wysiłek " + b.effort + " · około " + b.min + " min";
+// Items of a block day, with Claude's changes for that day and today's variants from the slots.
+function blockItems(date){
+  const b = blockDay(date); if (!b) return [];
+  const over = (S.profile.over || {})[date] || {};
+  return b.parts.flatMap((p, pi) => p.items.map(([id, load, reps], i) => {
+    const key = "p" + pi + "-" + i, slot = id[0] === "@" ? id.slice(1) : null, o = over[key] || {};
+    const ex = o.ex || (slot ? (slotByKey(slot) || {}).ex || SLOT_EX[slot] : id), l = fitLoad(exOf(ex), o.load || load), r = o.reps || reps;
+    const it = {key, ex, load:l, reps:r, planEx:ex, planLoad:l, planReps:r, part:pi};
+    if (slot) it.slot = slot;
+    if (o.at){ it.claudeAt = o.at; it.claudeNote = o.note || ""; }
+    return it;
+  }));
+}
+// Next Strength day after today (within a week): its date and plan items.
+function nextStrength(){
+  const d = parseYmd(today());
+  for (let i = 1; i <= 7; i++){ d.setDate(d.getDate() + 1); const date = ymd(d); if (!isStrengthDay(date)) continue;
+    const b = blockFor(date, "strength");
+    return {date, block:b ? blockInfo(b) : null, items:b ? blockItems(date) : circuitFor(date).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}))}; }
+  return null;
+}
 // One week, Monday to Sunday (off: weeks from this one). Future Strength days take circuits A and B in turn, as if every session before them gets done.
 const mondayOf = (dateStr, off = 0) => { const d = parseYmd(dateStr); d.setDate(d.getDate() - (d.getDay() + 6) % 7 + 7 * off); return d; };
 function weekDays(off = 0){
@@ -607,7 +665,7 @@ function weekDays(off = 0){
     const x = kind === "strength" ? st : kind === "cond" ? cs : null, done = !!(x && x.status === "done");
     if (kind === "cond" && !done && date < t) kind = null; // Conditioning is optional: a past day without it is not "missed"
     const day = {date, w, kind, done, today:date === t, past:date < t, session:done ? x : null, mob:!!(mb && mb.status === "done"), plan:null, condKey:null};
-    if (kind === "strength" && !done && date >= t){ k = k ? otherPlan(k) : nextPlan(date); day.plan = k; }
+    if (kind === "strength" && !done && date >= t && !blockDay(date)){ k = k ? otherPlan(k) : nextPlan(date); day.plan = k; }
     if (kind === "cond") day.condKey = done && x.items && x.items[0] ? x.items[0].key : condKey(date);
     if (date >= mon) out.push(day);
     d.setDate(d.getDate() + 1);
@@ -616,6 +674,7 @@ function weekDays(off = 0){
 }
 function dayPlanItems(day){
   if (day.session) return day.session.items;
+  if (blockFor(day.date, day.kind)) return blockItems(day.date);
   const slots = day.kind === "strength" ? circuitFor(day.date, day.plan) : [slotByKey(day.condKey)].filter(Boolean);
   return slots.map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 }
@@ -693,13 +752,14 @@ function dayCardsHtml(date){
     let sub;
     if (isDone(st)) sub = doneSub(st);
     else if (past) sub = "";
+    else if (blockFor(date, "strength")){ const b = blockFor(date, "strength"); sub = BLOCK_SUB[b.type] + " · około " + b.min + " min"; }
     else if (isToday && st && st.status === "prep") sub = estText("strength", st.items, st.rounds, st.fin);
     else sub = estText("strength", dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", plan:null}), S.profile.rounds, finFor(date));
     out.push(card("strength", "Strength", sub, st, past && !isDone(st)));
   }
   if (isDone(cs) || (!past && condDay && !strengthDay) || (isToday && !strengthDay)){
     const ck = condKey(date), sl = slotByKey(ck);
-    const sub = isDone(cs) ? doneSub(cs) : sl ? estText("cond", [sl]) : "";
+    const cb = blockFor(date, "cond"), sub = isDone(cs) ? doneSub(cs) : cb ? BLOCK_SUB[cb.type] + " · około " + cb.min + " min" : sl ? estText("cond", [sl]) : "";
     out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
   }
   out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "" : estText("mobility", slotsOf("mobility")), mb, false));
@@ -741,6 +801,9 @@ function nextStrengthLabel(fromToday = false){
 }
 function fitLoad(ex, load){ const ls = loadsOf(ex); return ls.includes(load) ? load : (ls.includes(ex.def[0]) ? ex.def[0] : ls[0] || "bw"); }
 function buildSession(kind){
+  const b = blockFor(today(), kind);
+  if (b) return {v:2, id:sessionId(kind), date:today(), kind, status:"prep", touched:false, rounds:1, plan:null, fin:null, block:blockInfo(b), finishedAt:null, note:"",
+    items:blockItems(today()).map(it => ({...it, swap:null, done:0}))};
   const group = kind === "strength" ? "circuit" : kind === "cond" ? "cond" : "mobility";
   const slots = kind === "cond" ? [slotByKey(condKey(today()))].filter(Boolean) : kind === "strength" ? circuitFor(today()) : slotsOf(group);
   const plan = kind === "strength" ? nextPlan(today()) : null;
@@ -754,7 +817,7 @@ function current(){
   const id = sessionId(kind);
   let s = S.sessions[id];
   if (!s || s.v !== 2){ s = buildSession(kind); S.sessions[id] = s; }
-  else if (s.status === "prep" && !s.touched){ const fresh = buildSession(kind); Object.assign(s, {items:fresh.items, rounds:fresh.rounds, plan:fresh.plan, fin:fresh.fin}); }
+  else if (s.status === "prep" && !s.touched){ const fresh = buildSession(kind); Object.assign(s, {items:fresh.items, rounds:fresh.rounds, plan:fresh.plan, fin:fresh.fin, block:fresh.block}); if (!fresh.block) delete s.block; }
   return s;
 }
 
@@ -832,6 +895,21 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
   "Ten sam plan w krótszym czasie i bez trudności w notatce: podnieś ciężar albo trudność, nie skracaj czasu dalej. Czas rośnie przy tym samym planie albo notatka mówi o zmęczeniu: nie podnoś. Bez czasu oceniaj jak dotąd. " +
   "Wysiłek (pole wysilek): jego ocena całej sesji 1–10 w skali sRPE (CR-10 Fostera); z czasem daje obciążenie sesji = wysiłek × minuty. Porównuj z poprzednimi sesjami: ten sam plan przy niższym wysiłku to gotowość do progresji; wysiłek 8 i więcej albo rosnąca suma obciążenia z tygodnia na tydzień przy słabszych wynikach: nie podnoś. Notatka mówi więcej o szczegółach, wysiłek o całości. " +
   "Zmieniaj tylko key z dzisiejszej sesji. Nie dodawaj nowych ćwiczeń, nie zmieniaj Mobility, bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. Nazwy ćwiczeń, wzorców i rodzajów sesji zawsze po angielsku (np. Strength, Conditioning, Mobility, rounds, reps, Push-up zamiast pompki), reszta tekstu po polsku, bez moralizowania i motywowania.\n";
+const BLOCK_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu; CrossFit zna od 2016). " +
+  "Programujesz metodą Linchpin (Pat Sherwood, How to Program Workouts): bloki po 4 tygodnie zaplanowane dzień po dniu; każdy element ma cel, nic zbędnego; ciężko to mało powtórzeń i mała objętość, średnio to średnio, lekko to dużo; serie na tyle małe, żeby nie stał przy sprzęcie; trening, nie test, więc bez maksów; patrzysz wstecz i do przodu. " +
+  "Tydzień Pn–Pt bez dnia wolnego w środku, więc zmęczenie rozkłada program: Pn Heavy na nogi (klasycznie albo Heavy @ HR, tylko w poniedziałek), Wt Engine, Śr Heavy na górę z przyciąganiem, Cz lekko i długo, Pt średnio. Ani żadna część ciała, ani tętno nie są ciężko dwa dni z rzędu; piątek nigdy nie jest ciężki. Każdy dzień ma planowany wysiłek (pole planowanyWysilek, ta sama skala 1–10 co pole wysilek).\n" +
+  "Oceń dzisiejszy trening z notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens), czasu, wysiłku i zdjęcia, a potem dopasuj najbliższe dni bloku. Struktury dni nie zmieniasz (formaty, rundy, kolejność, ćwiczenia zostają); zmieniasz tylko ciężar i powtórzenia pozycji z listy nadchodzących dni oraz warianty gimnastyczne (pole variants). Najwyżej jedna zmiana na pozycję i tylko taka, która wynika z dzisiejszego treningu.\n" +
+  "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Klasyczny ciężki dzień (format jak 5-5-5-5-5 albo 3-3-3-3-3, ciężar w planie to pierwsza seria robocza): w polu done podaj najcięższą serię, którą zrobił; następny ciężki dzień tego samego boju zacznij wyżej, gdy dziś ostatnia seria była łatwa, a niżej albo tak samo, gdy technika się sypała. Heavy @ HR: ciężar ma być ciężki, ale do zrobienia seriami; gdy rozbijał na pojedyncze powtórzenia albo długo stał, niżej. " +
+  "Wysiłek porównuj z planowanym: wyższy o 2 i więcej albo zmęczenie w notatce: odciąż najbliższe dni, które obciążają tę samą część ciała, a zwłaszcza piątek; niższy o 2 i więcej przy dobrej technice: możesz podnieść. Czas (pole czas: cały trening z Warm-up) porównuj z szacunkiem (pole szacunek); 45 min to sufit, nie cel. " +
+  "Warianty (variants): przy łatwych seriach krok w górę po drabince danego slotu, przy trudnych w dół. Przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. Bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. " +
+  "Sztanga: gryf 20 kg, bumpery, kody ciężaru bb + kg, od bb20 do bb127.5 co 2,5 kg; Deadlift zmieniaj co 5 kg, przysiady i wyciskania co 2,5 kg. Nazwy ćwiczeń i rodzajów sesji po angielsku (Strength, Conditioning, Heavy, Engine, rounds, reps), reszta po polsku, bez moralizowania i motywowania.\n";
+const VAR_SLOTS = ["row", "vpull", "push", "core"];
+// Ladders of the gymnastics slots used by the block (row and vpull share a pattern, so they need their own).
+const VAR_LADDER = {row:["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row"], vpull:["band-pullup", "pullup-negative", "pullup"],
+  push:["incline-pushup-75", "knee-pushup", "pushup-negative", "pushup", "ring-dip"], core:["abmat-situp", "hollow-rock"]};
+const varLadder = k => { const sl = slotByKey(k); return (VAR_LADDER[k] || []).filter(id => EX[id] && (sl && id === sl.ex || exAvailable(EX[id]))); };
+const addDays = (dateStr, n) => { const d = parseYmd(dateStr); d.setDate(d.getDate() + n); return ymd(d); };
+const loadsText = ids => JSON.stringify(ids, (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v);
 // PM5 numbers as Claude read them from the photo: times "m:ss(.d)" to seconds, the rest to whole numbers within sane ranges.
 function cleanPm5(p){
   if (!p || typeof p !== "object") return null;
@@ -843,7 +921,7 @@ function cleanPm5(p){
   return r;
 }
 const Coach = {
-  group: s => s.kind === "cond" ? "cond" : "circuit",
+  group: s => s.block ? "block" : s.kind === "cond" ? "cond" : "circuit",
   allowed(group){
     const out = {};
     slotsOf(group).forEach(sl => {
@@ -855,9 +933,36 @@ const Coach = {
   },
   // Barbell load lists are long: one line instead of 44 codes.
   allowedText(group){ return JSON.stringify(this.allowed(group), (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v); },
-  brief: x => ({data:x.date, plan:x.kind === "strength" ? planOfSession(x) || undefined : undefined, rundy:x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, notatka:x.note || "", czas:x.dur ? mmss(x.dur) : x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:x.rpe || undefined, szacunek:x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
+  brief: x => ({data:x.date, rodzaj:kindLabel(x.kind), typ:x.block ? BLOCK_TITLE[x.block.type] : undefined, format:x.block ? x.block.parts.map(p => p.fmt).join(" | ") : undefined, planowanyWysilek:x.block ? x.block.effort : undefined,
+    plan:x.kind === "strength" && !x.block ? planOfSession(x) || undefined : undefined, rundy:x.block ? undefined : x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, notatka:x.note || "", czas:x.dur ? mmss(x.dur) : x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:x.rpe || undefined, szacunek:x.block ? x.block.min + " min" : x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
     pm5:x.pm5 ? pm5Text(x.pm5) + (x.pm5.parts && x.pm5.parts.length ? " | odcinki: " + x.pm5.parts.map(pm5Text).join("; ") : "") : undefined, cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), zamianaNaDzis:it.swap ? true : undefined}))}),
+  upcoming(s){
+    const out = [];
+    for (let i = 1; i <= 14; i++){ const date = addDays(s.date, i), b = blockDay(date); if (!b) continue;
+      out.push({data:date, dzien:DAYS[parseYmd(date).getDay()], rodzaj:kindLabel(blockKind(b)), typ:BLOCK_TITLE[b.type], planowanyWysilek:b.effort, format:b.parts.map(p => p.fmt).join(" | "),
+        pozycje:blockItems(date).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, load:it.load, reps:it.reps, dawka:doseText(it.ex, it.load, it.reps), slot:it.slot}))}); }
+    return out;
+  },
+  promptBlock(s, earlier, photo){
+    const prev = Object.values(S.sessions).filter(x => x.v === 2 && x.kind !== "mobility" && x.status === "done" && x.id !== s.id && x.date <= s.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
+    const revs = Object.values(S.reviews || {}).filter(r => r.id !== s.id).sort((a, b) => String(a.date + a.id).localeCompare(String(b.date + b.id))).slice(-4);
+    const up = this.upcoming(s), loads = {};
+    up.forEach(d => d.pozycje.forEach(p => { if (!loads[p.ex]) loads[p.ex] = loadsOf(exOf(p.ex)); }));
+    const vars = Object.fromEntries(VAR_SLOTS.map(k => { const sl = slotByKey(k); return sl ? [k, {teraz:sl.ex, drabinka:varLadder(k)}] : null; }).filter(Boolean));
+    return (photo ? "Do wiadomości dołączono zdjęcie zrobione po dzisiejszej sesji (może to być np. wyświetlacz Concept2 PM5, tablica z rozpisanym treningiem albo licznik czasu). Odczytaj z niego wszystko, co dotyczy tej sesji, i uwzględnij w ocenie i w polu done; tylko to, co widać, nieczytelne pomiń.\n" : "") +
+      BLOCK_RULES +
+      "Dzisiaj: " + JSON.stringify(this.brief(s)) + "\n" +
+      "Nadchodzące dni bloku (do 14 dni): " + JSON.stringify(up) + "\n" +
+      "Dozwolone kody ciężaru dla ćwiczeń: " + loadsText(loads) + "\n" +
+      "Warianty w slotach (pozycje ze slot biorą wariant ze slotu): " + JSON.stringify(vars) + "\n" +
+      "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
+      "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
+      (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
+      'Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"2–4 zdania: co wynika z notatki, czasu i wysiłku względem planu","next":[{"date":"RRRR-MM-DD","key":"klucz pozycji","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"variants":[{"slot":"row|vpull|push|core","ex":"id z drabinki","reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W next i variants tylko to, co zmieniasz. W done: przy klasycznym ciężkim dniu najcięższa zrobiona seria; poza tym tylko to, co według notatki zrobił inaczej niż w planie; bez zgadywania. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".' +
+      (photo ? ' Jeśli na zdjęciu jest wyświetlacz PM5, dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
+  },
   prompt(s, earlier, photo){
+    if (s.block) return this.promptBlock(s, earlier, photo);
     const g = this.group(s);
     const pl = s.kind === "strength" ? planOfSession(s) : null;
     const plan = slotsOf(g).filter(sl => (!sl.bb || bbOn()) && (!pl || sl.plan === pl) && !(bbOn() && slotsOf(g).some(b => b.bb === sl.key))).map(sl => ({key:sl.key, plan:sl.plan, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps)}));
@@ -875,7 +980,42 @@ const Coach = {
       (photo ? ' Jeśli na zdjęciu jest wyświetlacz PM5, dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
   },
   parse(text){ const m = String(text || "").match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch(e){ return null; } },
+  applyBlock(s, out){
+    const now = Date.now(), changes = [], lim = addDays(s.date, 14);
+    (Array.isArray(out.next) ? out.next : []).forEach(c => {
+      const date = String(c.date || ""); if (!(date > s.date && date <= lim) || !blockDay(date)) return;
+      const it = blockItems(date).find(x => x.key === c.key); if (!it) return;
+      const ex = exOf(it.ex), loads = loadsOf(ex), load = loads.includes(c.load) ? c.load : it.load;
+      const reps = Math.max(1, Math.min(ex.minutes ? 45 : ex.m ? 10000 : 60, parseInt(c.reps, 10) || it.reps));
+      if (load === it.load && reps === it.reps) return;
+      const o = S.profile.over || (S.profile.over = {}), d = o[date] || (o[date] = {});
+      d[c.key] = {...(d[c.key] || {}), load, reps, note:String(c.reason || "").slice(0, 200), at:now};
+      changes.push(ddmm(date) + " " + ex.name + ": " + doseText(it.ex, it.load, it.reps) + " → " + doseText(it.ex, load, reps));
+    });
+    (Array.isArray(out.variants) ? out.variants : []).forEach(c => {
+      if (!VAR_SLOTS.includes(c.slot)) return; const sl = slotByKey(c.slot); if (!sl || c.ex === sl.ex) return;
+      if (!varLadder(c.slot).includes(c.ex)) return;
+      changes.push(exOf(sl.ex).name + " → " + exOf(c.ex).name);
+      Object.assign(sl, {ex:c.ex, load:fitLoad(EX[c.ex], sl.load), claudeNote:String(c.reason || "").slice(0, 200), claudeAt:now});
+    });
+    let fixed = false;
+    (Array.isArray(out.done) ? out.done : []).forEach(c => {
+      const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex] || exOf(it.ex).test) return;
+      if (c.ex !== it.ex && exOf(c.ex).pattern !== exOf(it.ex).pattern) return;
+      const loads = loadsOf(EX[c.ex]), load = loads.includes(c.load) ? c.load : it.load, reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || it.reps));
+      if (!loads.includes(load) || (c.ex === it.ex && load === it.load && reps === it.reps)) return;
+      Object.assign(it, {ex:c.ex, load, reps, fromNote:true}); fixed = true;
+    });
+    if (fixed) commitSession(s);
+    if (changes.length) commitProfile();
+    const pm = cleanPm5(out.pm5);
+    if (pm){ s.pm5 = pm; commitSession(s); }
+    const m = String(out.row2000 || "").match(/^(\d{1,2}):(\d{2})(?:[.,]\d)?$/);
+    if (m){ const sec = +m[1] * 60 + +m[2]; if (sec >= 300 && sec <= 900){ s.bench = {...(s.bench || {}), row2000:sec}; commitSession(s); } }
+    return {id:s.id, date:s.date, title:String(out.title || "Sesja zapisana.").slice(0, 120), text:String(out.text || "").slice(0, 1500), changes:changes.join("; ") || "bez zmian"};
+  },
   apply(s, out){
+    if (s.block) return this.applyBlock(s, out);
     const g = this.group(s), allowed = this.allowed(g), now = Date.now(), changes = [];
     (Array.isArray(out.changes) ? out.changes : []).forEach(c => {
       const sl = slotsOf(g).find(x => x.key === c.key); if (!sl || !(s.items || []).some(it => it.key === c.key)) return;
@@ -1029,20 +1169,31 @@ const Sync = {
     if (got && !relay) { await this.pull(); redraw(); }
     else if (this.q.size) await this.flush();
   },
-  planText(){ return S.profile.slots.filter(sl => sl.bb ? bbOn() : !(bbOn() && S.profile.slots.some(b => b.bb === sl.key))).map(sl => [(sl.group === "circuit" ? "Circuit " + sl.plan + ": " : sl.group === "fin" ? "Finisher (EMOM, co minutę): " : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
+  planText(){ const blk = [];
+    for (let i = 0; i < 14; i++){ const date = addDays(today(), i), b = blockDay(date); if (b) blk.push(["Blok " + ddmm(date) + ": " + BLOCK_TITLE[b.type] + " · " + b.parts.map(p => p.fmt).join(" | "), blockItems(date).map(it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps)).join("; ")]); }
+    return blk.concat(this.planText0()); },
+  planText0(){ return S.profile.slots.filter(sl => sl.bb ? bbOn() : !(bbOn() && S.profile.slots.some(b => b.bb === sl.key))).map(sl => [(sl.group === "circuit" ? "Circuit " + sl.plan + ": " : sl.group === "fin" ? "Finisher (EMOM, co minutę): " : sl.group === "cond" ? "Conditioning: " : "Mobility: ") + exOf(sl.ex).name, doseText(sl.ex, sl.load, sl.reps)]); },
   disconnect(){ this.url = null; this.q.clear(); this.err = null; try { localStorage.removeItem(KEY_URL); localStorage.removeItem(KEY_Q); } catch(e){} }
 };
 
 /* ---------- views ---------- */
 const CLAUDE_TAG_DAYS = 7;
+// Plan slot behind an item; a block item gets one made from its own plan, so edits stay with today's session.
+const slotOfItem = it => it.part != null ? {key:it.key, pattern:exOf(it.planEx).pattern, ex:it.planEx, load:it.planLoad, reps:it.planReps, block:true} : slotByKey(it.key);
 function itemRow(it, i, tappable){
-  const ex = exOf(it.ex), sl = slotByKey(it.key);
+  const ex = exOf(it.ex), sl = it.part != null ? null : slotByKey(it.key);
   const changed = it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
-  const byClaude = sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
+  const byClaude = it.claudeAt ? Date.now() - it.claudeAt < CLAUDE_TAG_DAYS * 86400000 && !changed : sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
   const tag = it.swap ? `<span class="tag">zamiana na dziś</span>` : changed ? `<span class="tag">zmienione</span>` : byClaude ? `<span class="tag up">od Claude</span>` : "";
   const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps) + (LOADS[it.load] && LOADS[it.load].bb ? " · " + platesText(LOADS[it.load].bb) : ""))}</span></span>${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
+// A block day as sections, one per part: how it is done, then the items. rowFn draws one item.
+function blockSections(b, items, rowFn, word = "serią"){
+  return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1;
+    return `<section class="sec"><h2 class="sec-h">${esc(p.fmt)}</h2><div class="card">${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div>${p.note ? `<p class="note">${esc(p.note)}</p>` : ""}${pi === 0 && word ? bbWarmNote(its, word) : ""}</section>`; }).join("");
+}
+const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 function sessionFor(kind){ const x = S.sessions[sessionId(kind)]; return x && x.v === 2 ? x : null; }
 const reviewFor = id => (S.reviews || {})[id] || null;
@@ -1090,6 +1241,12 @@ function renderPrep(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
   if (s.status === "done") return doneScreen(s);
+  if (s.block){
+    return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div>${blockHeader(s.kind, s.date, s.block)}
+      ${strength ? warmCard(s.items) : ""}
+      ${blockSections(s.block, s.items, (it, i) => itemRow(it, i, true))}
+      <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
+  }
   if (strength){
     return `<section class="screen">${head("Plan na dziś")}
       ${warmCard(s.items)}
@@ -1119,22 +1276,35 @@ function doneScreen(s){
   return `<section class="screen">${head}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
+    ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (s.dur ? " · " + mmss(s.dur) : "") + (s.rpe ? " · wysiłek " + s.rpe + " (plan " + s.block.effort + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
     <section class="sec"><h2 class="sec-h">${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (s.rpe ? " · wysiłek " + s.rpe : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
-      ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}</section>
+      </section>`}
+    ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
     ${strength && s.fin ? finRow(s.fin) : ""}
-    ${isToday && strength ? `<section class="sec"><h2 class="sec-h">Plan na następny trening · ${esc(nextStrengthLabel())}</h2><div class="card">${planItems("circuit").map((it, i) => itemRow(it, i, false)).join("")}</div></section>` : ""}
+    ${isToday && strength ? nextPlanHtml() : ""}
     ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
+}
+// Plan of the next Strength day, on the screen of a done session.
+function nextPlanHtml(){
+  const n = nextStrength(); if (!n) return "";
+  const label = DAYS[parseYmd(n.date).getDay()] + ", " + parseYmd(n.date).getDate() + " " + MONTHS[parseYmd(n.date).getMonth()];
+  if (n.block) return `<section class="sec"><h2 class="sec-h">Następny trening · ${esc(label)} · ${esc(BLOCK_TITLE[n.block.type])}</h2></section>${blockSections(n.block, n.items, (it, i) => itemRow(it, i, false))}`;
+  return `<section class="sec"><h2 class="sec-h">Plan na następny trening · ${esc(label)}</h2><div class="card">${n.items.map((it, i) => itemRow(it, i, false)).join("")}</div></section>`;
 }
 // Plan of a future day, read-only.
 // Warm-up written out in full, as it goes on the whiteboard: the same on today's plan and on any other day.
 // Warm-up sets for the barbell lift of the day, before the first round.
-function bbWarmNote(items){
+function bbWarmNote(items, word = "rundą"){
   const b = (items || []).find(it => LOADS[it.load] && LOADS[it.load].bb && LOADS[it.load].bb > BAR); if (!b) return "";
-  const half = Math.max(BAR, Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5);
-  return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą rundą: 5 × pusty gryf, 3 × ${plKg(half)} kg.</p>`;
+  const half = Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5;
+  return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą ${word}: 5 × pusty gryf${half > BAR ? ", 3 × " + plKg(half) + " kg" : ""}.</p>`;
 }
 const warmCard = items => `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
 function planScreen(date, kind){
+  const b = blockFor(date, kind);
+  if (b){ const its = blockItems(date);
+    return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div>${blockHeader(kind, date, b)}
+      ${kind === "strength" ? warmCard(its) : ""}${blockSections(blockInfo(b), its, (it, i) => itemRow(it, i, false))}</section>`; }
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", plan:null})
     : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
@@ -1150,9 +1320,9 @@ function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
-      ${cond ? "" : `<p class="lead">${strength ? "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan." : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
+      ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o całym treningu: ciężary w seriach, rundy, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
     ${strength ? timeCard(s) : ""}
-    ${s.kind !== "mobility" ? effHtml(s.rpe, "note") : ""}
+    ${s.kind !== "mobility" ? effHtml(s.rpe, "note", s.block ? s.block.effort : null) : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
     ${s.kind !== "mobility" ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie po treningu"><span>Zdjęcie</span><button data-act="photo-del">Usuń</button></div>`
       : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie</label>`) : ""}
@@ -1418,8 +1588,9 @@ function coverageData(){
   const reg = [{n:"Strength", done:cnt("strength"), plan:planS, unit:"treningów"}, {n:"Mobility", done:cnt("mobility"), plan:days, unit:"dni"}, {n:"Conditioning", done:cnt("cond"), plan:planC, unit:"sesji"}];
   const mins = {W:0, G:0, M:0};
   for (const x of done){
-    if (x.kind === "strength") for (const it of x.items || []){ const ex = exOf(it.ex); if (ex.pattern === "shoulder") continue; mins[it.load && it.load !== "bw" ? "W" : "G"] += x.rounds || 1; }
-    if (x.kind === "cond") for (const it of x.items || []){ const ex = exOf(it.ex); mins.M += ex.test ? 9 : ex.interval ? it.reps * 2 : it.reps; }
+    for (const it of x.items || []){ const ex = exOf(it.ex); if (ex.pattern === "shoulder" || x.kind === "mobility") continue;
+      if (String(ex.pattern).startsWith("cond")) mins.M += ex.test ? 9 : ex.interval ? it.reps * 2 : ex.m ? it.reps / 250 : ex.cal ? it.reps / 12 : ex.deathby ? 15 : it.reps;
+      else mins[it.load && it.load !== "bw" ? "W" : "G"] += x.rounds || 1; }
   }
   const tot = mins.W + mins.G + mins.M, pct = k => tot ? Math.round(mins[k] / tot * 100) : 0;
   // How many sessions hit the pattern, and with which exercises (most frequent first).
@@ -1460,7 +1631,7 @@ function renderSettings(){
     <section class="sec"><h2 class="sec-h">Dni Strength</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${p.schedule.includes(d) ? "on" : ""}" data-act="day" data-d="${d}" aria-pressed="${p.schedule.includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Dni Conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
-      <p class="note">Pierwszy dzień to Intervals, drugi Steady. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
+      <p class="note">W bloku treść każdego dnia wynika z kalendarza bloku. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
          <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`
@@ -1480,8 +1651,8 @@ function renderSettings(){
 const RPE_TXT = ["", "Bardzo, bardzo lekko", "Lekko", "Umiarkowanie", "Dość ciężko", "Ciężko", "Ciężko+", "Bardzo ciężko", "Bardzo ciężko+", "Prawie maksymalnie", "Maksymalnie"];
 const effHead = rpe => rpe ? `<b>${rpe}</b>${RPE_TXT[rpe]}` : `<b>–</b>`;
 // Steps: the bars grow to the right, so a higher effort also looks bigger.
-function effHtml(rpe, key){
-  return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek</h2><p class="eff-v">${effHead(rpe)}</p></div>
+function effHtml(rpe, key, plan){
+  return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek${plan ? " · plan " + esc(plan) : ""}</h2><p class="eff-v">${effHead(rpe)}</p></div>
     <div class="eff-bar" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 10" aria-valuemin="1" aria-valuemax="10" aria-valuenow="${rpe || ""}">${[1,2,3,4,5,6,7,8,9,10].map(n => `<span class="${rpe >= n ? "on" : ""}" style="height:${40 + n * 6}%"></span>`).join("")}</div>
     <div class="eff-ends"><span>1</span><span>10</span></div></section>`;
 }
@@ -1505,28 +1676,28 @@ function sheetHtml(){
   const sh = S.sheet; if (!sh) return "";
   const s = current();
   if (sh.type === "edit"){
-    const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotByKey(it.key);
+    const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotOfItem(it);
     const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
     const variants = it.swap ? [] : ladderOf(slot).filter(id => EX[id] && exAvailable(EX[id]));
     const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
-      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
-        ${slot && slot.claudeNote && !it.swap ? `<p class="sub">Od Claude: ${esc(slot.claudeNote)}</p>` : ""}</header>
+      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.block ? BLOCK_TITLE[s.block.type] : s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
+        ${(slot && slot.claudeNote || it.claudeNote) && !it.swap ? `<p class="sub">Od Claude: ${esc(slot && slot.claudeNote || it.claudeNote)}</p>` : ""}</header>
       ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Variant</h3><div class="chips">${variants.map(id => { const v = EX[id];
         return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
       ${ex.bb ? (() => { const kg = LOADS[it.load] ? LOADS[it.load].bb : BAR, i = BB_LOADS.indexOf(it.load);
         return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b><span>${esc(platesText(kg))}</span></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
       : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
         <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
-      <p class="note">${it.swap ? "To zamiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
+      <p class="note">${it.swap || s.block ? "Zmiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
   }
   if (sh.type === "swap"){
-    const it = s.items.find(i => i.key === sh.key), slot = slotByKey(sh.key);
+    const it = s.items.find(i => i.key === sh.key), slot = slotOfItem(it);
     const lad = ladderOf(slot), slotBb = !!exOf(slot.ex).bb;
     const order = {"łatwiej":1, "podobnie":2, "trudniej":3};
     const opts = Object.values(EX).filter(e => e.pattern === slot.pattern && e.id !== it.ex && exAvailable(e) && (e.id === slot.ex || !lad.includes(e.id)))
@@ -1572,7 +1743,7 @@ function go(view){ S.view = view; S.sheet = null; render(); window.scrollTo(0, 0
 /* ---------- actions ---------- */
 function setItem(s, it, patch, variant = false){
   Object.assign(it, patch);
-  const sl = slotByKey(it.key);
+  const sl = it.part != null ? null : slotByKey(it.key);
   if (sl && !it.swap){
     if (variant) sl.ex = it.ex;
     if (sl.ex === it.ex){ sl.load = it.load; sl.reps = it.reps; commitProfile(); }
@@ -1661,7 +1832,7 @@ document.addEventListener("click", e => {
     case "swap": S.sheet = {type:"swap", key:S.sheet.key}; renderSheet(); break;
     case "pick": {
       const it = editIt(); if (!it) return;
-      const id = b.dataset.ex, ex = exOf(id), sl = slotByKey(it.key);
+      const id = b.dataset.ex, ex = exOf(id), sl = slotOfItem(it);
       if (sl && id === sl.ex) setItem(s, it, {ex:id, load:fitLoad(ex, sl.load), reps:sl.reps, swap:null});
       else { Object.assign(it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:{from:it.swap ? it.swap.from : it.ex}}); commitSession(s); }
       S.sheet = {type:"edit", key:it.key}; renderSheet(); render(); break;
@@ -1682,7 +1853,7 @@ document.addEventListener("click", e => {
     case "sync-off": S.sheet = {type:"confirm", title:"Odłączyć arkusz?", text:"Dane w arkuszu zostaną. Nowe sesje będą zapisywać się tylko w telefonie.", act:"sync-off-yes", yes:"Odłącz", no:"Anuluj"}; renderSheet(); break;
     case "sync-off-yes": Sync.disconnect(); S.sheet = null; render(); break;
     case "reset": S.sheet = {type:"confirm", title:"Przywrócić plan startowy?", text:"Ćwiczenia, ciężary i powtórzenia wrócą do planu startowego. Historia zostaje.", act:"reset-yes", yes:"Przywróć", no:"Anuluj"}; renderSheet(); break;
-    case "reset-yes": S.profile.slots = DEFAULT_SLOTS.map(x => ({...x})); S.profile.rounds = 3; commitProfile(); S.sheet = null; render(); break;
+    case "reset-yes": S.profile.slots = DEFAULT_SLOTS.map(x => ({...x})); S.profile.rounds = 3; S.profile.over = {}; commitProfile(); S.sheet = null; render(); break;
     case "close": S.sheet = null; renderSheet(); break;
   }
 });
