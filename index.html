@@ -314,7 +314,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.16";
+const APP_VERSION = "2026-11-12.17";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1205,9 +1205,9 @@ function fmtParts(f){
   return {main:f, rest:""};
 }
 // A block day as cards, one per part: its format as the first row, then the items. rowFn draws one item.
-function blockSections(b, items, rowFn, word = "serią"){
+function blockSections(b, items, rowFn, head = "Workout"){
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
-    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec"><div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
+    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
 const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
@@ -1304,7 +1304,7 @@ function doneScreen(s){
 function nextPlanHtml(){
   const n = nextStrength(); if (!n) return "";
   const label = DAYS[parseYmd(n.date).getDay()] + ", " + parseYmd(n.date).getDate() + " " + MONTHS[parseYmd(n.date).getMonth()];
-  if (n.block) return `<section class="sec"><h2 class="sec-h">Następny trening · ${esc(label)} · ${esc(BLOCK_TITLE[n.block.type])}</h2></section>${blockSections(n.block, n.items, (it, i) => itemRow(it, i, false))}`;
+  if (n.block) return `<section class="sec"><h2 class="sec-h">Następny trening · ${esc(label)} · ${esc(BLOCK_TITLE[n.block.type])}</h2></section>${blockSections(n.block, n.items, (it, i) => itemRow(it, i, false), null)}`;
   return `<section class="sec"><h2 class="sec-h">Plan na następny trening · ${esc(label)}</h2><div class="card">${n.items.map((it, i) => itemRow(it, i, false)).join("")}</div></section>`;
 }
 // Plan of a future day, read-only.
@@ -1315,7 +1315,7 @@ function bbWarmNote(items, word = "rundą"){
   const half = Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5;
   return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą ${word}: 5 × pusty gryf${half > BAR ? ", 3 × " + plKg(half) + " kg" : ""}.</p>`;
 }
-const warmCard = items => `<section class="sec"><div class="card"><div class="fmt-h"><b>Warm-up</b></div>${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
+const warmCard = items => `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
 function planScreen(date, kind){
   const b = blockFor(date, kind);
   if (b){ const its = blockItems(date);
