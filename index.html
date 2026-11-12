@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.20";
+const APP_VERSION = "2026-11-12.21";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -507,23 +507,23 @@ A("hollow-rock", {name:"Hollow Rock", pattern:"core", def:["bw",15], rel:"trudni
 A("bb-back-squat", {name:"Back Squat", pattern:"squat", loads:BB_LOADS, bb:true, def:["bb40",5], rel:"łatwiej", why:"Ze stojaków, gdy front rack przeszkadza."});
 A("goblet-sq", {name:"KB Goblet Squat", pattern:"squat", loads:["kb16","kb20"], def:["kb20",10], rel:"łatwiej", why:"Bez sztangi, ten sam przysiad."});
 // mobility (plan)
-X("deep-squat-hold", {name:"Deep Squat Hold", pattern:"mob-squat", timed:true, def:["bw",60], cue:"Możesz trzymać się framugi albo kółek."});
-X("z-sit", {name:"Z-Sit", pattern:"mob-hip", timed:true, side:true, def:["bw",30], cue:"Ręce mogą podpierać."});
-X("down-dog-press", {name:"Downward Dog Press", pattern:"mob-ankle", hold:"2 s w psie", def:["bw",8], cue:"Pięty w stronę podłogi, bez wymuszania."});
-X("superman", {name:"Superman", pattern:"mob-back", hold:"3 s w górze", def:["bw",10], cue:"Ręce i nogi nisko nad podłogą, szyja długa."});
-X("crab-press", {name:"Crab Press", pattern:"mob-tspine", side:true, hold:"2 s w górze", def:["bw",6], cue:"Biodra wysoko, sięgasz ręką za siebie."});
-A("goblet-hold", {name:"Goblet Squat Hold", pattern:"mob-squat", loads:["kb8","kb16"], timed:true, def:["kb8",45], rel:"podobnie", why:"Ciężar z przodu ułatwia zejście."});
+X("deep-squat-hold", {name:"Deep Squat Hold", pattern:"mob-squat", timed:true, def:["bw",90], cue:"Możesz trzymać się framugi albo kółek."});
+X("z-sit", {name:"Z-Sit", pattern:"mob-hip", timed:true, side:true, def:["bw",45], cue:"Ręce mogą podpierać."});
+X("down-dog-press", {name:"Downward Dog Press", pattern:"mob-ankle", hold:"3 s w psie", def:["bw",10], cue:"Pięty w stronę podłogi, bez wymuszania."});
+X("superman", {name:"Superman", pattern:"mob-back", hold:"3 s w górze", def:["bw",12], cue:"Ręce i nogi nisko nad podłogą, szyja długa."});
+X("crab-press", {name:"Crab Press", pattern:"mob-tspine", side:true, hold:"3 s w górze", def:["bw",8], cue:"Biodra wysoko, sięgasz ręką za siebie."});
+A("goblet-hold", {name:"Goblet Squat Hold", pattern:"mob-squat", loads:["kb8","kb16"], timed:true, def:["kb8",90], rel:"podobnie", why:"Ciężar z przodu ułatwia zejście."});
 A("ankle-rocks", {name:"Ankle Rocks", pattern:"mob-ankle", side:true, hold:"2 s z przodu", def:["bw",10], rel:"łatwiej", why:"Kolano nad palcami, pięta przy podłodze."});
 A("calf-box", {name:"Calf Stretch", tag:"Box", pattern:"mob-ankle", req:["box"], timed:true, side:true, def:["bw",45], rel:"podobnie", why:"Palce na krawędzi skrzyni, pięta w dół."});
-A("hip-switch", {name:"90/90 Hip Switch", pattern:"mob-hip", side:true, def:["bw",6], rel:"podobnie", why:"Rotacje bioder, dynamicznie."});
+A("hip-switch", {name:"90/90 Hip Switch", pattern:"mob-hip", side:true, def:["bw",8], rel:"podobnie", why:"Rotacje bioder, dynamicznie."});
 A("couch", {name:"Couch Stretch", pattern:"mob-hip", timed:true, side:true, def:["bw",45], rel:"podobnie", why:"Zginacze bioder po siedzeniu."});
 A("pigeon", {name:"Pigeon Stretch", pattern:"mob-hip", timed:true, side:true, def:["bw",45], rel:"łatwiej", why:"Rotacja zewnętrzna biodra."});
-A("superman-hold", {name:"Superman Hold", pattern:"mob-back", timed:true, def:["bw",20], rel:"trudniej", why:"Ta sama pozycja, utrzymana."});
+A("superman-hold", {name:"Superman Hold", pattern:"mob-back", timed:true, def:["bw",30], rel:"trudniej", why:"Ta sama pozycja, utrzymana."});
 A("bird-dog", {name:"Bird Dog", pattern:"mob-back", side:true, hold:"3 s w wyproście", def:["bw",8], rel:"łatwiej", why:"Stabilizacja lędźwi."});
 A("ytw", {name:"Prone Y-T-W", pattern:"mob-back", hold:"2 s w każdej literze", def:["bw",6], rel:"podobnie", why:"Tył barków, przeciw zgarbieniu."});
 A("open-book", {name:"Open Book", pattern:"mob-tspine", side:true, hold:"2 s otwarty", def:["bw",8], rel:"podobnie", why:"Rotacja odcinka piersiowego w leżeniu."});
-A("thread", {name:"Thread the Needle", pattern:"mob-tspine", side:true, hold:"2 s w skręcie", def:["bw",6], rel:"podobnie", why:"Rotacja z klęku podpartego."});
-A("hang", {name:"Passive Hang", pattern:"mob-tspine", req:["pullbar"], timed:true, def:["bw",30], rel:"podobnie", why:"Rozciąga barki i odcinek piersiowy."});
+A("thread", {name:"Thread the Needle", pattern:"mob-tspine", side:true, hold:"2 s w skręcie", def:["bw",8], rel:"podobnie", why:"Rotacja z klęku podpartego."});
+A("hang", {name:"Passive Hang", pattern:"mob-tspine", req:["pullbar"], timed:true, def:["bw",45], rel:"podobnie", why:"Rozciąga barki i odcinek piersiowy."});
 A("wall-slide", {name:"Wall Slide + Chin Tuck", pattern:"mob-tspine", def:["bw",10], rel:"łatwiej", why:"Wprost na głowę wysuniętą do przodu."});
 
 const UNKNOWN = {id:"?", name:"Nieznane ćwiczenie", pattern:"", loads:["bw"], side:false, timed:false, req:[], def:["bw",5]};
@@ -587,11 +587,11 @@ const DEFAULT_SLOTS = [
   {key:"fin", group:"fin", pattern:"cond-fin", ex:"row-cal", load:"bw", reps:10},
   {key:"c-int", group:"cond", pattern:"cond-int", ex:"row-int", load:"bw", reps:8},
   {key:"c-steady", group:"cond", pattern:"cond-steady", ex:"row-steady", load:"bw", reps:40},
-  {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:60},
-  {key:"m-zsit", group:"mobility", pattern:"mob-hip", ex:"z-sit", load:"bw", reps:30},
-  {key:"m-dog", group:"mobility", pattern:"mob-ankle", ex:"down-dog-press", load:"bw", reps:8},
-  {key:"m-super", group:"mobility", pattern:"mob-back", ex:"superman", load:"bw", reps:10},
-  {key:"m-crab", group:"mobility", pattern:"mob-tspine", ex:"crab-press", load:"bw", reps:6}
+  {key:"m-squat", group:"mobility", pattern:"mob-squat", ex:"deep-squat-hold", load:"bw", reps:90},
+  {key:"m-zsit", group:"mobility", pattern:"mob-hip", ex:"z-sit", load:"bw", reps:45},
+  {key:"m-dog", group:"mobility", pattern:"mob-ankle", ex:"down-dog-press", load:"bw", reps:10},
+  {key:"m-super", group:"mobility", pattern:"mob-back", ex:"superman", load:"bw", reps:12},
+  {key:"m-crab", group:"mobility", pattern:"mob-tspine", ex:"crab-press", load:"bw", reps:8}
 ];
 // Warm-up, about 5 minutes: Row to warm up in general, then moves for the patterns the day works.
 function warmupFor(items){
@@ -606,7 +606,7 @@ function warmupFor(items){
   return out;
 }
 
-const MIG = 3; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026)
+const MIG = 4; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026); 4: longer mobility
 function defaultProfile(){
   return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null, over:{}};
 }
@@ -623,6 +623,7 @@ function mergeProfile(p){
     out.slots.forEach(sl => { if (EX_ALIAS[sl.ex]) sl.ex = EX_ALIAS[sl.ex]; });
     if ((p.mig || 0) < 2){ const st = out.slots.find(x => x.key === "c-steady"); if (st && st.reps < 40) st.reps = 40; }
     if ((p.mig || 0) < 3){ out.rounds = 3; out.finStart = ymd(mondayOf(today())); }
+    if ((p.mig || 0) < 4) out.slots.forEach(sl => { if (sl.group === "mobility") sl.reps = Math.max(sl.reps, exOf(sl.ex).def[1]); });
   }
   return out;
 }
@@ -778,7 +779,7 @@ function estSec(it){
   if (ex.minutes) return it.reps * 60;
   if (ex.timed) return it.reps * sides;
   if (ex.dist) return it.reps * sides * 1.2;
-  return it.reps * sides * (ex.bb ? 4 : ex.pattern === "hinge" ? 2 : 3) + (ex.bb ? 10 : 0);
+  return it.reps * sides * ((ex.bb ? 4 : ex.pattern === "hinge" ? 2 : 3) + (parseInt(ex.hold) || 0)) + (ex.bb ? 10 : 0);
 }
 function estMin(kind, items, rounds, fin){
   if (!items.length) return 0;
@@ -1774,7 +1775,7 @@ function sheetHtml(){
       <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
         <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap || s.block ? "Zmiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
-      <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
+      <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : s.kind === "mobility" ? "Zamień na inne ćwiczenie" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
   }
   if (sh.type === "swap"){
@@ -1917,6 +1918,7 @@ document.addEventListener("click", e => {
       const it = editIt(); if (!it) return;
       const id = b.dataset.ex, ex = exOf(id), sl = slotOfItem(it);
       if (sl && id === sl.ex) setItem(s, it, {ex:id, load:fitLoad(ex, sl.load), reps:sl.reps, swap:null});
+      else if (s.kind === "mobility") setItem(s, it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:null}, true);
       else { Object.assign(it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:{from:it.swap ? it.swap.from : it.ex}}); commitSession(s); }
       S.sheet = {type:"edit", key:it.key}; renderSheet(); render(); break;
     }
