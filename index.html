@@ -360,6 +360,8 @@ html.skin2 .big-step button{border-radius:0}
 html.skin2 .note{color:var(--muted)}
 html.skin2 .lvl,html.skin2 .stat,html.skin2 .banner,html.skin2 .sheet,html.skin2 .round-btn,html.skin2 .loadpill,html.skin2 .upnext,html.skin2 .bar,html.skin2 .bar i,html.skin2 .modbar,html.skin2 .chip-d,html.skin2 .lvl-pill{border-radius:0}
 html.skin2 .lvl{border-top:3px solid var(--ink)}
+html.skin2 .gp-ring{border-radius:0}
+html.skin2 .lvl-badge{border-radius:0}
 html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0}
 </style>
 </head>
@@ -369,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.18";
+const APP_VERSION = "2026-11-12.19";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -1452,7 +1454,9 @@ const GROUPS = [
 ];
 const groupOf = lv => GROUPS.filter(g => (lv || 0) >= g.min).pop();
 const nextGroup = g => GROUPS[GROUPS.indexOf(g) + 1] || null;
-const badge = (g, size, dim) => `<svg class="badge" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="width:${size}px;height:${size}px;clip-path:circle(50%);flex:none${dim ? ";opacity:.35" : ""}"><circle cx="32" cy="32" r="32" fill="${g.color}"/>${ANIMAL[g.id](g.color)}</svg>`;
+// Light skin: round badges; skin 2: square ones, same animals.
+const badge = (g, size, dim) => { const sq = skinOf() === "2";
+  return `<svg class="badge" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="width:${size}px;height:${size}px;${sq ? "" : "clip-path:circle(50%);"}flex:none${dim ? ";opacity:.35" : ""}">${sq ? `<rect width="64" height="64" fill="${g.color}"/>` : `<circle cx="32" cy="32" r="32" fill="${g.color}"/>`}${ANIMAL[g.id](g.color)}</svg>`; };
 // Exercises that count for each category, easiest first: where to look for "what result gets me to the next group".
 const CAT_EX = {pull:["ring-row", "ring-row-box", "pullup-negative", "band-pullup", "pullup"], push:["incline-pushup-75", "knee-pushup", "pushup-negative", "pushup", "ring-dip"],
   press:["kb-clean-press", "kb-strict-press", "bb-push-press"], hinge:["kb-swing", "kb-swing-1a", "bb-dl"], legs:["bss", "bb-front-squat"], carry:["suitcase-carry", "farmer-carry"]};
