@@ -307,7 +307,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.2";
+const APP_VERSION = "2026-11-12.3";
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1059,9 +1059,7 @@ function renderPrep(){
       <section class="sec"><div class="sec-row"><h2 class="sec-h">Circuit</h2>
         <div class="stepper" role="group" aria-label="Liczba rund"><button class="round-btn" data-act="rounds" data-d="-1" aria-label="Mniej rund" ${s.rounds <= 1 ? "disabled" : ""}>−</button><span class="val">${roundsText(s.rounds)}</span><button class="round-btn" data-act="rounds" data-d="1" aria-label="Więcej rund" ${s.rounds >= 5 ? "disabled" : ""}>+</button></div></div>
         <div class="card">${s.items.map((it, i) => itemRow(it, i, true)).join("")}</div>
-        ${(() => { const b = s.items.find(it => LOADS[it.load] && LOADS[it.load].bb && LOADS[it.load].bb > BAR); if (!b) return "";
-          const half = Math.max(BAR, Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5);
-          return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą rundą: 5 × pusty gryf, 3 × ${plKg(half)} kg.</p>`; })()}</section>
+        ${bbWarmNote(s.items)}</section>
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
   if (cond){
@@ -1090,6 +1088,12 @@ function doneScreen(s){
 }
 // Plan of a future day, read-only.
 // Warm-up written out in full, as it goes on the whiteboard: the same on today's plan and on any other day.
+// Warm-up sets for the barbell lift of the day, before the first round.
+function bbWarmNote(items){
+  const b = (items || []).find(it => LOADS[it.load] && LOADS[it.load].bb && LOADS[it.load].bb > BAR); if (!b) return "";
+  const half = Math.max(BAR, Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5);
+  return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą rundą: 5 × pusty gryf, 3 × ${plKg(half)} kg.</p>`;
+}
 const warmCard = items => `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
 function planScreen(date, kind){
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
@@ -1099,7 +1103,7 @@ function planScreen(date, kind){
   return `<section class="screen">${head}${strength ? warmCard(its) : ""}
     <section class="sec"><h2 class="sec-h">${strength ? "Circuit · " + roundsText(S.profile.rounds) : kind === "cond" ? condLabel(condKey(date)) : "Mobility"} · ${estText(kind, its, S.profile.rounds)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
-</section></section>`;
+      ${strength ? bbWarmNote(its) : ""}</section></section>`;
 }
 const condLabel = k => k === "c-int" ? "Intervals" : k === "c-test" ? "Test" : "Steady";
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
