@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-12.21";
+const APP_VERSION = "2026-11-13.1";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -1992,6 +1992,17 @@ async function checkForUpdate(){
 }
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
 setTimeout(checkForUpdate, 3000);
+// Screen stays on while the app is open; the browser drops the lock when the app goes to the background.
+let wakeLock = null, wakeBusy = false;
+async function keepAwake(){
+  if (!("wakeLock" in navigator) || document.hidden || wakeLock || wakeBusy) return;
+  wakeBusy = true;
+  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } catch(e){ wakeLock = null; }
+  wakeBusy = false;
+}
+document.addEventListener("visibilitychange", keepAwake);
+document.addEventListener("pointerdown", keepAwake, {passive:true});
+keepAwake();
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).catch(() => {});
 </script>
 </body>
