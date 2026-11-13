@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-13.2";
+const APP_VERSION = "2026-11-13.3";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -593,16 +593,45 @@ const DEFAULT_SLOTS = [
   {key:"m-super", group:"mobility", pattern:"mob-back", ex:"superman", load:"bw", reps:12},
   {key:"m-crab", group:"mobility", pattern:"mob-tspine", ex:"crab-press", load:"bw", reps:8}
 ];
-// Warm-up, about 5 minutes: Row to warm up in general, then moves for the patterns the day works.
+// Warm-up, about 5 minutes. General first (Row), then every movement of the day in its order:
+// the body area it loads gets primed and the movement itself is rehearsed light (barbell ~50%, KB 8 kg, bodyweight half the reps).
+// Engine days warm up in the same modality; a Steady session is its own warm-up.
 function warmupFor(items){
-  const pat = p => (items || []).some(it => exOf(it.ex).pattern === p || (p === "squat" && exOf(it.ex).pattern === "lunge"));
-  const out = [eqOk("rower") ? {name:"Row", dose:"2 min", cue:"Spokojnie, ostatnie 20 s żywiej."} : {name:"Jumping Jacks", dose:"× 40"}];
-  if (eqOk("bands")) out.push({name:"Band Pull-apart", dose:"× 10"});
-  if (pat("squat")) out.push(eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5", cue:"2 s pauzy na dole."} : {name:"Air Squat", dose:"× 8", cue:"2 s pauzy na dole."});
-  if (pat("hinge")) out.push(eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8", cue:"Kij na plecach: głowa, łopatki, kość krzyżowa."} : eqOk("kb16") ? {name:"KB Deadlift", dose:"16 kg × 8"} : {name:"Hip Hinge", dose:"× 8"});
-  if (pat("vpush") && eqOk("broom")) out.push({name:"Broomstick Pass-through", dose:"× 10"});
-  if (pat("hpull")) out.push(eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : {name:"Band Row", dose:"× 10"});
-  if (pat("hpush")) out.push({name:"Push-up", dose:"× 5"});
+  const out = [], seen = new Set(), add = w => { if (w && !seen.has(w.name)){ seen.add(w.name); out.push(w); } };
+  const exs = (items || []).map(it => ({it, ex:exOf(it.ex)})).filter(x => x.ex.id !== "?");
+  const cardio = x => /^cond-/.test(x.ex.pattern);
+  if (!exs.length) return out;
+  if (exs.every(cardio)){
+    if (exs.some(x => x.ex.minutes || x.ex.test)) return out;
+    if (exs.some(x => /^run/.test(x.ex.id))) return [{name:"Easy Run", dose:"5 min"}, {name:"Leg Swing", dose:"× 10 per side"}, {name:"Strides", dose:"3 × 20 s"}];
+    return [{name:"Row", dose:"4 min"}, {name:"Row Sprint", dose:"3 × 10 s"}];
+  }
+  add(eqOk("rower") ? {name:"Row", dose:"2 min"} : {name:"Jumping Jacks", dose:"× 40"});
+  const kbOf = it => LOADS[it.load] && /^kb/.test(it.load) ? it.load : eqOk("kb16") ? "kb16" : eqOk("kb8") ? "kb8" : null;
+  const kbDl = it => { const k = kbOf(it); return k ? {name:"KB Deadlift", dose:LOADS[k].label + " × 5"} : {name:"Hip Hinge", dose:"× 8"}; };
+  const squatPrep = () => eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5 · 2 s na dole"} : {name:"Air Squat", dose:"× 8 · 2 s na dole"};
+  const half = it => Math.max(3, Math.ceil(it.reps / 2));
+  const same = x => ({name:x.ex.name, dose:(x.ex.tag ? x.ex.tag + " " : "") + "× " + half(x.it) + sideTxt(x.ex)});
+  for (const x of exs){
+    const {it, ex} = x, p = ex.pattern;
+    if (cardio(x) || p === "carry" || p === "shoulder") continue;
+    if (ex.bb){
+      if (p === "squat") add(squatPrep());
+      if (p === "hinge") add(eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8"} : kbDl(it));
+      if (p === "vpush" && eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"});
+      const kg = LOADS[it.load] && LOADS[it.load].bb || BAR;
+      add({name:ex.name, dose:plKg(Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
+    } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:LOADS[it.load].label + " × 5" + sideTxt(ex)}); }
+    else if (p === "vpush"){
+      if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:(eqOk("kb8") ? "8 kg " : "") + "× 3" + sideTxt(ex)}); }
+      else { if (eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"}); add(same(x)); }
+    }
+    else if (p === "squat") add(it.load === "bw" ? {name:ex.name, dose:"× " + half(it) + " · 2 s na dole"} : squatPrep());
+    else if (p === "lunge") add(it.load === "bw" ? same(x) : squatPrep());
+    else if (p === "hpull") add(/ring/.test(ex.id) ? same(x) : eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : same(x));
+    else if (p === "hpush") add(same(x));
+    else if (p === "core") add(ex.id === "dead-bug" ? same(x) : {name:"Dead Bug", dose:"× 5 per side"});
+  }
   return out;
 }
 
@@ -1323,7 +1352,7 @@ function renderPrep(){
   if (s.status === "done") return doneScreen(s);
   if (s.block){
     return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div>${blockHeader(s.kind, s.date, s.block)}
-      ${strength ? warmCard(s.items) : ""}
+      ${warmCard(s.items)}
       ${blockSections(s.block, s.items, (it, i) => itemRow(it, i, true))}
       <div class="push"><button class="btn" data-act="note">Po treningu: notatka</button></div></section>`;
   }
@@ -1379,12 +1408,12 @@ function bbWarmNote(items, word = "rundą"){
   const half = Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5;
   return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą ${word}: 5 × pusty gryf${half > BAR ? ", 3 × " + plKg(half) + " kg" : ""}.</p>`;
 }
-const warmCard = items => `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
+const warmCard = items => !warmupFor(items).length ? "" : `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
 function planScreen(date, kind){
   const b = blockFor(date, kind);
   if (b){ const its = blockItems(date);
     return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div>${blockHeader(kind, date, b)}
-      ${kind === "strength" ? warmCard(its) : ""}${blockSections(blockInfo(b), its, (it, i) => itemRow(it, i, false))}</section>`; }
+      ${warmCard(its)}${blockSections(blockInfo(b), its, (it, i) => itemRow(it, i, false))}</section>`; }
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", plan:null})
     : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
