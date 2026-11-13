@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-13.1";
+const APP_VERSION = "2026-11-13.2";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -1725,7 +1725,7 @@ function renderSettings(){
       <label class="btn plain" for="importFile" style="cursor:pointer">Wczytaj kopię zapasową</label><input type="file" id="importFile" accept="application/json,.json" hidden>
       ${S.notice ? `<p class="note">${esc(S.notice)}</p>` : ""}
       <button class="btn plain" data-act="reset">Przywróć plan startowy</button>
-      <p class="note" style="text-align:center">Wersja ${APP_VERSION}</p></section></section>`;
+      <p class="note" style="text-align:center">Wersja ${APP_VERSION} · blokada ekranu: ${esc(wakeState)}</p></section></section>`;
 }
 
 /* ---------- effort: session RPE (Foster's CR-10) as one row of 10 segments, tap or drag ---------- */
@@ -1993,15 +1993,20 @@ async function checkForUpdate(){
 document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
 setTimeout(checkForUpdate, 3000);
 // Screen stays on while the app is open; the browser drops the lock when the app goes to the background.
-let wakeLock = null, wakeBusy = false;
+// iOS may refuse the lock without a tap, so it is asked for again on every tap (click/touchend count as a user gesture, pointerdown does not).
+let wakeLock = null, wakeBusy = false, wakeState = "—";
 async function keepAwake(){
-  if (!("wakeLock" in navigator) || document.hidden || wakeLock || wakeBusy) return;
+  if (!("wakeLock" in navigator)){ wakeState = "brak wsparcia"; return; }
+  if (document.hidden || wakeLock || wakeBusy) return;
   wakeBusy = true;
-  try { wakeLock = await navigator.wakeLock.request("screen"); wakeLock.addEventListener("release", () => { wakeLock = null; }); } catch(e){ wakeLock = null; }
+  try { wakeLock = await navigator.wakeLock.request("screen"); wakeState = "aktywna";
+    wakeLock.addEventListener("release", () => { wakeLock = null; wakeState = "zwolniona"; }); }
+  catch(e){ wakeLock = null; wakeState = "błąd: " + (e && e.name || e); }
   wakeBusy = false;
 }
 document.addEventListener("visibilitychange", keepAwake);
-document.addEventListener("pointerdown", keepAwake, {passive:true});
+document.addEventListener("click", keepAwake, true);
+document.addEventListener("touchend", keepAwake, {capture:true, passive:true});
 keepAwake();
 if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).catch(() => {});
 </script>
