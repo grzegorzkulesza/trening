@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-13.6";
+const APP_VERSION = "2026-11-13.7";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -551,7 +551,10 @@ const eqOk = e => !!S.profile.equip[e];
 const loadsOf = ex => ex.loads.filter(l => LOADS[l] && (!LOADS[l].eq || eqOk(LOADS[l].eq)));
 const exAvailable = ex => ex.req.every(eqOk) && loadsOf(ex).length > 0;
 const loadLabel = (ex, load) => load === "bw" ? (ex.tag || "Bodyweight") : (ex.tag ? ex.tag + " · " : "") + (LOADS[load]?.label || load);
-const sideTxt = ex => ex.side ? " per side" : "";
+// One-arm, one-leg and per-side exercises are written as totals (5 per side = 10); the plan stores reps per side.
+const sideTxt = ex => "";
+const shownReps = (ex, reps) => ex.side ? reps * 2 : reps;
+const storedReps = (ex, total) => ex.side ? Math.max(1, Math.round(total / 2)) : total;
 function doseText(exId, load, reps){
   const ex = exOf(exId);
   if (ex.interval) return reps + " × (" + ex.interval + ")";
@@ -560,11 +563,12 @@ function doseText(exId, load, reps){
   if (ex.deathby) return "1 cal w 1. minucie, +1 cal co minutę";
   if (ex.cal) return reps + " cal";
   if (ex.minutes) return reps + " min";
+  reps = shownReps(ex, reps);
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
   const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
   return (lbl ? lbl + " × " : "× ") + reps + (ex.dist ? " m" : "") + sideTxt(ex) + (ex.hold ? " · " + ex.hold : "");
 }
-const shortDose = (exId, reps) => { const ex = exOf(exId); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
+const shortDose = (exId, reps) => { const ex = exOf(exId); reps = shownReps(ex, reps); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
 
 /* ---------- plan ---------- */
@@ -603,7 +607,7 @@ function warmupFor(items){
   if (!exs.length) return out;
   if (exs.every(cardio)){
     if (exs.some(x => x.ex.minutes || x.ex.test)) return out;
-    if (exs.some(x => /^run/.test(x.ex.id))) return [{name:"Easy Run", dose:"5 min"}, {name:"Leg Swing", dose:"× 10 per side"}, {name:"Strides", dose:"3 × 20 s"}];
+    if (exs.some(x => /^run/.test(x.ex.id))) return [{name:"Easy Run", dose:"5 min"}, {name:"Leg Swing", dose:"× 20"}, {name:"Strides", dose:"3 × 20 s"}];
     return [{name:"Row", dose:"4 min"}, {name:"Row Sprint", dose:"3 × 10 s"}];
   }
   add(eqOk("rower") ? {name:"Row", dose:"2 min"} : {name:"Jumping Jacks", dose:"× 40"});
@@ -611,7 +615,7 @@ function warmupFor(items){
   const kbDl = it => { const k = kbOf(it); return k ? {name:"KB Deadlift", dose:LOADS[k].label + " × 5"} : {name:"Hip Hinge", dose:"× 8"}; };
   const squatPrep = () => eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5 · 2 s na dole"} : {name:"Air Squat", dose:"× 8 · 2 s na dole"};
   const half = it => Math.max(3, Math.ceil(it.reps / 2));
-  const same = x => ({name:x.ex.name, dose:(x.ex.tag ? x.ex.tag + " " : "") + "× " + half(x.it) + sideTxt(x.ex)});
+  const same = x => ({name:x.ex.name, dose:(x.ex.tag ? x.ex.tag + " " : "") + "× " + shownReps(x.ex, half(x.it))});
   for (const x of exs){
     const {it, ex} = x, p = ex.pattern;
     if (cardio(x) || p === "carry" || p === "shoulder") continue;
@@ -621,16 +625,16 @@ function warmupFor(items){
       if (p === "vpush" && eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"});
       const kg = LOADS[it.load] && LOADS[it.load].bb || BAR;
       add({name:ex.name, dose:plKg(Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
-    } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:LOADS[it.load].label + " × 5" + sideTxt(ex)}); }
+    } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:LOADS[it.load].label + " × " + shownReps(ex, 5)}); }
     else if (p === "vpush"){
-      if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:(eqOk("kb8") ? "8 kg " : "") + "× 3" + sideTxt(ex)}); }
+      if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:(eqOk("kb8") ? "8 kg " : "") + "× " + shownReps(ex, 3)}); }
       else { if (eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"}); add(same(x)); }
     }
     else if (p === "squat") add(it.load === "bw" ? {name:ex.name, dose:"× " + half(it) + " · 2 s na dole"} : squatPrep());
     else if (p === "lunge") add(it.load === "bw" ? same(x) : squatPrep());
     else if (p === "hpull") add(/ring/.test(ex.id) ? same(x) : eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : same(x));
     else if (p === "hpush") add(same(x));
-    else if (p === "core") add(ex.id === "dead-bug" ? same(x) : {name:"Dead Bug", dose:"× 5 per side"});
+    else if (p === "core") add(ex.id === "dead-bug" ? same(x) : {name:"Dead Bug", dose:"× 10"});
   }
   return out;
 }
@@ -1055,9 +1059,9 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
   "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Najwyżej jedna zmiana na ćwiczenie i tylko taka, która wynika z notatki. Za łatwe: krok w górę. Trudne, ból albo sypiąca się technika: zostaje albo krok w dół; przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. " +
   "Jeśli w notatce zrobił już trudniejszy wariant i poszło dobrze, przestaw plan na ten wariant. Rundy: nigdy ich nie dodawaj; możesz je tylko zmniejszyć, gdy robi mniej, przy zmęczeniu albo gdy trening nie mieści się w czasie. Progresja wyłącznie ciężarem, powtórzeniami albo trudniejszym wariantem. Ćwiczeń oznaczonych zamianaNaDzis nie przenoś do planu.\n" +
   "Strength ma dwa obwody na zmianę (pole plan): A, przysiad i pchanie (Front Squat, Bulgarian Split Squat, KB Clean & Press, Push-up, AbMat Sit-up), i B, hinge i przyciąganie (Deadlift, KB Swing, Band-assisted Pull-up, Ring Row, Suitcase Carry). Zmieniaj tylko obwód z dzisiejszej sesji. " +
-  "Progresje: Clean & Press: najpierw powtórzenia do 8 per side, potem kb-strict-press, potem 20 kg. Pull: key row: ring-row → ring-row-box → sa-ring-row; key vpull: band-pullup → pullup-negative → pullup. AbMat Sit-up: powtórzenia do 25, potem hollow-rock. " +
-  "Push: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 10 per side, potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
-  "Suitcase Carry (reps to metry per side): 20 → 30 → 40 m, potem 20 kg od 20 m, potem farmer-carry 2 × 15 kg. " +
+  "Progresje: Clean & Press: najpierw powtórzenia do 16 (8 na rękę), potem kb-strict-press, potem 20 kg. Pull: key row: ring-row → ring-row-box → sa-ring-row; key vpull: band-pullup → pullup-negative → pullup. AbMat Sit-up: powtórzenia do 25, potem hollow-rock. " +
+  "Push: incline-pushup-75 → knee-pushup → pushup-negative → pushup (do 12) → ring-dip. Swing: 20 kg do × 20, potem kb-swing-1a 20 kg; nie proponuj kupowania 24 kg. Bulgarian Split Squat: najpierw powtórzenia do 20 (10 na nogę), potem ciężar; ogranicza go równowaga w butach barefoot, to zamierzone. " +
+  "Suitcase Carry (reps to metry łącznie, na obie ręce): 40 → 60 → 80 m, potem 20 kg od 40 m, potem farmer-carry 2 × 15 kg. " +
   "Sztanga (gryf 20 kg, bumpery, stojaki; kody ciężaru bb + kg, np. bb62.5, od bb20 do bb127.5 co 2,5 kg): w obwodzie A Front Squat (key bb-fs), w B Deadlift (key bb-dl). " +
   "Na sztangę zawsze 5 reps na rundę. Za łatwo: Deadlift +5 kg, Front Squat +2,5 kg. Trudno, sypiąca się technika, okrągłe plecy albo ból: ten sam ciężar albo −5 kg. Nie dokładaj szybciej, niż wynika z notatki; technika ważniejsza niż kilogramy. " +
 "Budżet: cały trening Strength najwyżej 45 min, razem z Warm-up; cel około 35–40 min. Finisher (EMOM na końcu, pole finisher) rośnie sam co tydzień o 2 min, od 4 do 10 min. Gdy czas zbliża się do 45 min, progresja tylko ciężarem albo trudniejszym wariantem, nie powtórzeniami; gdy go przekracza, ustaw pole fin (najdłuższy finisher w minutach, 0–10) niżej. " +
@@ -1073,7 +1077,7 @@ const BLOCK_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wr
   "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Klasyczny ciężki dzień (format jak 5-5-5-5-5 albo 3-3-3-3-3, ciężar w planie to pierwsza seria robocza): w polu done podaj najcięższą serię, którą zrobił; następny ciężki dzień tego samego boju zacznij wyżej, gdy dziś ostatnia seria była łatwa, a niżej albo tak samo, gdy technika się sypała. Heavy @ HR: ciężar ma być ciężki, ale do zrobienia seriami; gdy rozbijał na pojedyncze powtórzenia albo długo stał, niżej. " +
   "Wysiłek porównuj z górną granicą planowanego (5–6 → 6). Wyższy o 2 i więcej albo wyraźne zmęczenie w notatce: odciąż tylko najbliższe 2 dni treningowe i tylko pozycje, które obciążają te same części ciała co dziś (weekend to odpoczynek, więc po piątku zwykle nic). Wyższy o 1 to normalny rozrzut: bez zmian w planie. Niższy o 2 i więcej przy dobrej technice: możesz podnieść. W AMRAP-ie i for time wysiłek zależy od rozłożenia tempa: gdy pracował bez przerw i wyszło za ciężko, napisz, jak rozbijać serie, zamiast obniżać plan. Rozbijanie serii w ostatnich rundach to zwykłe zmęczenie, nie powód do łatwiejszego wariantu ani mniejszej liczby powtórzeń; w dół tylko wtedy, gdy sypała się technika albo nie dał rady zrobić powtórzeń. Nie zmieniaj ćwiczeń, których dziś nie było, z powodu dzisiejszego wysiłku. W klasycznym ciężkim dniu (5-5-5-5-5, 3-3-3-3-3) powtórzenia są częścią formatu: zmieniasz tylko ciężar. Miara zależy od formatu (pole format), nie od czasu trwania. AMRAP trwa tyle, ile mówi format, więc miarą jest wykonana praca: pełne rundy i powtórzenia; porównuj je z poprzednimi AMRAP-ami. EMOM też ma stały czas i stałą liczbę powtórzeń na początku każdej minuty: liczy się, czy każda minuta była zrobiona i ile odpoczynku zostawało (z notatki); gdy nie zdążał, mniej powtórzeń albo łatwiejszy wariant. Death by: wynikiem jest ostatnia pełna minuta N; w minucie n robi n powtórzeń, więc praca rośnie z każdą minutą (łącznie N(N+1)/2), a późne minuty ważą wielokrotnie więcej niż pierwsze; porównuj N i dokładkę, nie czas. For time: wynikiem jest czas samego treningu bez Warm-up. For time, or not: czas tylko wtedy, gdy go mierzył. Not for time: bez wyniku, oceniasz wysiłek (ma być niski) i notatkę. Interwały i części for time: liczą się czasy odcinków (przerwy nie), ich równość i spadek tempa. Steady: stały czas, miarą jest dystans i średnie tempo na 500 m przy niskim wysiłku. Klasyczny ciężki dzień: miarą są ciężary serii, czas nie ma znaczenia. Pole czasTrwania to długość samego treningu: stała z formatu albo szacunek; 45 min to sufit, nie cel. Gdy jest lista „Ten sam trening wcześniej”, porównaj wynik z nią (benchmark) i uwzględnij różnice w ciężarze i wariancie. " +
   "Warianty (variants): przy łatwych seriach krok w górę po drabince danego slotu, w dół tylko z powodów opisanych wyżej. Wariant i powtórzenia tego samego slotu to dwie zmiany tej samej pozycji: wybierz jedną. Przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. Bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. " +
-  "Sztanga: gryf 20 kg, bumpery, kody ciężaru bb + kg, od bb20 do bb127.5 co 2,5 kg; Deadlift zmieniaj co 5 kg, przysiady i wyciskania co 2,5 kg. Nazwy ćwiczeń i rodzajów sesji po angielsku (Strength, Conditioning, Heavy, Engine, rounds, reps), reszta po polsku, bez moralizowania i motywowania.\n";
+  "Ćwiczenia jednorącz, na jedną nogę i na stronę zapisujesz łącznie, nigdy per side: 5 na każdą rękę to × 10; pola reps w danych i w odpowiedzi też są łączne. Sztanga: gryf 20 kg, bumpery, kody ciężaru bb + kg, od bb20 do bb127.5 co 2,5 kg; Deadlift zmieniaj co 5 kg, przysiady i wyciskania co 2,5 kg. Nazwy ćwiczeń i rodzajów sesji po angielsku (Strength, Conditioning, Heavy, Engine, rounds, reps), reszta po polsku, bez moralizowania i motywowania.\n";
 const VAR_SLOTS = ["row", "vpull", "push", "core"];
 // Ladders of the gymnastics slots used by the block (row and vpull share a pattern, so they need their own).
 const VAR_LADDER = {row:["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row"], vpull:["band-pullup", "pullup-negative", "pullup"],
@@ -1126,7 +1130,7 @@ const Coach = {
     const out = [];
     for (let i = 1; i <= 14; i++){ const date = addDays(s.date, i), b = blockDay(date); if (!b) continue;
       out.push({data:date, dzien:DAYS[parseYmd(date).getDay()], rodzaj:kindLabel(blockKind(b)), typ:BLOCK_TITLE[b.type], planowanyWysilek:b.effort, format:b.parts.map(p => p.fmt).join(" | "),
-        pozycje:blockItems(date).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, load:it.load, reps:it.reps, dawka:doseText(it.ex, it.load, it.reps), slot:it.slot}))}); }
+        pozycje:blockItems(date).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, load:it.load, reps:shownReps(exOf(it.ex), it.reps), dawka:doseText(it.ex, it.load, it.reps), slot:it.slot}))}); }
     return out;
   },
   promptBlock(s, earlier, photo){
@@ -1152,7 +1156,7 @@ const Coach = {
     if (s.block) return this.promptBlock(s, earlier, photo);
     const g = this.group(s);
     const pl = s.kind === "strength" ? planOfSession(s) : null;
-    const plan = slotsOf(g).filter(sl => (!sl.bb || bbOn()) && (!pl || sl.plan === pl) && !(bbOn() && slotsOf(g).some(b => b.bb === sl.key))).map(sl => ({key:sl.key, plan:sl.plan, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:sl.reps, teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps)}));
+    const plan = slotsOf(g).filter(sl => (!sl.bb || bbOn()) && (!pl || sl.plan === pl) && !(bbOn() && slotsOf(g).some(b => b.bb === sl.key))).map(sl => ({key:sl.key, plan:sl.plan, pattern:sl.pattern, ex:sl.ex, load:sl.load, reps:shownReps(exOf(sl.ex), sl.reps), teraz:exOf(sl.ex).name + " " + doseText(sl.ex, sl.load, sl.reps)}));
     const prev = Object.values(S.sessions).filter(x => x.v === 2 && x.kind === s.kind && x.status === "done" && x.id !== s.id && x.date <= s.date).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4);
     const revs = Object.values(S.reviews || {}).filter(r => r.id !== s.id).sort((a, b) => String(a.date + a.id).localeCompare(String(b.date + b.id))).slice(-4);
     return (photo ? "Do wiadomości dołączono zdjęcie zrobione po dzisiejszej sesji (może to być np. wyświetlacz Concept2 PM5, tablica z rozpisanym treningiem albo licznik czasu). Odczytaj z niego wszystko, co dotyczy tej sesji, i uwzględnij w ocenie i w polu done; tylko to, co widać, nieczytelne pomiń.\n" : "") +
@@ -1181,7 +1185,7 @@ const Coach = {
       const it = blockItems(date).find(x => x.key === c.key); if (!it || (it.slot && varied.has(it.slot))) return;
       const part = blockDay(date).parts[it.part || 0], classic = part && fmtKind(part.fmt).k === "load";
       const ex = exOf(it.ex), loads = loadsOf(ex), load = loads.includes(c.load) ? c.load : it.load;
-      const reps = classic ? it.reps : Math.max(1, Math.min(ex.minutes ? 45 : ex.m ? 10000 : 60, parseInt(c.reps, 10) || it.reps));
+      const reps = classic ? it.reps : storedReps(ex, Math.max(1, Math.min(ex.minutes ? 45 : ex.m ? 10000 : 60, parseInt(c.reps, 10) || shownReps(ex, it.reps))));
       if (load === it.load && reps === it.reps) return;
       const o = S.profile.over || (S.profile.over = {}), d = o[date] || (o[date] = {});
       d[c.key] = {...(d[c.key] || {}), load, reps, note:String(c.reason || "").slice(0, 200), at:now};
@@ -1191,7 +1195,7 @@ const Coach = {
     (Array.isArray(out.done) ? out.done : []).forEach(c => {
       const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex] || exOf(it.ex).test) return;
       if (c.ex !== it.ex && exOf(c.ex).pattern !== exOf(it.ex).pattern) return;
-      const loads = loadsOf(EX[c.ex]), load = loads.includes(c.load) ? c.load : it.load, reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || it.reps));
+      const loads = loadsOf(EX[c.ex]), load = loads.includes(c.load) ? c.load : it.load, reps = storedReps(EX[c.ex], Math.max(1, Math.min(120, parseInt(c.reps, 10) || shownReps(EX[c.ex], it.reps))));
       if (!loads.includes(load) || (c.ex === it.ex && load === it.load && reps === it.reps)) return;
       Object.assign(it, {ex:c.ex, load, reps, fromNote:true}); fixed = true;
     });
@@ -1212,7 +1216,7 @@ const Coach = {
       const loads = (allowed[sl.key] || {})[c.ex]; if (!loads) return;
       const load = loads.includes(c.load) ? c.load : (loads.includes(sl.load) ? sl.load : loads[0]);
       const ex = EX[c.ex], max = ex.minutes ? 45 : ex.interval ? 16 : 60;
-      const reps = Math.max(1, Math.min(max, parseInt(c.reps, 10) || sl.reps));
+      const reps = storedReps(ex, Math.max(1, Math.min(max * 2, parseInt(c.reps, 10) || shownReps(ex, sl.reps))));
       if (c.ex === sl.ex && load === sl.load && reps === sl.reps) return;
       changes.push(exOf(sl.ex).name + ": " + doseText(sl.ex, sl.load, sl.reps) + " → " + (c.ex !== sl.ex ? exOf(c.ex).name + " " : "") + doseText(c.ex, load, reps));
       Object.assign(sl, {ex:c.ex, load, reps, claudeNote:String(c.reason || "").slice(0, 200), claudeAt:now});
@@ -1222,7 +1226,7 @@ const Coach = {
     (Array.isArray(out.done) ? out.done : []).forEach(c => {
       const it = (s.items || []).find(x => x.key === c.key); if (!it || !EX[c.ex] || exOf(it.ex).test) return;
       const loads = ((allowed[c.key] || {})[c.ex]) || (c.ex === it.ex ? loadsOf(EX[c.ex]) : null); if (!loads) return;
-      const load = loads.includes(c.load) ? c.load : it.load, reps = Math.max(1, Math.min(60, parseInt(c.reps, 10) || it.reps));
+      const load = loads.includes(c.load) ? c.load : it.load, reps = storedReps(EX[c.ex], Math.max(1, Math.min(120, parseInt(c.reps, 10) || shownReps(EX[c.ex], it.reps))));
       if (!loads.includes(load) || (c.ex === it.ex && load === it.load && reps === it.reps)) return;
       Object.assign(it, {ex:c.ex, load, reps, fromNote:true}); fixed = true;
     });
@@ -1484,7 +1488,6 @@ function doneScreen(s){
       </section>`}
     ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
     ${strength && s.fin ? finRow(s.fin) : ""}
-    ${isToday && strength ? nextPlanHtml() : ""}
     ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
 }
 // Plan of the next Strength day, on the screen of a done session.
@@ -1690,7 +1693,7 @@ const LEVEL_CATS = [
       return Math.max(0, pctFrom(eq, [16, 24, 32, 40, 48]) + (Math.max(10, Math.min(30, it.reps)) - 15) * 0.4); }},
   {id:"legs", name:"Legs", pattern:"lunge",
     src:() => bbOn() ? "Strength Level, Front Squat (1RM); Bulgarian Split Squat z Dumbbell Bulgarian Split Squat" : "Strength Level, Dumbbell Bulgarian Split Squat (1RM, ciężar na rękę)",
-    ref:() => bbOn() ? {a:[55, 77, 105, 137, 172], f:v => set5("Front Squat", v, 2.5)} : {a:[10, 18, 30, 44, 60], f:v => set5("Bulgarian Split Squat", v, 1, "2 × ") + " per side"},
+    ref:() => bbOn() ? {a:[55, 77, 105, 137, 172], f:v => set5("Front Squat", v, 2.5)} : {a:[10, 18, 30, 44, 60], f:v => set5("Bulgarian Split Squat", v, 1, "2 × ").replace(/× 5$/, "× 10")},
     score(it){ const kg = KGS[it.load];
       if (it.ex === "bb-front-squat" && kg) return pctFrom(e1rm(kg, it.reps), [55, 77, 105, 137, 172]);
       if (it.ex === "bb-back-squat" && kg) return pctFrom(e1rm(kg, it.reps), [64, 93, 130, 173, 219]);
@@ -1900,7 +1903,7 @@ function sheetHtml(){
     const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotOfItem(it);
     const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
     const variants = it.swap ? [] : ladderOf(slot).filter(id => EX[id] && exAvailable(EX[id]));
-    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + Math.abs(it.reps - it.planReps) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
+    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + shownReps(ex, Math.abs(it.reps - it.planReps)) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
       <header><h2>${esc(ex.name)}</h2><p class="sub">${s.block ? BLOCK_TITLE[s.block.type] : s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
@@ -1911,8 +1914,8 @@ function sheetHtml(){
         return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
       : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
-      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}${ex.side ? " (per side)" : ""}</h3>
-        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${it.reps}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}</h3>
+        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${shownReps(ex, it.reps)}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap || s.block ? "Zmiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : s.kind === "mobility" ? "Zamień na inne ćwiczenie" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
