@@ -207,7 +207,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .lab-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;min-height:60px}
 .lab-row span{font-size:17px;font-weight:500}
 .lab-row small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
-.lab-ms.bad input{color:var(--warn)}
+.lab-ms.bad input,.lab-ms input.bad{color:var(--warn)}
 .lab-ms{display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:2px 18px 18px}
 .lab-ms label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .lab-ms input{width:88px;height:64px;border:0;border-radius:14px;background:var(--bg);font:inherit;font-size:32px;font-weight:600;text-align:center;color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-13.3";
+const APP_VERSION = "2026-11-13.4";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -698,34 +698,93 @@ const BLOCK_TITLE = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Cond
 const BLOCK_SUB = {heavy:"Heavy", hr:"Heavy @ HR", engine:"Engine", cond:"Lekko", workout:"Workout"};
 const BLOCK = {id:"b1", start:"2026-11-13", end:"2026-12-13", days:{
   // Start the day after the Row 2000 m test: legs and heart rate rest, upper body and midline work.
-  "2026-11-13":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min", items:[["kb-clean-press","kb16",5],["@row","bw",8],["@core","bw",12]]}]},
-  "2026-11-16":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", items:[["bb-back-squat","bb40",5]]}]},
-  "2026-11-17":{type:"engine", effort:"8", min:20, parts:[{fmt:"Death by Calories", items:[["row-death","bw",1]]}]},
-  "2026-11-18":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-11-13":{type:"workout", effort:"5–6", min:15, parts:[{fmt:"AMRAP 15 min", items:[["kb-clean-press","kb16",5],["@row","bw",8],["@core","bw",12]]}]},
+  "2026-11-16":{type:"heavy", effort:"7–8", min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-back-squat","bb40",5]]}]},
+  "2026-11-17":{type:"engine", effort:"8", min:null, parts:[{fmt:"Death by Calories", items:[["row-death","bw",1]]}]},
+  "2026-11-18":{type:"heavy", effort:"6–7", min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
   "2026-11-19":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",750],["air-squat","bw",15],["@core","bw",15]]}]},
-  "2026-11-20":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
-  "2026-11-23":{type:"hr", effort:"8", min:25, parts:[{fmt:"3 intervals for time · przerwa 3:00", items:[["bb-dl","bb60",10],["row-m","bw",500]]}]},
-  "2026-11-24":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 1000 m · przerwa 3:00", items:[["row-m","bw",1000]]}]},
-  "2026-11-25":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
-  "2026-11-26":{type:"cond", effort:"3–4", min:25, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["kb-swing","kb16",12],["@core","bw",12]]}]},
-  "2026-11-27":{type:"workout", effort:"5–6", min:25, parts:[{fmt:"AMRAP 15 min", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
-  "2026-11-30":{type:"heavy", effort:"7–8", min:30, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb60",5]]}]},
-  "2026-12-01":{type:"engine", effort:"7", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
-  "2026-12-02":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
-  "2026-12-03":{type:"cond", effort:"3–4", min:30, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["kb-swing","kb16",15]]}]},
-  "2026-12-04":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"5 rounds for time, or not", items:[["goblet-sq","kb16",10],["@row","bw",8],["@core","bw",12]]}]},
-  "2026-12-07":{type:"hr", effort:"8", min:25, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb35",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@core","bw",20]]}]},
-  "2026-12-08":{type:"engine", effort:"6", min:25, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
-  "2026-12-09":{type:"heavy", effort:"6–7", min:35, parts:[{fmt:"3-3-3-3-3", items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-11-20":{type:"workout", effort:"5–6", min:10, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-23":{type:"hr", effort:"8", min:15, parts:[{fmt:"3 intervals for time · przerwa 3:00", items:[["bb-dl","bb60",10],["row-m","bw",500]]}]},
+  "2026-11-24":{type:"engine", effort:"6", min:20, parts:[{fmt:"3 × 1000 m · przerwa 3:00", items:[["row-m","bw",1000]]}]},
+  "2026-11-25":{type:"heavy", effort:"6–7", min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-11-26":{type:"cond", effort:"3–4", min:20, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["kb-swing","kb16",12],["@core","bw",12]]}]},
+  "2026-11-27":{type:"workout", effort:"5–6", min:15, parts:[{fmt:"AMRAP 15 min", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-30":{type:"heavy", effort:"7–8", min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb60",5]]}]},
+  "2026-12-01":{type:"engine", effort:"7", min:20, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
+  "2026-12-02":{type:"heavy", effort:"6–7", min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
+  "2026-12-03":{type:"cond", effort:"3–4", min:20, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["kb-swing","kb16",15]]}]},
+  "2026-12-04":{type:"workout", effort:"5–6", min:10, parts:[{fmt:"5 rounds for time, or not", items:[["goblet-sq","kb16",10],["@row","bw",8],["@core","bw",12]]}]},
+  "2026-12-07":{type:"hr", effort:"8", min:10, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb35",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb35",10],["@core","bw",20]]}]},
+  "2026-12-08":{type:"engine", effort:"6", min:20, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
+  "2026-12-09":{type:"heavy", effort:"6–7", min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
   "2026-12-10":{type:"cond", effort:"3–4", min:40, parts:[{fmt:"Steady", items:[["row-steady","bw",40]]}]},
-  "2026-12-11":{type:"workout", effort:"5–6", min:30, parts:[{fmt:"AMRAP 20 min", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
+  "2026-12-11":{type:"workout", effort:"5–6", min:20, parts:[{fmt:"AMRAP 20 min", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
 }};
 const SLOT_EX = {row:"ring-row", vpull:"band-pullup", push:"pushup", core:"abmat-situp"};
 const blockDay = date => BLOCK.days[date] || null;
 const blockKind = b => b.type === "engine" || b.type === "cond" ? "cond" : "strength";
 const blockFor = (date, kind) => { const b = blockDay(date); return b && blockKind(b) === kind ? b : null; };
 const blockInfo = b => ({id:BLOCK.id, type:b.type, effort:b.effort, min:b.min, parts:b.parts.map(p => ({fmt:p.fmt, note:p.note || ""}))});
-const blockHead = b => "Wysiłek " + b.effort + " · około " + b.min + " min";
+// What a block format measures. AMRAP, EMOM and Steady last as long as the format says, so their time says nothing
+// about the effort: the score is the work done in it. Death by: the score is the last full minute, and minute n is n reps.
+// Classic heavy days are scored by load, Not for time by effort alone. b.min is the workout without the warm-up.
+function fmtKind(fmt){
+  const f = String(fmt || "").trim(); let m;
+  if ((m = f.match(/AMRAP\s*(\d+)/i))) return {k:"amrap", min:+m[1]};
+  if (/death by/i.test(f)) return {k:"deathby"};
+  if ((m = f.match(/EMOM\s*(\d+)/i))) return {k:"emom", min:+m[1]};
+  if (/^steady/i.test(f)) return {k:"steady"};
+  if (/^\d+(?:-\d+)+$/.test(f)) return {k:"load"};
+  if (/not for time/i.test(f)) return {k:"nft"};
+  if (/for time, or not/i.test(f)) return {k:"ftornot"};
+  if ((m = f.match(/^(\d+)\s*(?:intervals?\b|×)/i))) return {k:"intervals", n:+m[1]};
+  if (/^część\s*\d/i.test(f)) return {k:"part"};
+  if (/for time/i.test(f)) return {k:"fortime"};
+  return {k:"other"};
+}
+function blockTime(b){
+  const ks = b.parts.map(p => fmtKind(p.fmt));
+  if (ks.some(k => k.k === "deathby")) return "";
+  if (ks.every(k => k.min || k.k === "steady")) return ks.reduce((a, k) => a + (k.min || b.min || 0), 0) + " min";
+  return b.min ? "około " + b.min + " min" : "";
+}
+const blockHead = b => ["Wysiłek " + b.effort, blockTime(b)].filter(Boolean).join(" · ");
+function scoreType(s){
+  if (!s || !s.block) return null;
+  const ks = s.block.parts.map(p => fmtKind(p.fmt)), k = ks[0];
+  if (ks.length > 1 && ks.every(x => x.k === "part")) return {k:"intervals", n:ks.length};
+  return ["amrap", "deathby", "fortime", "ftornot", "intervals", "steady"].includes(k.k) ? k : null;
+}
+function scoreOk(s){
+  const t = scoreType(s), sc = s.score || {};
+  if (!t) return true;
+  if (t.k === "amrap") return sc.rounds != null;
+  if (t.k === "deathby") return sc.min != null;
+  if (t.k === "fortime") return sc.time != null;
+  if (t.k === "ftornot") return !sc.ft || sc.time != null;
+  return true;
+}
+function scoreText(s){
+  const t = scoreType(s), sc = s.score || {};
+  if (!t) return "";
+  if (t.k === "amrap") return sc.rounds != null ? roundsText(sc.rounds) + (sc.reps ? " + " + sc.reps : "") : "";
+  if (t.k === "deathby") return sc.min != null ? sc.min + " min" + (sc.extra ? " + " + sc.extra + (/calor/i.test(s.block.parts[0].fmt) ? " cal" : "") : "") : "";
+  if (t.k === "fortime" || t.k === "ftornot") return sc.time ? mmss(sc.time) : "";
+  if (t.k === "intervals") return [...Array(t.n)].map((_, i) => sc["t" + i]).filter(Boolean).map(mmss).join(" · ");
+  if (t.k === "steady") return sc.dist ? sc.dist + " m" : "";
+  return "";
+}
+// The same score in words for Claude.
+function scoreBrief(s){
+  const t = scoreType(s), sc = s.score || {};
+  if (!t) return undefined;
+  if (t.k === "amrap") return sc.rounds != null ? sc.rounds + " pełnych rund + " + (sc.reps || 0) + " powtórzeń w " + t.min + " min" : "nie podał";
+  if (t.k === "deathby"){ if (sc.min == null) return "nie podał"; const n = sc.min, x = sc.extra || 0;
+    return "ostatnia pełna minuta " + n + (x ? ", w minucie " + (n + 1) + " zrobił " + x : "") + "; łącznie " + (n * (n + 1) / 2 + x); }
+  if (t.k === "fortime" || t.k === "ftornot") return sc.time ? "czas " + mmss(sc.time) + " (bez Warm-up)" : "bez mierzenia czasu";
+  if (t.k === "intervals"){ const ts = [...Array(t.n)].map((_, i) => sc["t" + i] ? mmss(sc["t" + i]) : "—"); return ts.some(x => x !== "—") ? "czasy odcinków: " + ts.join(", ") : "nie podał (może być na zdjęciu)"; }
+  if (t.k === "steady") return sc.dist ? "dystans " + sc.dist + " m" : "nie podał (może być na zdjęciu)";
+}
 // Items of a block day, with Claude's changes for that day and today's variants from the slots.
 function blockItems(date){
   const b = blockDay(date); if (!b) return [];
@@ -848,14 +907,14 @@ function dayCardsHtml(date){
     let sub;
     if (isDone(st)) sub = doneSub(st);
     else if (past) sub = "";
-    else if (blockFor(date, "strength")){ const b = blockFor(date, "strength"); sub = BLOCK_SUB[b.type] + " · około " + b.min + " min"; }
+    else if (blockFor(date, "strength")){ const b = blockFor(date, "strength"); sub = [BLOCK_SUB[b.type], blockTime(b)].filter(Boolean).join(" · "); }
     else if (isToday && st && st.status === "prep") sub = estText("strength", st.items, st.rounds, st.fin);
     else sub = estText("strength", dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", plan:null}), S.profile.rounds, finFor(date));
     out.push(card("strength", "Strength", sub, st, past && !isDone(st)));
   }
   if (isDone(cs) || (!past && condDay && !strengthDay) || (isToday && !strengthDay)){
     const ck = condKey(date), sl = slotByKey(ck);
-    const cb = blockFor(date, "cond"), sub = isDone(cs) ? doneSub(cs) : cb ? BLOCK_SUB[cb.type] + " · około " + cb.min + " min" : sl ? estText("cond", [sl]) : "";
+    const cb = blockFor(date, "cond"), sub = isDone(cs) ? doneSub(cs) : cb ? [BLOCK_SUB[cb.type], blockTime(cb)].filter(Boolean).join(" · ") : sl ? estText("cond", [sl]) : "";
     out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
   }
   out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "" : estText("mobility", slotsOf("mobility")), mb, false));
@@ -994,9 +1053,9 @@ const BASE_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wra
 const BLOCK_RULES = "Jesteś spokojnym, rzeczowym trenerem Grzegorza (47 lat, wraca do treningu po przerwie, trenuje w domu; CrossFit zna od 2016). " +
   "Programujesz metodą Linchpin (Pat Sherwood, How to Program Workouts): bloki po 4 tygodnie zaplanowane dzień po dniu; każdy element ma cel, nic zbędnego; ciężko to mało powtórzeń i mała objętość, średnio to średnio, lekko to dużo; serie na tyle małe, żeby nie stał przy sprzęcie; trening, nie test, więc bez maksów; patrzysz wstecz i do przodu. " +
   "Tydzień Pn–Pt bez dnia wolnego w środku, więc zmęczenie rozkłada program: Pn Heavy na nogi (klasycznie albo Heavy @ HR, tylko w poniedziałek), Wt Engine, Śr Heavy na górę z przyciąganiem, Cz lekko i długo, Pt średnio. Ani żadna część ciała, ani tętno nie są ciężko dwa dni z rzędu; piątek nigdy nie jest ciężki. Każdy dzień ma planowany wysiłek (pole planowanyWysilek, ta sama skala 1–10 co pole wysilek).\n" +
-  "Oceń dzisiejszy trening z notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens), czasu, wysiłku i zdjęcia, a potem dopasuj najbliższe dni bloku. Struktury dni nie zmieniasz (formaty, rundy, kolejność, ćwiczenia zostają); zmieniasz tylko ciężar i powtórzenia pozycji z listy nadchodzących dni oraz warianty gimnastyczne (pole variants). Najwyżej jedna zmiana na pozycję i tylko taka, która wynika z dzisiejszego treningu.\n" +
+  "Oceń dzisiejszy trening z notatki (dyktowana, mogą być błędy rozpoznawania mowy: odczytaj sens), wyniku (pole wynik), wysiłku i zdjęcia, a potem dopasuj najbliższe dni bloku. Struktury dni nie zmieniasz (formaty, rundy, kolejność, ćwiczenia zostają); zmieniasz tylko ciężar i powtórzenia pozycji z listy nadchodzących dni oraz warianty gimnastyczne (pole variants). Najwyżej jedna zmiana na pozycję i tylko taka, która wynika z dzisiejszego treningu.\n" +
   "Zasady: każda seria z zapasem 2–3 powtórzeń, technika kończy serię. Klasyczny ciężki dzień (format jak 5-5-5-5-5 albo 3-3-3-3-3, ciężar w planie to pierwsza seria robocza): w polu done podaj najcięższą serię, którą zrobił; następny ciężki dzień tego samego boju zacznij wyżej, gdy dziś ostatnia seria była łatwa, a niżej albo tak samo, gdy technika się sypała. Heavy @ HR: ciężar ma być ciężki, ale do zrobienia seriami; gdy rozbijał na pojedyncze powtórzenia albo długo stał, niżej. " +
-  "Wysiłek porównuj z planowanym: wyższy o 2 i więcej albo zmęczenie w notatce: odciąż najbliższe dni, które obciążają tę samą część ciała, a zwłaszcza piątek; niższy o 2 i więcej przy dobrej technice: możesz podnieść. Czas (pole czas: cały trening z Warm-up) porównuj z szacunkiem (pole szacunek); 45 min to sufit, nie cel. " +
+  "Wysiłek porównuj z planowanym: wyższy o 2 i więcej albo zmęczenie w notatce: odciąż najbliższe dni, które obciążają tę samą część ciała, a zwłaszcza piątek; niższy o 2 i więcej przy dobrej technice: możesz podnieść. Miara zależy od formatu (pole format), nie od czasu trwania. AMRAP trwa tyle, ile mówi format, więc miarą jest wykonana praca: pełne rundy i powtórzenia; porównuj je z poprzednimi AMRAP-ami. EMOM też ma stały czas i stałą liczbę powtórzeń na początku każdej minuty: liczy się, czy każda minuta była zrobiona i ile odpoczynku zostawało (z notatki); gdy nie zdążał, mniej powtórzeń albo łatwiejszy wariant. Death by: wynikiem jest ostatnia pełna minuta N; w minucie n robi n powtórzeń, więc praca rośnie z każdą minutą (łącznie N(N+1)/2), a późne minuty ważą wielokrotnie więcej niż pierwsze; porównuj N i dokładkę, nie czas. For time: wynikiem jest czas samego treningu bez Warm-up. For time, or not: czas tylko wtedy, gdy go mierzył. Not for time: bez wyniku, oceniasz wysiłek (ma być niski) i notatkę. Interwały i części for time: liczą się czasy odcinków (przerwy nie), ich równość i spadek tempa. Steady: stały czas, miarą jest dystans i średnie tempo na 500 m przy niskim wysiłku. Klasyczny ciężki dzień: miarą są ciężary serii, czas nie ma znaczenia. Pole czasTrwania to długość samego treningu: stała z formatu albo szacunek; 45 min to sufit, nie cel. " +
   "Warianty (variants): przy łatwych seriach krok w górę po drabince danego slotu, przy trudnych w dół. Przy bólu stawu nie podnoś i dodaj w tekście, żeby skonsultował się z fizjoterapeutą, jeśli wraca. Bez głośnych ćwiczeń. Konkretne liczby, bez zakresów. " +
   "Sztanga: gryf 20 kg, bumpery, kody ciężaru bb + kg, od bb20 do bb127.5 co 2,5 kg; Deadlift zmieniaj co 5 kg, przysiady i wyciskania co 2,5 kg. Nazwy ćwiczeń i rodzajów sesji po angielsku (Strength, Conditioning, Heavy, Engine, rounds, reps), reszta po polsku, bez moralizowania i motywowania.\n";
 const VAR_SLOTS = ["row", "vpull", "push", "core"];
@@ -1030,7 +1089,7 @@ const Coach = {
   // Barbell load lists are long: one line instead of 44 codes.
   allowedText(group){ return JSON.stringify(this.allowed(group), (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v); },
   brief: x => ({data:x.date, rodzaj:kindLabel(x.kind), typ:x.block ? BLOCK_TITLE[x.block.type] : undefined, format:x.block ? x.block.parts.map(p => p.fmt).join(" | ") : undefined, planowanyWysilek:x.block ? x.block.effort : undefined,
-    plan:x.kind === "strength" && !x.block ? planOfSession(x) || undefined : undefined, rundy:x.block ? undefined : x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, notatka:x.note || "", czas:x.dur ? mmss(x.dur) : x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:x.rpe || undefined, szacunek:x.block ? x.block.min + " min" : x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
+    plan:x.kind === "strength" && !x.block ? planOfSession(x) || undefined : undefined, rundy:x.block ? undefined : x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, notatka:x.note || "", wynik:x.block ? scoreBrief(x) : undefined, czas:!x.block && x.dur ? mmss(x.dur) : !x.block && x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:x.rpe || undefined, czasTrwania:x.block ? blockTime(x.block) || "do pierwszej niezrobionej minuty" : undefined, szacunek:!x.block && x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
     pm5:x.pm5 ? pm5Text(x.pm5) + (x.pm5.parts && x.pm5.parts.length ? " | odcinki: " + x.pm5.parts.map(pm5Text).join("; ") : "") : undefined, cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), zamianaNaDzis:it.swap ? true : undefined}))}),
   upcoming(s){
     const out = [];
@@ -1385,7 +1444,7 @@ function doneScreen(s){
   return `<section class="screen">${head}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
-    ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (s.dur ? " · " + mmss(s.dur) : "") + (s.rpe ? " · wysiłek " + s.rpe + " (plan " + s.block.effort + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
+    ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (s.rpe ? " · wysiłek " + s.rpe + " (plan " + s.block.effort + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
     <section class="sec"><h2 class="sec-h">${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (s.rpe ? " · wysiłek " + s.rpe : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
       </section>`}
     ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
@@ -1429,8 +1488,8 @@ function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
-      ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o całym treningu: ciężary w seriach, rundy, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
-    ${strength ? timeCard(s) : ""}
+      ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o treningu: ciężary w seriach, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
+    ${s.block ? scoreCard(s) : strength ? timeCard(s) : ""}
     ${s.kind !== "mobility" ? effHtml(s.rpe, "note", s.block ? s.block.effort : null) : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
     ${s.kind !== "mobility" ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie po treningu"><span>Zdjęcie</span><button data-act="photo-del">Usuń</button></div>`
@@ -1443,7 +1502,23 @@ function tmOf(s){ if (!TM[s.id]) TM[s.id] = s.dur ? {m:String(Math.floor(s.dur /
 function tmSecs(t){ if (t.m === "") return null; const mm = +t.m, ss = t.s === "" ? 0 : +t.s; return ss < 60 && mm <= 90 && mm * 60 + ss > 0 ? mm * 60 + ss : null; }
 const tmBad = s => { const t = tmOf(s); return (t.m !== "" || t.s !== "") && tmSecs(t) == null; };
 const timeOk = s => s.kind !== "strength" || !s.timed || tmSecs(tmOf(s)) != null;
-const noteOk = s => timeOk(s) && (s.kind === "mobility" || s.rpe != null);
+const noteOk = s => (s.block ? scoreOk(s) : timeOk(s)) && (s.kind === "mobility" || s.rpe != null);
+// Score fields by format: rounds + reps, last full minute, time, interval times or distance. Times are typed as digits ("358" = 3:58).
+function scoreCard(s){
+  const t = scoreType(s); if (!t) return "";
+  const sc = s.score || {};
+  const num = (k, lab, w) => `<label><input data-sc="${k}" inputmode="numeric" pattern="[0-9]*" maxlength="${w}" autocomplete="off" placeholder="0" value="${sc[k] ?? ""}" aria-label="${lab}">${lab}</label>`;
+  const tim = (k, lab) => `<label><input data-sc="${k}" data-time="1" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off" placeholder="0:00" value="${sc[k] ? mmss(sc[k]) : ""}" aria-label="${lab}">${lab}</label>`;
+  const head = (a, b) => `<div class="lab-row"><span>${a}${b ? `<small>${b}</small>` : ""}</span></div>`;
+  let body;
+  if (t.k === "amrap") body = head("Wynik", "AMRAP " + t.min + " min") + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", "reps", 3)}</div>`;
+  else if (t.k === "deathby") body = head("Wynik", "Ostatnia pełna minuta") + `<div class="lab-ms">${num("min", "min", 2)}<b>+</b>${num("extra", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
+  else if (t.k === "fortime") body = head("Czas", "Bez Warm-up") + `<div class="lab-ms">${tim("time", "min:s")}</div>`;
+  else if (t.k === "ftornot") body = `<label class="lab-row"><span>Na czas<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-scft="1" ${sc.ft ? "checked" : ""} aria-label="Na czas"></label>` + (sc.ft ? `<div class="lab-ms">${tim("time", "min:s")}</div>` : "");
+  else if (t.k === "intervals") body = head("Czasy odcinków") + `<div class="lab-ms" style="flex-wrap:wrap">${[...Array(t.n)].map((_, i) => tim("t" + i, String(i + 1))).join("")}</div>`;
+  else if (t.k === "steady") body = head("Dystans") + `<div class="lab-ms">${num("dist", "m", 5)}</div>`;
+  return body ? `<div class="card">${body}</div>` : "";
+}
 function timeCard(s){
   const t = tmOf(s);
   return `<div class="card"><label class="lab-row"><span>Czas treningu<small>Z Warm-up</small></span><input type="checkbox" class="sw" data-timed="1" ${s.timed ? "checked" : ""} aria-label="Podaj czas treningu"></label>
@@ -1874,8 +1949,8 @@ function finishSession(){
   const had = reviewFor(s.id);
   if (!noteOk(s)) return;
   if (s.kind === "strength") s.dur = s.timed ? tmSecs(tmOf(s)) : null;
-  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0))){
-    s.reviewedDur = s.dur || 0;
+  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}"))){
+    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {});
     s.reviewedNote = s.note || "";
     commitSession(s);
     Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});
@@ -1972,6 +2047,13 @@ document.addEventListener("click", e => {
   }
 });
 document.addEventListener("input", e => {
+  if (e.target.dataset.sc){ const s = current(), sc = s.score || (s.score = {}), k = e.target.dataset.sc, el = e.target;
+    let d = el.value.replace(/\D/g, "");
+    if (el.dataset.time){ d = d.slice(0, 4); el.value = d.length > 2 ? d.slice(0, -2) + ":" + d.slice(-2) : d;
+      const sec = d.length > 2 ? +d.slice(-2) : +d, v = d.length > 2 ? +d.slice(0, -2) * 60 + sec : sec;
+      sc[k] = d && sec < 60 && v > 0 ? v : null; el.classList.toggle("bad", d !== "" && sc[k] == null); }
+    else { d = d.slice(0, +el.maxLength || 3); el.value = d; sc[k] = d === "" ? null : +d; }
+    commitSession(s, true); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); }
   if (e.target.dataset.note){ const s = current(); s.note = e.target.value; commitSession(s, true); }
   if (e.target.dataset.tm){ const s = current(), t = tmOf(s), k = e.target.dataset.tm; t[k] = e.target.value.replace(/\D/g, "").slice(0, 2); e.target.value = t[k];
     if (k === "m" && t.m.length === 2) $("#durS").focus();
@@ -1983,6 +2065,7 @@ document.addEventListener("change", e => {
   if (t.dataset.eq){ S.profile.equip[t.dataset.eq] = t.checked; commitProfile(); render(); }
   if (t.id === "importFile" && t.files && t.files[0]) importBackup(t.files[0]);
   if (t.id === "pm5File" && t.files && t.files[0]) takePhoto(t.files[0]);
+  if (t.dataset.scft){ const s = current(), sc = s.score || (s.score = {}); sc.ft = t.checked; if (!t.checked) sc.time = null; commitSession(s); render(); const i = $("[data-sc=time]"); if (i) i.focus(); }
   if (t.dataset.timed){ const s = current(); s.timed = t.checked; s.dur = s.timed ? tmSecs(tmOf(s)) : null; commitSession(s); render(); if (s.timed) $("#durM").focus(); }
 });
 // Swipe the week strip left/right to change week.
