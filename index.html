@@ -371,7 +371,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-13.7";
+const APP_VERSION = "2026-11-14.1";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -932,7 +932,7 @@ function dayCardsHtml(date){
     else sub = estText("strength", dayPlanItems(day && day.kind === "strength" ? day : {date, kind:"strength", plan:null}), S.profile.rounds, finFor(date));
     out.push(card("strength", "Strength", sub, st, past && !isDone(st)));
   }
-  if (isDone(cs) || (!past && condDay && !strengthDay) || (isToday && !strengthDay)){
+  if (isDone(cs) || (!past && condDay && !strengthDay)){
     const ck = condKey(date), sl = slotByKey(ck);
     const cb = blockFor(date, "cond"), sub = isDone(cs) ? doneSub(cs) : cb ? [BLOCK_SUB[cb.type], blockTime(cb)].filter(Boolean).join(" · ") : sl ? estText("cond", [sl]) : "";
     out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
@@ -1952,6 +1952,7 @@ function render(){
   const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "detail" ? (S.sessions[S.detail?.id] ? doneScreen(S.sessions[S.detail.id]) : renderHome()) : v === "plan" ? planScreen(S.detail.date, S.detail.kind) : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
     : v === "settings" ? renderSettings() : renderPrep();
   $("#app").innerHTML = html;
+  S.shownDay = today();
   fitDayTitle();
   renderSheet();
   bindEff();
@@ -1963,6 +1964,19 @@ function fitDayTitle(){
 }
 window.addEventListener("resize", fitDayTitle);
 function go(view){ S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
+// Opening the app shows today: always after the date changed, and after a break of 30 min or more unless a workout or its note is open.
+let hiddenAt = 0;
+function backToToday(force){
+  if (!force && (S.view === "prep" || S.view === "note")) return;
+  Object.assign(S, {view:"home", sel:null, weekOff:0, sheet:null, kind:null}); render(); window.scrollTo(0, 0);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden){ hiddenAt = Date.now(); return; }
+  if (!S.loaded) return;
+  if (S.shownDay && S.shownDay !== today()) backToToday(true);
+  else if (hiddenAt && Date.now() - hiddenAt >= 30 * 60000) backToToday(false);
+});
+setInterval(() => { if (S.loaded && !document.hidden && S.shownDay && S.shownDay !== today()) backToToday(true); }, 60000);
 
 /* ---------- actions ---------- */
 function setItem(s, it, patch, variant = false){
