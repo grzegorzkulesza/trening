@@ -772,7 +772,7 @@ function scoreText(s){
   const t = scoreType(s), sc = s.score || {};
   if (!t) return "";
   if (t.k === "amrap") return sc.rounds != null ? roundsText(sc.rounds) + (sc.reps ? " + " + sc.reps : "") : "";
-  if (t.k === "deathby") return sc.rounds != null ? roundsText(sc.rounds) + (sc.reps ? " + " + sc.reps + (/calor/i.test(s.block.parts[0].fmt) ? " cal" : "") : "") : "";
+  if (t.k === "deathby") return sc.rounds != null ? sc.rounds + " min" + (sc.reps ? " + " + sc.reps + (/calor/i.test(s.block.parts[0].fmt) ? " cal" : "") : "") : "";
   if (t.k === "fortime" || t.k === "ftornot") return sc.time ? mmss(sc.time) : "";
   if (t.k === "intervals") return [...Array(t.n)].map((_, i) => sc["t" + i]).filter(Boolean).map(mmss).join(" · ");
   if (t.k === "steady") return sc.dist ? sc.dist + " m" : "";
@@ -1582,7 +1582,7 @@ function scoreCard(s){
   const head = (a, b) => `<div class="lab-row"><span>${a}${b ? `<small>${b}</small>` : ""}</span></div>`;
   let body;
   if (t.k === "amrap") body = head("Wynik", "AMRAP " + t.min + " min") + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", "reps", 3)}</div>`;
-  else if (t.k === "deathby") body = head("Wynik", esc(s.block.parts[0].fmt)) + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
+  else if (t.k === "deathby") body = head("Wynik", esc(s.block.parts[0].fmt)) + `<div class="lab-ms">${num("rounds", "min", 2)}<b>+</b>${num("reps", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
   else if (t.k === "fortime") body = head("Czas", "Bez Warm-up") + `<div class="lab-ms">${tim("time", "min:s")}</div>`;
   else if (t.k === "ftornot") body = `<label class="lab-row"><span>Na czas<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-scft="1" ${sc.ft ? "checked" : ""} aria-label="Na czas"></label>` + (sc.ft ? `<div class="lab-ms">${tim("time", "min:s")}</div>` : "");
   else if (t.k === "intervals") body = head("Czasy odcinków") + `<div class="lab-ms" style="flex-wrap:wrap">${[...Array(t.n)].map((_, i) => tim("t" + i, String(i + 1))).join("")}</div>`;
