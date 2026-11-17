@@ -662,7 +662,7 @@ function mergeProfile(p){
 }
 
 /* ---------- state ---------- */
-const S = {profile:defaultProfile(), sessions:{}, reviews:{}, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false, reviewing:null, reviewErr:null};
+const S = {profile:defaultProfile(), sessions:{}, reviews:{}, previews:{}, previewing:false, kind:null, view:"home", sheet:null, loaded:false, busy:false, syncErr:null, notice:null, pending:{}, micHint:false, reviewing:null, reviewErr:null};
 const slotsOf = g => S.profile.slots.filter(s => s.group === g);
 const bbOn = () => eqOk("barbell");
 const otherPlan = p => p === "A" ? "B" : "A";
@@ -1395,6 +1395,28 @@ const Sync = {
     if (got && !relay) { await this.pull(); redraw(); }
     else if (this.q.size) await this.flush();
   },
+  // Preview: the current prompt run on an already reviewed session. Nothing is applied, saved or synced.
+  async preview(id){
+    const s = S.sessions[id]; if (!this.url || !s) return;
+    const photo = photoOf(id);
+    const body = {sessions:[this.row(s)], review:id, force:true, claude:{prompt:Coach.prompt(s, null, !!photo), effort:"medium", model:COACH_MODEL}};
+    if (photo) body.claude.images = [{media_type:"image/jpeg", data:photo.split(",")[1]}];
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 150000);
+    try {
+      const res = await fetch(this.url, {method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body:JSON.stringify(body), signal:ctrl.signal});
+      const j = await res.json(); if (!j.ok || !j.claude || j.claude.error) throw new Error((j.claude && j.claude.error) || j.error || "brak odpowiedzi");
+      const out = Coach.parse(j.claude.text); if (!out) throw new Error("nieczytelna odpowiedź");
+      const ch = [].concat((out.next || []).map(c => ddmm(String(c.date)) + " " + c.key + " " + c.load + " × " + c.reps), (out.variants || []).map(c => c.slot + " → " + c.ex));
+      S.previews[id] = {title:String(out.title || ""), text:String(out.text || ""), changes:ch.join("; ")};
+    } catch(e){ S.previews[id] = {title:"Błąd", text:String(e.message || e), changes:""}; }
+    clearTimeout(timer);
+  },
+  async previewAll(){
+    if (S.previewing) return; S.previewing = true; S.previews = {}; render();
+    const ids = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && x.kind !== "mobility" && S.reviews[x.id]).sort((a, b) => a.date.localeCompare(b.date)).map(x => x.id);
+    for (const id of ids){ await this.preview(id); render(); }
+    S.previewing = false; render();
+  },
   planText(){ const blk = [];
     for (let i = 0; i < 14; i++){ const date = addDays(today(), i), b = blockDay(date); if (b) blk.push(["Blok " + ddmm(date) + ": " + BLOCK_TITLE[b.type] + " · " + b.parts.map(p => p.fmt).join(" | "), blockItems(date).map(it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps)).join("; ")]); }
     return blk.concat(this.planText0()); },
@@ -1894,6 +1916,9 @@ function renderSettings(){
       : `<p class="note">Wklej adres aplikacji internetowej z Apps Script (kończy się na /exec). Dane będą zapisywać się w arkuszu na Twoim Dysku.</p>
          <input class="input" id="syncUrl" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" aria-label="Adres synchronizacji">
          ${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}<button class="btn outline" data-act="sync-on" ${S.busy ? "disabled" : ""}>${S.busy ? "Łączę…" : "Połącz"}</button>`}</section>
+    ${Sync.url ? `<section class="sec"><h2 class="sec-h">Podgląd ocen</h2><p class="note">Przelicza oceny wszystkich zapisanych treningów obecnymi zasadami. Nic nie zmienia w planie ani w arkuszu.</p>
+      <button class="btn outline" data-act="preview-all" ${S.previewing ? "disabled" : ""}>${S.previewing ? "Liczę…" : "Przelicz oceny"}</button>
+      ${Object.keys(S.previews || {}).sort().map(id => { const r = S.previews[id], old = S.reviews[id]; return `<div class="card" style="padding:14px 16px;margin-top:10px"><p class="kicker" style="margin:0">${esc(shortDate(String(id).slice(0, 10)))}${/cond/.test(id) ? " · cond" : ""}</p><p style="margin:4px 0;font-weight:600">${esc(r.title)}</p>${r.text ? `<p style="margin:4px 0">${esc(r.text)}</p>` : ""}${r.changes ? `<p class="note" style="margin:4px 0">Zmiany: ${esc(r.changes)}</p>` : ""}${old ? `<p class="note" style="margin:8px 0 0;opacity:.7">Było: ${esc(old.title || "")}</p>` : ""}</div>`; }).join("")}</section>` : ""}
     <section class="sec"><h2 class="sec-h">Dane</h2><p class="note">${Sync.url ? "Dane są w telefonie i w arkuszu." : "Wszystko jest zapisane tylko w tej aplikacji na tym telefonie. Usunięcie ikony z ekranu głównego usuwa też dane."} ${backupAgeDays() === null ? "Nie masz jeszcze kopii zapasowej." : "Ostatnia kopia: " + (backupAgeDays() === 0 ? "dziś" : backupAgeDays() + " " + plural(backupAgeDays(), "dzień", "dni", "dni") + " temu") + "."}</p>
       <button class="btn outline" data-act="backup">Zapisz kopię zapasową</button>
       <label class="btn plain" for="importFile" style="cursor:pointer">Wczytaj kopię zapasową</label><input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -2094,6 +2119,7 @@ document.addEventListener("click", e => {
     case "photo-del": setPhoto(current().id, null); render(); break;
     case "finish": finishSession(); break;
     case "review": Sync.retryReview(); break;
+    case "preview-all": Sync.previewAll(); break;
     case "seen": try { localStorage.setItem("trening:seen-review", b.dataset.id); } catch(e2){} render(); break;
     case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
     case "set-variant": { const it = editIt(); if (!it) return; const ex = EX[b.dataset.ex]; if (!ex || ex.id === it.ex) return;
