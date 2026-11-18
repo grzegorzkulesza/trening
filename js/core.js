@@ -274,12 +274,12 @@ function warmupFor(items){
 
 const MIG = 4; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026); 4: longer mobility
 function defaultProfile(){
-  return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null, over:{}};
+  return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], mobSchedule:[0,1,2,3,4,5,6], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null, over:{}};
 }
 function mergeProfile(p){
   const d = defaultProfile();
   if (!p || typeof p !== "object") return d;
-  const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, condSchedule:Array.isArray(p.condSchedule) ? p.condSchedule : d.condSchedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
+  const out = {...d, schedule:Array.isArray(p.schedule) ? p.schedule : d.schedule, condSchedule:Array.isArray(p.condSchedule) ? p.condSchedule : d.condSchedule, mobSchedule:Array.isArray(p.mobSchedule) ? p.mobSchedule : d.mobSchedule, rounds:p.rounds || d.rounds, rest:p.rest || d.rest,
     warmStart:p.warmStart || d.warmStart, equip:{...d.equip, ...(p.equip || {})}, custom:p.custom || {}, analysis:p.analysis || null, over:p.over && typeof p.over === "object" ? p.over : {}, finStart:p.finStart || null, finMax:p.finMax || 10, lastBackup:p.lastBackup || null, updatedAt:p.updatedAt || 0, v:2, mig:MIG};
   if ((p.mig || 0) < 1) out.equip.barbell = true;
   if (p.v === 2 && Array.isArray(p.slots)){

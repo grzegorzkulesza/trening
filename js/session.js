@@ -92,7 +92,9 @@ function dayCardsHtml(date){
     const cb = blockFor(date, "cond"), sub = isDone(cs) ? doneSub(cs) : cb ? [BLOCK_SUB[cb.type], blockTime(cb)].filter(Boolean).join(" · ") : sl ? estText("cond", [sl]) : "";
     out.push(card("cond", "Conditioning", sub, cs, false, !condDay && !isDone(cs)));
   }
-  out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "" : estText("mobility", slotsOf("mobility")), mb, false));
+  const mobDay = (S.profile.mobSchedule || [0,1,2,3,4,5,6]).includes(w);
+  // Mobility on its days; on other days only today, as optional, so it can still be done.
+  if (isDone(mb) || mobDay || isToday) out.push(card("mobility", "Mobility", isDone(mb) ? "Zrobione." : past ? "" : estText("mobility", slotsOf("mobility")), mb, false, !mobDay && !isDone(mb)));
   return `<div class="day-list">${out.join("")}</div>`;
 }
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return ymd(d); };

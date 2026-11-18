@@ -214,6 +214,7 @@ document.addEventListener("click", e => {
     }
     case "rounds": { const r = Math.max(1, Math.min(5, s.rounds + Number(b.dataset.d))); s.rounds = r; S.profile.rounds = r; commitProfile(); commitSession(s); render(); break; }
     case "mic": { S.micHint = true; render(); const t = $("#sessionNote"); if (t) t.focus(); break; }
+    case "mday": { const d = Number(b.dataset.d), sc = S.profile.mobSchedule || [0,1,2,3,4,5,6]; S.profile.mobSchedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "cday": { const d = Number(b.dataset.d), sc = S.profile.condSchedule || []; S.profile.condSchedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "day": { const d = Number(b.dataset.d), sc = S.profile.schedule; S.profile.schedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
     case "backup": backup(b); break;

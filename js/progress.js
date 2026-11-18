@@ -239,11 +239,12 @@ function coverageData(){
   const first = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done").map(x => x.date).sort()[0] || to;
   const from = ymd(f) > first ? ymd(f) : first, days = Math.round((parseYmd(to) - parseYmd(from)) / 86400000) + 1;
   const done = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && x.date >= from && x.date <= to);
-  let planS = 0, planC = 0;
+  let planS = 0, planC = 0, planM = 0;
   for (let i = 0; i < days; i++){ const d = new Date(); d.setDate(d.getDate() - i); const w = d.getDay();
-    if (S.profile.schedule.includes(w)) planS++; else if ((S.profile.condSchedule || []).includes(w)) planC++; }
+    if (S.profile.schedule.includes(w)) planS++; else if ((S.profile.condSchedule || []).includes(w)) planC++;
+    if ((S.profile.mobSchedule || [0,1,2,3,4,5,6]).includes(w)) planM++; }
   const cnt = k => done.filter(x => x.kind === k).length;
-  const reg = [{n:"Strength", done:cnt("strength"), plan:planS, unit:"treningów"}, {n:"Mobility", done:cnt("mobility"), plan:days, unit:"dni"}, {n:"Conditioning", done:cnt("cond"), plan:planC, unit:"sesji"}];
+  const reg = [{n:"Strength", done:cnt("strength"), plan:planS, unit:"treningów"}, {n:"Mobility", done:cnt("mobility"), plan:planM, unit:"dni"}, {n:"Conditioning", done:cnt("cond"), plan:planC, unit:"sesji"}];
   const mins = {W:0, G:0, M:0};
   for (const x of done){
     for (const it of x.items || []){ const ex = exOf(it.ex); if (ex.pattern === "shoulder" || x.kind === "mobility") continue;
@@ -290,6 +291,8 @@ function renderSettings(){
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Dni Conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">W bloku treść każdego dnia wynika z kalendarza bloku. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
+    <section class="sec"><h2 class="sec-h">Dni Mobility</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.mobSchedule || [0,1,2,3,4,5,6]).includes(d) ? "on" : ""}" data-act="mday" data-d="${d}" aria-pressed="${(p.mobSchedule || [0,1,2,3,4,5,6]).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
+      <p class="note">W inne dni Mobility i tak możesz zrobić dziś, jako opcjonalne.</p></section>
     <section class="sec"><h2 class="sec-h">Wygląd</h2><div class="choices" style="grid-template-columns:1fr 1fr 1fr">${[["auto", "Jak telefon"], ["light", "Jasny"], ["dark", "Ciemny"]].map(([v, n]) => `<button class="choice ${themeOf() === v ? "on" : ""}" data-act="theme" data-v="${v}" aria-pressed="${themeOf() === v}">${n}</button>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
