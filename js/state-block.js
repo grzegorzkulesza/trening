@@ -46,21 +46,21 @@ const BLOCK = {id:"b1", start:"2026-11-13", end:"2026-12-13", days:{
   "2026-11-18":{type:"heavy", effort:3, min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-strict-press","bb20",5]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
   "2026-11-19":{type:"cond", effort:2, min:30, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",750],["air-squat","bw",15],["@core","bw",15]]}]},
   "2026-11-20":{type:"workout", effort:3, min:10, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
-  "2026-11-23":{type:"hr", effort:4, min:15, parts:[{fmt:"3 intervals for time · przerwa 3:00", items:[["bb-dl","bb40",10],["row-m","bw",500]]}]},
+  "2026-11-23":{type:"heavy", effort:4, min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb60",5]]}]},
   "2026-11-24":{type:"engine", effort:3, min:20, parts:[{fmt:"3 × 1000 m · przerwa 3:00", items:[["row-m","bw",1000]]}]},
-  "2026-11-25":{type:"heavy", effort:3, min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb30",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
-  "2026-11-26":{type:"cond", effort:2, min:20, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["kb-swing","kb16",12],["@core","bw",12]]}]},
-  "2026-11-27":{type:"workout", effort:3, min:15, parts:[{fmt:"AMRAP 15 min", items:[["goblet-sq","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
-  "2026-11-30":{type:"heavy", effort:4, min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb50",5]]}]},
+  "2026-11-25":{type:"heavy", effort:3, min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb35",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",2],["ring-row-box","bw",5]]}]},
+  "2026-11-26":{type:"cond", effort:2, min:25, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["farmer-carry","db15x2",40]]}]},
+  "2026-11-27":{type:"workout", effort:3, min:15, parts:[{fmt:"AMRAP 15 min", items:[["kb-swing","kb20",10],["@row","bw",8],["@push","bw",6]]}]},
+  "2026-11-30":{type:"heavy", effort:4, min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-back-squat","bb50",5]]}]},
   "2026-12-01":{type:"engine", effort:4, min:20, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
-  "2026-12-02":{type:"heavy", effort:3, min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-strict-press","bb25",3]]}, {fmt:"Potem EMOM 8 min", items:[["@vpull","bw",3]]}]},
-  "2026-12-03":{type:"cond", effort:2, min:20, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["kb-swing","kb16",15]]}]},
-  "2026-12-04":{type:"workout", effort:3, min:10, parts:[{fmt:"5 rounds for time, or not", items:[["goblet-sq","kb16",10],["@row","bw",8],["@core","bw",12]]}]},
-  "2026-12-07":{type:"hr", effort:4, min:10, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb27.5",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb27.5",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb27.5",10],["@core","bw",20]]}]},
-  "2026-12-08":{type:"engine", effort:3, min:20, parts:[{fmt:"3 × 800 m · przerwa wg potrzeby", items:[["run-m","bw",800]]}]},
-  "2026-12-09":{type:"heavy", effort:3, min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-push-press","bb35",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
+  "2026-12-02":{type:"heavy", effort:3, min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-strict-press","bb30",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",2],["ring-row-box","bw",5]]}]},
+  "2026-12-03":{type:"cond", effort:2, min:25, parts:[{fmt:"4 rounds, not for time", items:[["row-m","bw",1000],["suitcase-carry","kb16",20]]}]},
+  "2026-12-04":{type:"workout", effort:3, min:12, parts:[{fmt:"5 rounds for time, or not", items:[["bss","kb8",5],["@row","bw",8],["@push","bw",8]]}]},
+  "2026-12-07":{type:"hr", effort:4, min:10, parts:[{fmt:"Część 1, for time", items:[["bb-front-squat","bb30",10],["row-cal","bw",12]]}, {fmt:"Część 2, for time · po 3:00 przerwy", items:[["bb-front-squat","bb30",10],["@push","bw",10]]}, {fmt:"Część 3, for time · po 3:00 przerwy", items:[["bb-front-squat","bb30",10],["@core","bw",20]]}]},
+  "2026-12-08":{type:"engine", effort:4, min:20, parts:[{fmt:"10 × 125 m · pełna przerwa", items:[["row-m","bw",125]]}]},
+  "2026-12-09":{type:"heavy", effort:3, min:25, parts:[{fmt:"3-3-3-3-3", items:[["bb-push-press","bb40",3]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",3]]}]},
   "2026-12-10":{type:"cond", effort:2, min:40, parts:[{fmt:"Steady", items:[["row-steady","bw",40]]}]},
-  "2026-12-11":{type:"workout", effort:3, min:20, parts:[{fmt:"AMRAP 20 min", items:[["row-m","bw",250],["goblet-sq","kb16",10],["kb-swing","kb16",10],["@row","bw",8]]}]}
+  "2026-12-11":{type:"workout", effort:3, min:20, parts:[{fmt:"AMRAP 20 min", items:[["row-m","bw",250],["kb-swing","kb20",10],["@row","bw",8],["@push","bw",8]]}]}
 }};
 const SLOT_EX = {row:"ring-row", vpull:"band-pullup", push:"pushup", core:"abmat-situp"};
 const blockDay = date => BLOCK.days[date] || null;
