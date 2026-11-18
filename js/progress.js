@@ -175,10 +175,10 @@ function overallSeries(H){
 function levelChart(points, label){
   const pts = points.slice(-8), n = pts.length, y = v => 78 - v / 100 * 70;
   const xs = pts.map((_, i) => n === 1 ? 162 : Math.round(44 + i * (236 / (n - 1))));
-  const grid = [0, 50, 100].map(t => `<line x1="30" y1="${y(t)}" x2="302" y2="${y(t)}" stroke="#EEEDE8" stroke-width="1"/><text x="0" y="${y(t) + 4}" font-size="11" fill="#6B6B67">${t}</text>`).join("");
-  const labels = pts.map((p, i) => n <= 5 || i % 2 === (n - 1) % 2 ? `<text x="${xs[i]}" y="102" text-anchor="middle" font-size="11" fill="#6B6B67">${ddmm(p.date)}</text>` : "").join("");
-  const line = n > 1 ? `<polyline points="${pts.map((p, i) => xs[i] + "," + y(p.level).toFixed(1)).join(" ")}" fill="none" stroke="#121212" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
-  return `<svg viewBox="0 0 302 108" role="img" aria-label="${esc(label + ": " + pts.map(p => p.level).join(", "))}">${grid}${line}${n ? `<circle cx="${xs[n - 1]}" cy="${y(pts[n - 1].level).toFixed(1)}" r="4" fill="#121212"/>` : ""}${labels}</svg>`;
+  const grid = [0, 50, 100].map(t => `<line x1="30" y1="${y(t)}" x2="302" y2="${y(t)}" style="stroke:var(--line)" stroke-width="1"/><text x="0" y="${y(t) + 4}" font-size="11" style="fill:var(--muted)">${t}</text>`).join("");
+  const labels = pts.map((p, i) => n <= 5 || i % 2 === (n - 1) % 2 ? `<text x="${xs[i]}" y="102" text-anchor="middle" font-size="11" style="fill:var(--muted)">${ddmm(p.date)}</text>` : "").join("");
+  const line = n > 1 ? `<polyline points="${pts.map((p, i) => xs[i] + "," + y(p.level).toFixed(1)).join(" ")}" fill="none" style="stroke:var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : "";
+  return `<svg viewBox="0 0 302 108" role="img" aria-label="${esc(label + ": " + pts.map(p => p.level).join(", "))}">${grid}${line}${n ? `<circle cx="${xs[n - 1]}" cy="${y(pts[n - 1].level).toFixed(1)}" r="4" style="fill:var(--ink)"/>` : ""}${labels}</svg>`;
 }
 const deltaChip = d => d ? `<span class="chip-d ${d < 0 ? "down" : ""}">${d > 0 ? "+" : "−"}${Math.abs(d)}</span>` : "";
 const barHtml = v => `<span class="bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>`;
@@ -271,9 +271,9 @@ function coverageData(){
 }
 function renderCoverage(){
   const c = coverageData();
-  const ICON_OK = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="pokryte"><path d="M5 12l5 5L20 7"/></svg>`;
-  const ICON_PART = `<svg width="20" height="20" viewBox="0 0 24 24" role="img" aria-label="częściowo"><circle cx="12" cy="12" r="8" fill="none" stroke="#9A9A94" stroke-width="2.5"/><path d="M12 4a8 8 0 0 1 0 16" fill="#9A9A94"/></svg>`;
-  const ICON_NO = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9A9A94" stroke-width="2.5" stroke-linecap="round" role="img" aria-label="brak"><path d="M6 12h12"/></svg>`;
+  const ICON_OK = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="stroke:var(--ink)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="pokryte"><path d="M5 12l5 5L20 7"/></svg>`;
+  const ICON_PART = `<svg width="20" height="20" viewBox="0 0 24 24" role="img" aria-label="częściowo"><circle cx="12" cy="12" r="8" fill="none" style="stroke:var(--faint)" stroke-width="2.5"/><path d="M12 4a8 8 0 0 1 0 16" fill="#9A9A94"/></svg>`;
+  const ICON_NO = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="stroke:var(--faint)" stroke-width="2.5" stroke-linecap="round" role="img" aria-label="brak"><path d="M6 12h12"/></svg>`;
   return `<section class="screen">${backHead("Pokrycie")}<p class="lead" style="margin-top:-8px">${c.days < 28 ? "Od pierwszego treningu, " + c.days + " " + plural(c.days, "dzień", "dni", "dni") : "Ostatnie 4 tygodnie"}</p>
     <section class="sec"><h2 class="sec-h">Regularność</h2><div class="card">${c.reg.map(r => `<div class="cat"><span class="cat-top"><span class="n">${r.n}</span><span class="s">${r.done} z ${r.plan} ${r.unit}</span></span>${barHtml(r.plan ? r.done / r.plan * 100 : 0)}</div>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Modality</h2><div class="lvl">
@@ -290,7 +290,7 @@ function renderSettings(){
       <p class="note">Opuszczony trening po prostu pomijasz. Aplikacja go nie przenosi.</p></section>
     <section class="sec"><h2 class="sec-h">Dni Conditioning</h2><div class="days">${[1,2,3,4,5,6,0].map(d => `<button class="choice ${(p.condSchedule || []).includes(d) ? "on" : ""}" data-act="cday" data-d="${d}" aria-pressed="${(p.condSchedule || []).includes(d)}">${DAYS_SHORT[d]}</button>`).join("")}</div>
       <p class="note">W bloku treść każdego dnia wynika z kalendarza bloku. W inne dni bez Strength Conditioning też jest dostępny.</p></section>
-    <section class="sec"><h2 class="sec-h">Skórka</h2><div class="choices" style="grid-template-columns:1fr 1fr">${[["1", "Jasna"], ["2", "Sportowa"]].map(([v, n]) => `<button class="choice ${skinOf() === v ? "on" : ""}" data-act="skin" data-v="${v}" aria-pressed="${skinOf() === v}">${n}</button>`).join("")}</div></section>
+    <section class="sec"><h2 class="sec-h">Wygląd</h2><div class="choices" style="grid-template-columns:1fr 1fr 1fr">${[["auto", "Jak telefon"], ["light", "Jasny"], ["dark", "Ciemny"]].map(([v, n]) => `<button class="choice ${themeOf() === v ? "on" : ""}" data-act="theme" data-v="${v}" aria-pressed="${themeOf() === v}">${n}</button>`).join("")}</div></section>
     <section class="sec"><h2 class="sec-h">Arkusz Google</h2>${Sync.url
       ? `<p class="note">Połączono. Każda sesja i zmiana planu trafia do arkusza.${Sync.last ? " Ostatnia synchronizacja: " + new Date(Sync.last).toLocaleTimeString("pl-PL", {hour:"2-digit", minute:"2-digit"}) + "." : ""}${Sync.q.size ? " Czeka na wysłanie: " + Sync.q.size + "." : ""}</p>${Sync.err ? `<p class="banner">${esc(Sync.err)}</p>` : ""}
          <button class="btn outline" data-act="sync-now">Synchronizuj teraz</button><button class="btn plain" data-act="sync-off">Odłącz arkusz</button>`

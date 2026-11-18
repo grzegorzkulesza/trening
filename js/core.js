@@ -1,9 +1,15 @@
 "use strict";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
-const KEY_SKIN = "trening:skin";
-function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
-function applySkin(v){ document.documentElement.classList.toggle("skin2", v === "2"); const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = v === "2" ? "#FFFFFF" : "#F5F4F0"; }
-applySkin(skinOf());
+// Look: the sport skin only. Light or dark follows the phone unless set in Settings (kept on this phone only).
+const KEY_THEME = "trening:theme";
+const skinOf = () => "2";
+const DARK_MQ = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+function themeOf(){ try { const v = localStorage.getItem(KEY_THEME); return v === "light" || v === "dark" ? v : "auto"; } catch(e){ return "auto"; } }
+function applyTheme(){ const t = themeOf(), dark = t === "dark" || (t === "auto" && !!(DARK_MQ && DARK_MQ.matches));
+  const h = document.documentElement; h.classList.add("skin2"); h.classList.toggle("dark", dark);
+  const m = document.querySelector('meta[name="theme-color"]'); if (m) m.content = dark ? "#000000" : "#FFFFFF"; }
+applyTheme();
+if (DARK_MQ) (DARK_MQ.addEventListener ? DARK_MQ.addEventListener("change", applyTheme) : DARK_MQ.addListener(applyTheme));
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -18,12 +24,12 @@ const dayLabel = d => cap(DAYS[d.getDay()]) + ", " + d.getDate() + " " + MONTHS[
 const shortDate = s => { const d = parseYmd(s); return DAYS_SHORT[d.getDay()]+" "+d.getDate()+"."+(d.getMonth()+1); };
 const plural = (n, one, few, many) => n === 1 ? one : (n%10 >= 2 && n%10 <= 4 && (n%100 < 10 || n%100 >= 20)) ? few : many;
 const roundsText = n => n + " " + (n === 1 ? "round" : "rounds");
-const CHEV = `<svg class="chev" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9A9A95" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>`;
-const XICON = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>`;
-const BACK = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>`;
-const GEAR = `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#121212" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`;
-const DOTS = `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="#121212"><circle cx="3.5" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="14.5" cy="9" r="1.6"/></svg>`;
-const MIC = `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="1.5" width="6" height="10" rx="3"/><path d="M3 8.5a6 6 0 0 0 12 0M9 14.5v2.5"/></svg>`;
+const CHEV = `<svg class="chev" aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>`;
+const XICON = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13"/></svg>`;
+const BACK = `<svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3L5 8l5 5"/></svg>`;
+const GEAR = `<svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`;
+const DOTS = `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="3.5" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="14.5" cy="9" r="1.6"/></svg>`;
+const MIC = `<svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="1.5" width="6" height="10" rx="3"/><path d="M3 8.5a6 6 0 0 0 12 0M9 14.5v2.5"/></svg>`;
 
 /* ---------- equipment & loads ---------- */
 const EQUIP = [

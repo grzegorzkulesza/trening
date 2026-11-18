@@ -186,7 +186,7 @@ document.addEventListener("click", e => {
     case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
     case "wk-today": S.weekOff = 0; S.sel = null; render(); break;
-    case "skin": try { localStorage.setItem(KEY_SKIN, b.dataset.v); } catch(e2){} applySkin(b.dataset.v); render(); break;
+    case "theme": try { if (b.dataset.v === "auto") localStorage.removeItem(KEY_THEME); else localStorage.setItem(KEY_THEME, b.dataset.v); } catch(e2){} applyTheme(); render(); break;
     case "back-prep": if (S.editId){ S.detail = {id:S.editId}; S.editId = null; go("detail"); } else go("prep"); break;
     case "edit-done": S.editId = b.dataset.id; go("note"); break;
     case "note": go("note"); break;
