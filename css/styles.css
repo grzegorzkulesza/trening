@@ -67,7 +67,7 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .fmt-h span{font-size:15px;color:var(--muted)}
 .fmt-sep{display:flex;align-items:center;gap:12px;margin:-6px 0;font-size:14px;color:var(--muted)}
 .fmt-sep i{flex:1;height:1px;background:var(--line)}
-.wk-arrows .wk-today{width:auto;height:32px;padding:0 14px;margin-right:6px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;align-self:center}
+.wk-arrows .wk-today{margin-right:4px}
 .wk-strip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
 .wk-c{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;padding:2px 0;color:inherit;min-width:0}
 .wk-c .l{font-size:13px;font-weight:500;color:var(--muted)}
@@ -339,7 +339,7 @@ html.skin2 .wk-c .dot{border-radius:0}
 html.skin2 .wk-c .dot.done{background:var(--ink)}
 html.skin2 .wk-c.on .dot.done{background:var(--on-ink)}
 html.skin2 .wk-arrows button{border-radius:0}
-html.skin2 .wk-arrows .wk-today{border-radius:0;background:var(--ink);color:var(--on-ink);text-transform:uppercase;letter-spacing:.06em;font-size:12px;font-weight:700}
+html.skin2 .wk-arrows .wk-today{color:var(--hot)}
 html.skin2 .icon-btn{border-radius:0;background:var(--surface)}
 html.skin2 .btn{border-radius:0;height:60px;font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;font-size:24px;text-transform:uppercase;letter-spacing:.04em}
 html.skin2 .btn.plain{font-family:Inter,sans-serif;font-size:15px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
@@ -386,7 +386,6 @@ html.skin2.dark .wk-c.on .n{background:var(--raised);color:var(--ink);box-shadow
 html.skin2.dark .wk-c.today .n{color:var(--hot)}
 html.skin2.dark .wk-c.on.today .n{box-shadow:inset 0 0 0 2px var(--hot)}
 html.skin2.dark .wk-c.on .dot.done,html.skin2.dark .wk-c .dot.done{background:var(--ink)}
-html.skin2.dark .wk-arrows .wk-today{background:var(--hot);color:#FFFFFF}
 html.skin2.dark .icon-btn{background:var(--surface);color:var(--ink)}
 html.skin2.dark .btn.outline{border-color:var(--ink);color:var(--ink)}
 html.skin2.dark .pf,html.skin2.dark .lab-ms input,html.skin2.dark .field,html.skin2.dark .input{background:var(--bg);box-shadow:inset 0 0 0 1px var(--rule)}
