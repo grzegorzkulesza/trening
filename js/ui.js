@@ -275,3 +275,10 @@ document.addEventListener("touchend", e => {
 }, {passive:true});
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ S.sheet = null; renderSheet(); } });
 
+// Number fields: the whole value is selected on tap, so typing replaces it and one Backspace clears it.
+// A second tap on a field that already has focus places the cursor normally, for changing one digit.
+document.addEventListener("focusin", e => {
+  const el = e.target;
+  if (!(el instanceof HTMLInputElement) || !(el.dataset.pf || el.dataset.pfp != null || el.dataset.sc || el.dataset.tm)) return;
+  setTimeout(() => { if (document.activeElement === el && el.value) try { el.setSelectionRange(0, el.value.length); } catch(err){ el.select(); } }, 0);
+});
