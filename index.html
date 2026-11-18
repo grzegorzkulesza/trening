@@ -382,7 +382,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-18.2";
+const APP_VERSION = "2026-11-18.4";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -906,6 +906,7 @@ function partRow(s, pi, p){
   const c = partCount(p.fmt); if (!c) return "";
   return `<div class="row pf-row ${partMod(s, pi) ? "chg" : ""}" data-pfrowp="${pi}"><span class="main"><span class="name">${c.label}</span><span class="plan">${c.n}${c.unit ? " " + c.unit : ""}</span></span><span class="pf-in"><label class="pf"><input data-pfp="${pi}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="${c.label}" value="${partDone(s, pi)}">${c.unit ? `<span>${c.unit}</span>` : ""}</label></span></div>`;
 }
+const modsKey = s => JSON.stringify([s.rx, s.pfmt || {}, (s.items || []).map(i => [i.ex, i.load, i.reps])]);
 const itemMod = it => it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
 const sessionMod = s => s.rx === false || (s.items || []).some(itemMod) || partsMod(s);
 const partLines = s => !s.block ? [] : s.block.parts.map((p, pi) => { const c = partCount(p.fmt); return c && partMod(s, pi) ? c.label + ": " + partDone(s, pi) + (c.unit ? " " + c.unit : "") + " (plan: " + c.n + (c.unit ? " " + c.unit : "") + "; " + fmtParts(p.fmt).main + ")" : null; }).filter(Boolean);
@@ -1033,6 +1034,7 @@ function buildSession(kind){
       return {key:s.key, ex:s.ex, load, reps:s.reps, planEx:s.ex, planLoad:load, planReps:s.reps, swap:null, done:0}; })};
 }
 function current(){
+  if (S.editId && S.sessions[S.editId]) return S.sessions[S.editId];
   const kind = S.kind || (isStrengthDay(today()) ? "strength" : "mobility");
   const id = sessionId(kind);
   let s = S.sessions[id];
@@ -1581,17 +1583,17 @@ const pm5Text = p => [p.dist ? p.dist + " m" : "", p.time ? mmss(p.time) : "", p
 function doneScreen(s){
   const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id);
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}</p><h1 class="title">Zrobione</h1></div></header>`;
-  const mods = strength || cond ? modLines(s) : [];
+  const mods = strength || cond ? modLines(s) : [], rxp = (strength || cond) && !sessionMod(s) ? "Rx · " : "";
   return `<section class="screen">${head}
-    ${strength || cond ? `<section class="sec"><h2 class="sec-h">${sessionMod(s) ? "Modified" : "Rx"}</h2>${mods.length ? `<div class="card">${partLines(s).map(l => `<div class="row"><span class="main"><span class="name" style="font-weight:500">${esc(l.replace(/ \(plan:.*$/, ""))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((l.match(/\(plan: ([^;)]+)/) || [])[1] || "")}</span></div>`).join("")}${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
+    ${(strength || cond) && sessionMod(s) ? `<section class="sec"><h2 class="sec-h">Modified</h2>${mods.length ? `<div class="card">${partLines(s).map(l => `<div class="row"><span class="main"><span class="name" style="font-weight:500">${esc(l.replace(/ \(plan:.*$/, ""))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((l.match(/\(plan: ([^;)]+)/) || [])[1] || "")}</span></div>`).join("")}${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
-    ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
-    ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] + " (plan " + EFF_TXT[s.block.effort] + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
-    <section class="sec"><h2 class="sec-h">${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
+    ${strength || cond ? (isToday || S.reviewing === s.id || (Sync.pendingReview() || {}).id === s.id ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
+    ${s.block ? `<section class="sec"><h2 class="sec-h">${rxp}${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] + " (plan " + EFF_TXT[s.block.effort] + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null, (pi) => pi === 0 && scoreText(s) ? `<div class="row"><span class="main"><span class="name">Wynik</span></span><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(scoreText(s))}</b></div>` : "")}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
+    <section class="sec"><h2 class="sec-h">${rxp}${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
       </section>`}
     ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
     ${strength && s.fin ? finRow(s.fin) : ""}
-    ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw</button></div>` : ""}</section>`;
+    <div class="push"><button class="btn plain" data-act="edit-done" data-id="${esc(s.id)}">Popraw</button></div></section>`;
 }
 // Plan of the next Strength day, on the screen of a done session.
 function nextPlanHtml(){
@@ -1627,7 +1629,7 @@ const condLabel = k => k === "c-int" ? "Intervals" : k === "c-test" ? "Test" : "
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
-  if (s.rx == null && s.kind !== "mobility" && (s.items || []).some(itemMod)){ s.rx = false; commitSession(s, true); }
+  if (s.rx == null && s.kind !== "mobility"){ s.rx = sessionMod(s) ? false : (s.status === "done" ? true : null); if (s.rx != null) commitSession(s, true); }
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
       ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o treningu: ciężary w seriach, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
@@ -2071,7 +2073,7 @@ function fitDayTitle(){
   for (const t of fits){ h.textContent = t; if (h.scrollWidth <= h.clientWidth + 1) return; }
 }
 window.addEventListener("resize", fitDayTitle);
-function go(view){ S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
+function go(view){ if (view !== "note") S.editId = null; S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
 // Opening the app shows today: always after the date changed, and after a break of 30 min or more unless a workout or its note is open.
 let hiddenAt = 0;
 function backToToday(force){
@@ -2097,7 +2099,7 @@ function setItem(s, it, patch, variant = false){
   commitSession(s);
 }
 function finishSession(){
-  const s = current();
+  const s = current(), past = !!S.editId;
   clearTimeout(debouncers[s.id]);
   const t = $("#sessionNote"); if (t) s.note = t.value;
   s.status = "done"; s.finishedAt = Date.now();
@@ -2109,13 +2111,14 @@ function finishSession(){
   const had = reviewFor(s.id);
   if (!noteOk(s)) return;
   if (s.kind === "strength") s.dur = s.timed ? tmSecs(tmOf(s)) : null;
-  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}"))){
-    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {});
+  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}") || modsKey(s) !== (s.reviewedMods || modsKey(s)))){
+    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {}); s.reviewedMods = modsKey(s);
     s.reviewedNote = s.note || "";
     commitSession(s);
     Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});
-    go("prep"); Sync.review(s.id, !!had);
-  } else { commitSession(s); go(s.kind !== "mobility" && Sync.url ? "prep" : "home"); }
+    if (past){ S.detail = {id:s.id}; go("detail"); } else go("prep");
+    Sync.review(s.id, !!had);
+  } else { commitSession(s); if (past){ S.detail = {id:s.id}; go("detail"); } else go(s.kind !== "mobility" && Sync.url ? "prep" : "home"); }
 }
 
 async function backup(btn){
@@ -2165,7 +2168,8 @@ document.addEventListener("click", e => {
       const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
     case "wk-today": S.weekOff = 0; S.sel = null; render(); break;
     case "skin": try { localStorage.setItem(KEY_SKIN, b.dataset.v); } catch(e2){} applySkin(b.dataset.v); render(); break;
-    case "back-prep": go("prep"); break;
+    case "back-prep": if (S.editId){ S.detail = {id:S.editId}; S.editId = null; go("detail"); } else go("prep"); break;
+    case "edit-done": S.editId = b.dataset.id; go("note"); break;
     case "note": go("note"); break;
     case "photo-del": setPhoto(current().id, null); render(); break;
     case "finish": finishSession(); break;
