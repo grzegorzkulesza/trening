@@ -382,7 +382,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-18.1";
+const APP_VERSION = "2026-11-18.2";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -891,9 +891,26 @@ function dayFor(date){
   return weekDays(off).find(x => x.date === date);
 }
 /* ---------- planned vs performed (Rx / Modified) ---------- */
+// What a part of the plan counts in: rounds, sets or minutes (EMOM). Performed value lives in s.pfmt[part index].
+function partCount(fmt){
+  let m;
+  if ((m = fmt.match(/^(\d+) rounds?/))) return {n:+m[1], label:"Rundy", unit:""};
+  if ((m = fmt.match(/^(\d+(?:-\d+)+)$/))) return {n:m[1].split("-").length, label:"Rundy", unit:""};
+  if ((m = fmt.match(/EMOM (\d+) min/))) return {n:+m[1], label:"Minuty", unit:"min"};
+  return null;
+}
+const partDone = (s, pi) => { const c = partCount(s.block.parts[pi].fmt); return c ? (s.pfmt && s.pfmt[pi] != null ? s.pfmt[pi] : c.n) : null; };
+const partMod = (s, pi) => { const c = s.block && s.block.parts[pi] ? partCount(s.block.parts[pi].fmt) : null; return !!c && partDone(s, pi) !== c.n; };
+const partsMod = s => s.block ? s.block.parts.some((p, pi) => partMod(s, pi)) : false;
+function partRow(s, pi, p){
+  const c = partCount(p.fmt); if (!c) return "";
+  return `<div class="row pf-row ${partMod(s, pi) ? "chg" : ""}" data-pfrowp="${pi}"><span class="main"><span class="name">${c.label}</span><span class="plan">${c.n}${c.unit ? " " + c.unit : ""}</span></span><span class="pf-in"><label class="pf"><input data-pfp="${pi}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="${c.label}" value="${partDone(s, pi)}">${c.unit ? `<span>${c.unit}</span>` : ""}</label></span></div>`;
+}
 const itemMod = it => it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
-const sessionMod = s => s.rx === false || (s.items || []).some(itemMod);
-const modLines = s => (s.items || []).filter(itemMod).map(it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps) + " (plan: " + exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps) + ")");
+const sessionMod = s => s.rx === false || (s.items || []).some(itemMod) || partsMod(s);
+const partLines = s => !s.block ? [] : s.block.parts.map((p, pi) => { const c = partCount(p.fmt); return c && partMod(s, pi) ? c.label + ": " + partDone(s, pi) + (c.unit ? " " + c.unit : "") + " (plan: " + c.n + (c.unit ? " " + c.unit : "") + "; " + fmtParts(p.fmt).main + ")" : null; }).filter(Boolean);
+const itemLine = it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps) + " (plan: " + exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps) + ")";
+const modLines = s => partLines(s).concat((s.items || []).filter(itemMod).map(itemLine));
 function perfRow(it, i){
   const ex = exOf(it.ex), ls = loadsOf(ex), unit = ex.timed ? "s" : ex.dist ? "m" : ex.minutes ? "min" : ex.cal ? "cal" : "";
   const ld = ex.bb ? `<label class="pf"><input data-pf="load" data-key="${it.key}" inputmode="decimal" autocomplete="off" aria-label="Ciężar w kg" value="${LOADS[it.load] && LOADS[it.load].bb != null ? plKg(LOADS[it.load].bb) : ""}" style="width:4ch"><span>kg</span></label>`
@@ -905,7 +922,7 @@ function rxHtml(s){
   if (s.kind === "mobility") return "";
   const mod = s.rx === false;
   return `<section class="sec"><h2 class="sec-h">Jak wykonałeś?</h2><div class="choices" style="grid-template-columns:1fr 1fr"><button class="choice ${s.rx === true ? "on" : ""}" data-act="rx" data-v="1" aria-pressed="${s.rx === true}"><b>Rx</b><small>Jak w planie</small></button><button class="choice ${mod ? "on" : ""}" data-act="rx" data-v="0" aria-pressed="${mod}"><b>Modified</b><small>Coś zmieniłem</small></button></div></section>`
-    + (mod ? (s.block ? blockSections(s.block, s.items || [], perfRow, "Wykonane") : `<section class="sec"><h2 class="sec-h">Wykonane</h2><div class="card">${(s.items || []).map((it, i) => perfRow(it, s.kind === "strength" ? i : null)).join("")}</div></section>`) : "");
+    + (mod ? (s.block ? blockSections(s.block, s.items || [], perfRow, "Wykonane", (pi, p) => partRow(s, pi, p)) : `<section class="sec"><h2 class="sec-h">Wykonane</h2><div class="card">${(s.items || []).map((it, i) => perfRow(it, s.kind === "strength" ? i : null)).join("")}</div></section>`) : "");
 }
 const doneRow = (it, i) => `<div class="row">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana na dziś</span>` : ""}</div>`;
 // Estimated duration in minutes. Rough seconds per rep, carries ~1.2 s per metre, a short change between exercises,
@@ -1480,9 +1497,9 @@ function fmtParts(f){
   return {main:f, rest:""};
 }
 // A block day as cards, one per part: its format as the first row, then the items. rowFn draws one item.
-function blockSections(b, items, rowFn, head = "Workout"){
+function blockSections(b, items, rowFn, head = "Workout", partFn = null){
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
-    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
+    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${partFn ? partFn(pi, p) : ""}${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
 const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
@@ -1566,7 +1583,7 @@ function doneScreen(s){
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}</p><h1 class="title">Zrobione</h1></div></header>`;
   const mods = strength || cond ? modLines(s) : [];
   return `<section class="screen">${head}
-    ${strength || cond ? `<section class="sec"><h2 class="sec-h">${sessionMod(s) ? "Modified" : "Rx"}</h2>${mods.length ? `<div class="card">${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
+    ${strength || cond ? `<section class="sec"><h2 class="sec-h">${sessionMod(s) ? "Modified" : "Rx"}</h2>${mods.length ? `<div class="card">${partLines(s).map(l => `<div class="row"><span class="main"><span class="name" style="font-weight:500">${esc(l.replace(/ \(plan:.*$/, ""))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((l.match(/\(plan: ([^;)]+)/) || [])[1] || "")}</span></div>`).join("")}${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
     ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] + " (plan " + EFF_TXT[s.block.effort] + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
@@ -2162,7 +2179,7 @@ document.addEventListener("click", e => {
     case "set-load": { const it = editIt(); if (!it) return; setItem(s, it, {load:b.dataset.l}); renderSheet(); render(); break; }
     case "reps": { const it = editIt(); if (!it) return; const r = it.reps + Number(b.dataset.d); if (r < 1) return; setItem(s, it, {reps:r}); renderSheet(); render(); break; }
     case "swap": S.sheet = {type:"swap", key:S.sheet.key}; renderSheet(); break;
-    case "rx": { s.rx = b.dataset.v === "1"; if (s.rx) s.items.forEach(it => Object.assign(it, {ex:it.planEx, load:it.planLoad, reps:it.planReps, swap:null})); commitSession(s, true); render(); break; }
+    case "rx": { s.rx = b.dataset.v === "1"; if (s.rx){ s.items.forEach(it => Object.assign(it, {ex:it.planEx, load:it.planLoad, reps:it.planReps, swap:null})); s.pfmt = {}; } commitSession(s, true); render(); break; }
     case "pf-swap": S.sheet = {type:"swap", key:b.dataset.key, perf:true}; renderSheet(); break;
     case "pick": {
       const it = editIt(); if (!it) return;
@@ -2208,6 +2225,10 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
+  if (t.dataset.pfp != null){ const s = current(), pi = +t.dataset.pfp, n = parseInt(t.value, 10), c = partCount(s.block.parts[pi].fmt);
+    if (!(n > 0)){ t.value = partDone(s, pi); return; }
+    (s.pfmt || (s.pfmt = {}))[pi] = n; t.value = n; s.rx = false; commitSession(s, true);
+    const row = t.closest("[data-pfrowp]"); if (row) row.classList.toggle("chg", partMod(s, pi)); return; }
   if (t.dataset.pf){ const s = current(), it = s.items.find(i => i.key === t.dataset.key); if (!it) return; const ex = exOf(it.ex);
     if (t.dataset.pf === "load"){
       if (ex.bb){ const kg = parseFloat(String(t.value).replace(",", ".")); if (!(kg > 0)){ t.value = plKg(LOADS[it.load].bb); return; }
