@@ -47,7 +47,7 @@ const BLOCK = {id:"b1", start:"2026-11-13", end:"2026-12-13", days:{
   "2026-11-19":{type:"cond", effort:2, min:30, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",750],["air-squat","bw",15],["@core","bw",15]]}]},
   "2026-11-20":{type:"workout", effort:3, min:10, parts:[{fmt:"6 rounds for time, or not", items:[["kb-swing","kb16",10],["@row","bw",8],["@push","bw",6]]}]},
   "2026-11-23":{type:"heavy", effort:4, min:20, parts:[{fmt:"5-5-5-5-5", items:[["bb-dl","bb60",5]]}]},
-  "2026-11-24":{type:"engine", effort:3, min:20, parts:[{fmt:"3 × 1000 m · przerwa 3:00", items:[["row-m","bw",1000]]}]},
+  "2026-11-24":{type:"engine", effort:3, min:20, parts:[{fmt:"3 × 1000 m · przerwa 3:00 · tempo 2:20/500 m", items:[["row-m","bw",1000]]}]},
   "2026-11-25":{type:"heavy", effort:3, min:25, parts:[{fmt:"5-5-5-5-5", items:[["bb-push-press","bb35",5]]}, {fmt:"Potem EMOM 8 min", items:[["pullup-negative","bw",2],["ring-row-box","bw",5]]}]},
   "2026-11-26":{type:"cond", effort:2, min:25, parts:[{fmt:"5 rounds, not for time", items:[["row-m","bw",500],["farmer-carry","db15x2",40]]}]},
   "2026-11-27":{type:"workout", effort:3, min:15, parts:[{fmt:"AMRAP 15 min", items:[["kb-swing","kb20",10],["@row","bw",8],["@push","bw",6]]}]},
