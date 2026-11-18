@@ -208,6 +208,17 @@ html,body,a,label,input,textarea{touch-action:manipulation}
 .lab-row span{font-size:17px;font-weight:500}
 .lab-row small{display:block;font-size:13px;font-weight:400;color:var(--muted)}
 .lab-ms.bad input,.lab-ms input.bad{color:var(--warn)}
+.pf-row{position:relative;gap:8px;padding:10px 12px 10px 18px;min-height:76px}
+.pf-row.chg::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ink)}
+.pf-row .plan{display:none;font-size:14px;color:var(--faint);text-decoration:line-through}
+.pf-row.chg .plan{display:block}
+.pf-row .swp{width:36px;height:36px;border:0;background:transparent;display:grid;place-items:center;flex:none;color:var(--muted)}
+.pf-in{display:flex;gap:5px;flex:none;align-items:center}
+.pf{display:flex;align-items:center;justify-content:flex-end;gap:4px;height:50px;min-width:70px;padding:0 10px;border-radius:14px;background:var(--bg);font-size:20px;font-weight:600;font-variant-numeric:tabular-nums}
+.pf input,select.pf{border:0;background:transparent;font:inherit;color:var(--ink);outline:none;text-align:right;width:3.2ch;min-width:0;padding:0}
+select.pf{width:auto;text-align-last:right;appearance:none;-webkit-appearance:none;border-radius:14px;background:var(--bg)}
+.pf:focus-within{box-shadow:0 0 0 2px var(--ink)}
+.pf span{font-size:15px;color:var(--muted);font-weight:500}
 .lab-ms{display:flex;align-items:flex-end;justify-content:center;gap:8px;padding:2px 18px 18px}
 .lab-ms label{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:13px;color:var(--muted)}
 .lab-ms input{width:88px;height:64px;border:0;border-radius:14px;background:var(--bg);font:inherit;font-size:32px;font-weight:600;text-align:center;color:var(--ink);outline:none;font-variant-numeric:tabular-nums}
@@ -371,7 +382,7 @@ html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight
 
 <script>
 "use strict";
-const APP_VERSION = "2026-11-17.1";
+const APP_VERSION = "2026-11-18.1";
 // Skin: 1 light (default), 2 black and white. Kept on this phone only.
 const KEY_SKIN = "trening:skin";
 function skinOf(){ try { return localStorage.getItem(KEY_SKIN) === "2" ? "2" : "1"; } catch(e){ return "1"; } }
@@ -879,6 +890,23 @@ function dayFor(date){
   const t = today(), off = Math.round((mondayOf(date) - mondayOf(t)) / (7 * 86400000));
   return weekDays(off).find(x => x.date === date);
 }
+/* ---------- planned vs performed (Rx / Modified) ---------- */
+const itemMod = it => it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
+const sessionMod = s => s.rx === false || (s.items || []).some(itemMod);
+const modLines = s => (s.items || []).filter(itemMod).map(it => exOf(it.ex).name + " " + doseText(it.ex, it.load, it.reps) + " (plan: " + exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps) + ")");
+function perfRow(it, i){
+  const ex = exOf(it.ex), ls = loadsOf(ex), unit = ex.timed ? "s" : ex.dist ? "m" : ex.minutes ? "min" : ex.cal ? "cal" : "";
+  const ld = ex.bb ? `<label class="pf"><input data-pf="load" data-key="${it.key}" inputmode="decimal" autocomplete="off" aria-label="Ciężar w kg" value="${LOADS[it.load] && LOADS[it.load].bb != null ? plKg(LOADS[it.load].bb) : ""}" style="width:4ch"><span>kg</span></label>`
+    : ls.length > 1 ? `<select class="pf" data-pf="load" data-key="${it.key}" aria-label="Ciężar">${ls.map(l => `<option value="${l}" ${l === it.load ? "selected" : ""}>${esc(LOADS[l].label)}</option>`).join("")}</select>` : "";
+  const rp = ex.test || ex.deathby ? "" : `<label class="pf"><span>×</span><input data-pf="reps" data-key="${it.key}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="Powtórzenia" value="${shownReps(ex, it.reps)}">${unit ? `<span>${unit}</span>` : ""}</label>`;
+  return `<div class="row pf-row ${itemMod(it) ? "chg" : ""}" data-pfrow="${it.key}">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="plan">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></span>${it.part != null || it.key ? `<button class="swp" data-act="pf-swap" data-key="${it.key}" aria-label="Zamień ćwiczenie"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h11l-3-3M16 13H5l3 3"/></svg></button>` : ""}<span class="pf-in">${ld}${rp}</span></div>`;
+}
+function rxHtml(s){
+  if (s.kind === "mobility") return "";
+  const mod = s.rx === false;
+  return `<section class="sec"><h2 class="sec-h">Jak wykonałeś?</h2><div class="choices" style="grid-template-columns:1fr 1fr"><button class="choice ${s.rx === true ? "on" : ""}" data-act="rx" data-v="1" aria-pressed="${s.rx === true}"><b>Rx</b><small>Jak w planie</small></button><button class="choice ${mod ? "on" : ""}" data-act="rx" data-v="0" aria-pressed="${mod}"><b>Modified</b><small>Coś zmieniłem</small></button></div></section>`
+    + (mod ? (s.block ? blockSections(s.block, s.items || [], perfRow, "Wykonane") : `<section class="sec"><h2 class="sec-h">Wykonane</h2><div class="card">${(s.items || []).map((it, i) => perfRow(it, s.kind === "strength" ? i : null)).join("")}</div></section>`) : "");
+}
 const doneRow = (it, i) => `<div class="row">${i != null ? `<span class="num">${i + 1}</span>` : ""}<span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${it.swap ? `<span class="tag">zamiana na dziś</span>` : ""}</div>`;
 // Estimated duration in minutes. Rough seconds per rep, carries ~1.2 s per metre, a short change between exercises,
 // at most 20 s between rounds, 5 min Warm-up, 2 min barbell warm-up sets. Intervals: 5 min easy before, 4 min after.
@@ -1141,7 +1169,7 @@ const Coach = {
   // Barbell load lists are long: one line instead of 44 codes.
   allowedText(group){ return JSON.stringify(this.allowed(group), (k, v) => Array.isArray(v) && v.length > 8 && v.every(x => LOADS[x] && LOADS[x].bb) ? v[0] + " … " + v[v.length - 1] + " (co 2,5 kg)" : v); },
   brief: x => ({data:x.date, rodzaj:kindLabel(x.kind), typ:x.block ? BLOCK_TITLE[x.block.type] : undefined, format:x.block ? x.block.parts.map(p => p.fmt).join(" | ") : undefined, planowanyWysilek:x.block ? x.block.effort + " (" + EFF_TXT[x.block.effort] + ")" : undefined,
-    plan:x.kind === "strength" && !x.block ? planOfSession(x) || undefined : undefined, rundy:x.block ? undefined : x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, notatka:x.note || "", wynik:x.block ? scoreBrief(x) : undefined, czas:!x.block && x.dur ? mmss(x.dur) : !x.block && x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:effOf(x) ? effOf(x) + " (" + EFF_TXT[effOf(x)] + ")" : undefined, czasTrwania:x.block ? blockTime(x.block) || "do pierwszej niezrobionej minuty" : undefined, szacunek:!x.block && x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
+    plan:x.kind === "strength" && !x.block ? planOfSession(x) || undefined : undefined, rundy:x.block ? undefined : x.rounds, finisher:x.fin ? "EMOM " + x.fin.min + " min: " + exOf(x.fin.ex).name + " " + finDose(x.fin) : undefined, wykonanie:x.kind !== "mobility" ? (sessionMod(x) ? "Modified" : "Rx") : undefined, zmianyWzgledemPlanu:x.kind !== "mobility" && modLines(x).length ? modLines(x) : undefined, notatka:x.note || "", wynik:x.block ? scoreBrief(x) : undefined, czas:!x.block && x.dur ? mmss(x.dur) : !x.block && x.timed === false && x.kind === "strength" ? "nie mierzony" : undefined, wysilek:effOf(x) ? effOf(x) + " (" + EFF_TXT[effOf(x)] + ")" : undefined, czasTrwania:x.block ? blockTime(x.block) || "do pierwszej niezrobionej minuty" : undefined, szacunek:!x.block && x.kind === "strength" ? estMin("strength", x.items || [], x.rounds, x.fin) + " min" : undefined,
     pm5:x.pm5 ? pm5Text(x.pm5) + (x.pm5.parts && x.pm5.parts.length ? " | odcinki: " + x.pm5.parts.map(pm5Text).join("; ") : "") : undefined, cwiczenia:(x.items || []).map(it => ({key:it.key, ex:it.ex, nazwa:exOf(it.ex).name, dawka:doseText(it.ex, it.load, it.reps), plan:it.planEx && (it.planEx !== it.ex || it.planLoad !== it.load || it.planReps !== it.reps) ? exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps) : undefined, zamianaNaDzis:it.swap ? true : undefined}))}),
   upcoming(s){
     const out = [];
@@ -1166,6 +1194,7 @@ const Coach = {
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony, a potem Grzegorz poprawił notatkę. Poprzednia ocena: " + JSON.stringify(earlier) + ". Wszystkie zmiany z tamtej oceny są już cofnięte: plan i dawki w danych są takie, jak przed nią. Oceń trening od nowa na podstawie całej notatki. Dopisek (zwykle na końcu, np. po „Edit”) ma pierwszeństwo i często wskazuje błąd poprzedniej oceny: czytaj go jako sprostowanie tamtej oceny.\n" : "") +
+      "Pole wykonanie to twarde dane z aplikacji: Rx = wszystko dokładnie jak w planie, Modified = Grzegorz coś zmienił (ćwiczenie, ciężar, powtórzenia); zmianyWzgledemPlanu i pole plan przy ćwiczeniu pokazują, co dokładnie. Opieraj ocenę na różnicy plan / wykonane, a notatkę traktuj jako uzupełnienie. Wynik w Modified nie jest porównywalny z Rx, więc nie oceniaj go tak, jakby plan wykonano, i nie wyciągaj wniosków o postępie z zamienionego ćwiczenia. " +
       'Styl odpowiedzi: jesteś trenerem, który właśnie wysłuchał Grzegorza. Title to werdykt w kilku słowach: czy intencja dnia została spełniona i czy coś zmieniamy (np. „Intencja trafiona, ciężar w górę"). Text to 1–2 krótkie zdania, które dodają to, czego on nie powiedział: wniosek, przyczyna, na co uważać następnym razem. Nie powtarzaj notatki, wyniku ani liczb, które sam podał, i nie opisuj, co zrobił. Bez ogólników i pochwał. Gdy nic nie zmieniasz, powiedz to w title i jednym zdaniem dlaczego. Radę dawaj tylko wtedy, gdy wynika z tego, co zrobił, powiedział albo z mechaniki formatu; nie wymyślaj ogólnych porad o tempie czy sile. Gdy notatka nie daje podstaw do rady, text ogranicz do decyzji planu albo zostaw pusty. Znaj mechanikę ćwiczenia, które oceniasz: w Death by w minucie n robi n kalorii (powtórzeń) tak szybko, jak się da, a reszta minuty to odpoczynek, który z każdą minutą maleje; koniec jest wtedy, gdy nie zdąży w minucie, więc komentarz dotyczy tego, ile odpoczynku zostawało w końcowych minutach i jaką minutę ma za cel, a nie tempa („nie spiesz się" nie ma tu sensu). Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"1–2 zdania trenera, wg stylu","next":[{"date":"RRRR-MM-DD","key":"klucz pozycji","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"variants":[{"slot":"row|vpull|push|core","ex":"id z drabinki","reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W next i variants tylko to, co zmieniasz. Pole dawka to to, co zrobił, chyba że notatka albo zdjęcie mówi inaczej. W done tylko to, co notatka albo zdjęcie podaje wprost liczbą i co różni się od dawki; brak liczby w notatce znaczy, że zrobił dokładnie zapisaną dawkę. Nigdy nie zgaduj ciężaru ani powtórzeń. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss". Jeśli pole wynik mówi, że go nie podał, a notatka albo zdjęcie go podaje, dodaj pole "wynik": AMRAP i Death by {"rounds":liczba,"reps":liczba}, for time {"time":"m:ss"}, interwały {"times":["m:ss",…]}, Steady {"dist":metry}; bez zgadywania.' +
       (photo ? ' Jeśli na zdjęciu jest wyświetlacz PM5, dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
   },
@@ -1184,6 +1213,7 @@ const Coach = {
       "Poprzednie treningi (najnowsze najpierw): " + JSON.stringify(prev.map(x => this.brief(x))) + "\n" +
       "Poprzednie oceny: " + JSON.stringify(revs) + "\n" +
       (earlier ? "Ten trening był już oceniony przed poprawką notatki: " + JSON.stringify(earlier) + ". Jego zmiany są już w planie teraz. Nie powtarzaj ich; zmień tylko to, co poprawiona notatka mówi inaczej (możesz cofnąć wcześniejszą zmianę).\n" : "") +
+      "Pole wykonanie to twarde dane z aplikacji: Rx = wszystko dokładnie jak w planie, Modified = Grzegorz coś zmienił (ćwiczenie, ciężar, powtórzenia); zmianyWzgledemPlanu i pole plan przy ćwiczeniu pokazują, co dokładnie. Opieraj ocenę na różnicy plan / wykonane, a notatkę traktuj jako uzupełnienie. Wynik w Modified nie jest porównywalny z Rx, więc nie oceniaj go tak, jakby plan wykonano, i nie wyciągaj wniosków o postępie z zamienionego ćwiczenia. " +
       'Styl odpowiedzi: jesteś trenerem, który właśnie wysłuchał Grzegorza. Title to werdykt w kilku słowach: czy intencja dnia została spełniona i czy coś zmieniamy (np. „Intencja trafiona, ciężar w górę"). Text to 1–2 krótkie zdania, które dodają to, czego on nie powiedział: wniosek, przyczyna, na co uważać następnym razem. Nie powtarzaj notatki, wyniku ani liczb, które sam podał, i nie opisuj, co zrobił. Bez ogólników i pochwał. Gdy nic nie zmieniasz, powiedz to w title i jednym zdaniem dlaczego. Radę dawaj tylko wtedy, gdy wynika z tego, co zrobił, powiedział albo z mechaniki formatu; nie wymyślaj ogólnych porad o tempie czy sile. Gdy notatka nie daje podstaw do rady, text ogranicz do decyzji planu albo zostaw pusty. Znaj mechanikę ćwiczenia, które oceniasz: w Death by w minucie n robi n kalorii (powtórzeń) tak szybko, jak się da, a reszta minuty to odpoczynek, który z każdą minutą maleje; koniec jest wtedy, gdy nie zdąży w minucie, więc komentarz dotyczy tego, ile odpoczynku zostawało w końcowych minutach i jaką minutę ma za cel, a nie tempa („nie spiesz się" nie ma tu sensu). Zwróć wyłącznie JSON: {"title":"krótki werdykt","text":"1–2 zdania trenera, wg stylu","rounds":liczba rund na następny trening (taka sama albo mniejsza niż teraz),"fin":najdłuższy finisher w minutach (tylko gdy go skracasz),"changes":[{"key":"klucz z planu","ex":"id","load":"kod","reps":liczba,"reason":"jedno zdanie"}],"done":[{"key":"klucz z dzisiejszej sesji","ex":"id","load":"kod","reps":liczba}]}. W changes tylko ćwiczenia, które zmieniasz. W done tylko ćwiczenia, przy których notatka mówi, że zrobił co innego niż w dzisiejszym planie (inny wariant, ciężar albo liczbę powtórzeń, np. w drugiej rundzie pełne Push-up zamiast Knee Push-up): podaj najlepszą serię, którą faktycznie zrobił; bez zgadywania. Jeśli notatka albo zdjęcie podaje czas testu Row 2000 m na maksa, dodaj pole "row2000":"m:ss".' +
       (photo ? ' Jeśli na zdjęciu jest wyświetlacz PM5, dodaj pole "pm5":{"time":"m:ss","dist":metry,"split":"m:ss" (średnio na 500 m),"spm":średnia kadencja,"hr":tętno albo null,"parts":[{"time","dist","split","spm"}] dla odcinków i interwałów albo []}.' : "");
   },
@@ -1534,7 +1564,9 @@ const pm5Text = p => [p.dist ? p.dist + " m" : "", p.time ? mmss(p.time) : "", p
 function doneScreen(s){
   const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id);
   const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}</p><h1 class="title">Zrobione</h1></div></header>`;
+  const mods = strength || cond ? modLines(s) : [];
   return `<section class="screen">${head}
+    ${strength || cond ? `<section class="sec"><h2 class="sec-h">${sessionMod(s) ? "Modified" : "Rx"}</h2>${mods.length ? `<div class="card">${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
     ${strength || cond ? (isToday ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
     ${s.block ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] + " (plan " + EFF_TXT[s.block.effort] + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null)}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
@@ -1542,7 +1574,7 @@ function doneScreen(s){
       </section>`}
     ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
     ${strength && s.fin ? finRow(s.fin) : ""}
-    ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw notatkę</button></div>` : ""}</section>`;
+    ${isToday ? `<div class="push"><button class="btn plain" data-act="note">Popraw</button></div>` : ""}</section>`;
 }
 // Plan of the next Strength day, on the screen of a done session.
 function nextPlanHtml(){
@@ -1578,9 +1610,11 @@ const condLabel = k => k === "c-int" ? "Intervals" : k === "c-test" ? "Test" : "
 const kindLabel = k => k === "strength" ? "Strength" : k === "cond" ? "Conditioning" : "Mobility";
 function renderNote(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
+  if (s.rx == null && s.kind !== "mobility" && (s.items || []).some(itemMod)){ s.rx = false; commitSession(s, true); }
   return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="back-prep" aria-label="Wróć do planu">${BACK}</button></div>
     <header class="head"><div><p class="kicker">${kindLabel(s.kind)}</p><h1 class="title">Jak poszło?</h1>
       ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o treningu: ciężary w seriach, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
+    ${rxHtml(s)}
     ${s.block ? scoreCard(s) : strength ? timeCard(s) : ""}
     ${s.kind !== "mobility" ? effHtml(effOf(s), "note", s.block ? EFF_TXT[s.block.effort] : null) : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
@@ -1594,7 +1628,7 @@ function tmOf(s){ if (!TM[s.id]) TM[s.id] = s.dur ? {m:String(Math.floor(s.dur /
 function tmSecs(t){ if (t.m === "") return null; const mm = +t.m, ss = t.s === "" ? 0 : +t.s; return ss < 60 && mm <= 90 && mm * 60 + ss > 0 ? mm * 60 + ss : null; }
 const tmBad = s => { const t = tmOf(s); return (t.m !== "" || t.s !== "") && tmSecs(t) == null; };
 const timeOk = s => s.kind !== "strength" || !s.timed || tmSecs(tmOf(s)) != null;
-const noteOk = s => (s.block ? scoreOk(s) : timeOk(s)) && (s.kind === "mobility" || effOf(s) != null);
+const noteOk = s => (s.block ? scoreOk(s) : timeOk(s)) && (s.kind === "mobility" || (effOf(s) != null && s.rx != null));
 // Score fields by format: rounds + reps, last full minute, time, interval times or distance. Times are typed as digits ("358" = 3:58).
 function scoreCard(s){
   const t = scoreType(s); if (!t) return "";
@@ -2128,13 +2162,15 @@ document.addEventListener("click", e => {
     case "set-load": { const it = editIt(); if (!it) return; setItem(s, it, {load:b.dataset.l}); renderSheet(); render(); break; }
     case "reps": { const it = editIt(); if (!it) return; const r = it.reps + Number(b.dataset.d); if (r < 1) return; setItem(s, it, {reps:r}); renderSheet(); render(); break; }
     case "swap": S.sheet = {type:"swap", key:S.sheet.key}; renderSheet(); break;
+    case "rx": { s.rx = b.dataset.v === "1"; if (s.rx) s.items.forEach(it => Object.assign(it, {ex:it.planEx, load:it.planLoad, reps:it.planReps, swap:null})); commitSession(s, true); render(); break; }
+    case "pf-swap": S.sheet = {type:"swap", key:b.dataset.key, perf:true}; renderSheet(); break;
     case "pick": {
       const it = editIt(); if (!it) return;
       const id = b.dataset.ex, ex = exOf(id), sl = slotOfItem(it);
       if (sl && id === sl.ex) setItem(s, it, {ex:id, load:fitLoad(ex, sl.load), reps:sl.reps, swap:null});
       else if (s.kind === "mobility") setItem(s, it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:null}, true);
       else { Object.assign(it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:{from:it.swap ? it.swap.from : it.ex}}); commitSession(s); }
-      S.sheet = {type:"edit", key:it.key}; renderSheet(); render(); break;
+      S.sheet = S.sheet && S.sheet.perf ? null : {type:"edit", key:it.key}; renderSheet(); render(); break;
     }
     case "rounds": { const r = Math.max(1, Math.min(5, s.rounds + Number(b.dataset.d))); s.rounds = r; S.profile.rounds = r; commitProfile(); commitSession(s); render(); break; }
     case "mic": { S.micHint = true; render(); const t = $("#sessionNote"); if (t) t.focus(); break; }
@@ -2172,6 +2208,14 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
+  if (t.dataset.pf){ const s = current(), it = s.items.find(i => i.key === t.dataset.key); if (!it) return; const ex = exOf(it.ex);
+    if (t.dataset.pf === "load"){
+      if (ex.bb){ const kg = parseFloat(String(t.value).replace(",", ".")); if (!(kg > 0)){ t.value = plKg(LOADS[it.load].bb); return; }
+        it.load = BB_LOADS.reduce((a, l) => Math.abs(LOADS[l].bb - kg) < Math.abs(LOADS[a].bb - kg) ? l : a); t.value = plKg(LOADS[it.load].bb); }
+      else it.load = t.value; }
+    else { const n = parseInt(t.value, 10); if (!(n > 0)){ t.value = shownReps(ex, it.reps); return; } it.reps = storedReps(ex, n); t.value = shownReps(ex, it.reps); }
+    s.rx = false; commitSession(s, true);
+    const row = t.closest("[data-pfrow]"); if (row) row.classList.toggle("chg", itemMod(it)); return; }
   if (t.dataset.eq){ S.profile.equip[t.dataset.eq] = t.checked; commitProfile(); render(); }
   if (t.id === "importFile" && t.files && t.files[0]) importBackup(t.files[0]);
   if (t.id === "pm5File" && t.files && t.files[0]) takePhoto(t.files[0]);
