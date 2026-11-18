@@ -1,0 +1,277 @@
+"use strict";
+/* ---------- effort: one 5-step scale for every session, tap or drag ---------- */
+// Old sessions stored 1–10 (rpe); 1–2 → 1, 3–4 → 2 … 9–10 → 5.
+const EFF_TXT = ["", "Bardzo lekko", "Lekko", "W sam raz", "Ciężko", "Maksymalnie"];
+const EFF_HINT = ["", "ruch, rozgrzewka, zero zmęczenia", "swobodna rozmowa, zapas 3 i więcej powtórzeń", "oddech w zdaniach, zapas około 2 powtórzeń", "oddech urywany, zapas 0–1 powtórzenia", "do granicy, nie dałbym więcej"];
+const effOf = x => x && (x.eff || (x.rpe ? Math.ceil(x.rpe / 2) : null)) || null;
+const effHead = n => n ? `<b>${EFF_TXT[n]}</b>${EFF_HINT[n]}` : `<b>–</b>`;
+function effHtml(n, key, plan){
+  return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek${plan ? " · plan " + esc(plan) : ""}</h2></div><p class="eff-v">${effHead(n)}</p>
+    <div class="eff-bar" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 5" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${n || ""}">${[1,2,3,4,5].map(k => `<span class="${n >= k ? "on" : ""}" style="height:${40 + k * 12}%"></span>`).join("")}</div></section>`;
+}
+function paintEff(el, n){ [...el.children].forEach((x, i) => x.classList.toggle("on", n >= i + 1)); el.setAttribute("aria-valuenow", n); const v = el.closest(".eff").querySelector(".eff-v"); if (v) v.innerHTML = effHead(n); }
+// What a new value does, per place the bar is used.
+const EFF_SET = {
+  note(n, el){ const s = current(); if (effOf(s) === n) return; s.eff = n; delete s.rpe; commitSession(s, true); paintEff(el, n); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); },
+};
+// Pointer events update the bar in place, so a drag is not cut short by a re-render.
+function bindEff(){
+  document.querySelectorAll(".eff-bar[data-eff]").forEach(el => {
+    if (el.dataset.bound) return; el.dataset.bound = "1"; let on = false;
+    const set = e => { const r = el.getBoundingClientRect(), t = Math.min(.9999, Math.max(0, (e.clientX - r.left) / r.width)), f = EFF_SET[el.dataset.eff]; if (f) f(Math.floor(t * 5) + 1, el); };
+    el.addEventListener("pointerdown", e => { on = true; try { el.setPointerCapture(e.pointerId); } catch(_){} set(e); });
+    el.addEventListener("pointermove", e => { if (on) set(e); });
+    ["pointerup", "pointercancel"].forEach(k => el.addEventListener(k, () => { on = false; }));
+  });
+}
+/* ---------- sheets ---------- */
+function sheetHtml(){
+  const sh = S.sheet; if (!sh) return "";
+  const s = current();
+  if (sh.type === "edit"){
+    const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotOfItem(it);
+    const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
+    const variants = it.swap ? [] : ladderOf(slot).filter(id => EX[id] && exAvailable(EX[id]));
+    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + shownReps(ex, Math.abs(it.reps - it.planReps)) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
+    const cols = Math.min(3, loads.length);
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
+      <header><h2>${esc(ex.name)}</h2><p class="sub">${s.block ? BLOCK_TITLE[s.block.type] : s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
+        ${(slot && slot.claudeNote || it.claudeNote) && !it.swap ? `<p class="sub">Od Claude: ${esc(slot && slot.claudeNote || it.claudeNote)}</p>` : ""}</header>
+      ${variants.length > 1 ? `<section class="sec"><h3 class="sec-h">Variant</h3><div class="chips">${variants.map(id => { const v = EX[id];
+        return `<button class="pill ${it.ex === id ? "on" : ""}" data-act="set-variant" data-ex="${id}" aria-pressed="${it.ex === id}">${esc(v.name + (v.tag ? " (" + v.tag + ")" : ""))}</button>`; }).join("")}</div></section>` : ""}
+      ${ex.bb ? (() => { const kg = LOADS[it.load] ? LOADS[it.load].bb : BAR, i = BB_LOADS.indexOf(it.load);
+        return `<section class="sec"><h3 class="sec-h">Load</h3><div class="big-step"><button data-act="bbload" data-d="-1" aria-label="Lżej o 2,5 kg" ${i <= 0 ? "disabled" : ""}>−</button><span class="v"><b>${plKg(kg)} kg</b></span><button data-act="bbload" data-d="1" aria-label="Ciężej o 2,5 kg" ${i >= BB_LOADS.length - 1 ? "disabled" : ""}>+</button></div></section>`; })()
+      : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
+        `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
+      <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}</h3>
+        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${shownReps(ex, it.reps)}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
+      <p class="note">${it.swap || s.block ? "Zmiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
+      <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : s.kind === "mobility" ? "Zamień na inne ćwiczenie" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
+      <button class="btn" data-act="close">Gotowe</button></div>`;
+  }
+  if (sh.type === "swap"){
+    const it = s.items.find(i => i.key === sh.key), slot = slotOfItem(it);
+    const lad = ladderOf(slot), slotBb = !!exOf(slot.ex).bb;
+    const order = {"łatwiej":1, "podobnie":2, "trudniej":3};
+    const opts = Object.values(EX).filter(e => e.pattern === slot.pattern && e.id !== it.ex && exAvailable(e) && (e.id === slot.ex || !lad.includes(e.id)))
+      .sort((a, b) => (a.id === slot.ex ? -1 : a.alt ? order[a.rel] || 4 : 0) - (b.id === slot.ex ? -1 : b.alt ? order[b.rel] || 4 : 0));
+    const optRow = e => { const load = e.id === slot.ex ? fitLoad(e, slot.load) : fitLoad(e, e.def[0]), reps = e.id === slot.ex ? slot.reps : e.def[1];
+      return `<button class="row swap-row" data-act="pick" data-ex="${esc(e.id)}"><span class="main"><span class="name">${esc(e.name)}</span><span class="sub">${dotHtml(load)}${esc(doseText(e.id, load, reps))}</span></span><span class="tag">${e.id === slot.ex ? "z planu" : e.alt ? esc(e.rel || "zamiennik") : !!e.bb !== slotBb ? (e.bb ? "sztanga" : "bez sztangi") : "wariant"}</span></button>`; };
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zamiana ćwiczenia">${SHEET_X}
+      <header class="head"><div><h2>Zamień</h2><p class="sub">${esc(exOf(it.ex).name)} · ${esc(PATTERNS[slot.pattern] || "")}</p></div></header>
+      <div class="card">${opts.map(optRow).join("") || `<div class="row"><span class="main"><span class="sub">Brak zamienników dla włączonego sprzętu.</span></span></div>`}</div></div>`;
+  }
+  if (sh.type === "confirm"){
+    return `<div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(sh.title)}">${SHEET_X}
+      <header><h2>${esc(sh.title)}</h2><p class="sub">${esc(sh.text)}</p></header>
+      <div class="push" style="margin-top:0"><button class="btn" data-act="${sh.act}">${esc(sh.yes)}</button><button class="btn plain" data-act="close">${esc(sh.no)}</button></div></div>`;
+  }
+  return "";
+}
+const SHEET_X = `<button class="icon-btn sheet-x" data-act="close" aria-label="Zamknij"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+function renderSheet(){
+  const w = $("#sheet");
+  if (!S.sheet){ w.hidden = true; w.innerHTML = ""; return; }
+  w.innerHTML = sheetHtml(); w.hidden = false;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const v = S.view;
+  const html = !S.loaded || v === "home" ? renderHome() : v === "note" ? renderNote() : v === "detail" ? (S.sessions[S.detail?.id] ? doneScreen(S.sessions[S.detail.id]) : renderHome()) : v === "plan" ? planScreen(S.detail.date, S.detail.kind) : v === "progress" ? renderProgress() : v === "cat" ? renderCat() : v === "coverage" ? renderCoverage()
+    : v === "settings" ? renderSettings() : renderPrep();
+  $("#app").innerHTML = html;
+  S.shownDay = today();
+  fitDayTitle();
+  renderSheet();
+  bindEff();
+}
+function fitDayTitle(){
+  const h = $(".day-h"); if (!h) return;
+  let fits; try { fits = JSON.parse(h.dataset.fits); } catch(e){ return; }
+  for (const t of fits){ h.textContent = t; if (h.scrollWidth <= h.clientWidth + 1) return; }
+}
+window.addEventListener("resize", fitDayTitle);
+function go(view){ if (view !== "note") S.editId = null; S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
+// Opening the app shows today: always after the date changed, and after a break of 30 min or more unless a workout or its note is open.
+let hiddenAt = 0;
+function backToToday(force){
+  if (!force && (S.view === "prep" || S.view === "note")) return;
+  Object.assign(S, {view:"home", sel:null, weekOff:0, sheet:null, kind:null}); render(); window.scrollTo(0, 0);
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden){ hiddenAt = Date.now(); return; }
+  if (!S.loaded) return;
+  if (S.shownDay && S.shownDay !== today()) backToToday(true);
+  else if (hiddenAt && Date.now() - hiddenAt >= 30 * 60000) backToToday(false);
+});
+setInterval(() => { if (S.loaded && !document.hidden && S.shownDay && S.shownDay !== today()) backToToday(true); }, 60000);
+
+/* ---------- actions ---------- */
+function setItem(s, it, patch, variant = false){
+  Object.assign(it, patch);
+  const sl = it.part != null ? null : slotByKey(it.key);
+  if (sl && !it.swap){
+    if (variant) sl.ex = it.ex;
+    if (sl.ex === it.ex){ sl.load = it.load; sl.reps = it.reps; commitProfile(); }
+  }
+  commitSession(s);
+}
+function finishSession(){
+  const s = current(), past = !!S.editId;
+  clearTimeout(debouncers[s.id]);
+  const t = $("#sessionNote"); if (t) s.note = t.value;
+  s.status = "done"; s.finishedAt = Date.now();
+  s.items.forEach(it => it.done = s.rounds);
+  // Row 2000 m time straight from the note ("8:45", "8 min 45 s"), so the level shows up even before Claude's review.
+  if (s.items.some(it => exOf(it.ex).test)){ const n = s.note || "", m = n.match(/(\d{1,2})\s*[:.]\s*(\d{2})\b/) || n.match(/(\d{1,2})\s*min\w*\s*(?:i\s*)?(\d{1,2})\s*s/i);
+    const sec = m ? +m[1] * 60 + +m[2] : 0; if (sec >= 300 && sec <= 900) s.bench = {...(s.bench || {}), row2000:sec}; }
+  S.micHint = false;
+  const had = reviewFor(s.id);
+  if (!noteOk(s)) return;
+  if (s.kind === "strength") s.dur = s.timed ? tmSecs(tmOf(s)) : null;
+  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}") || modsKey(s) !== (s.reviewedMods || modsKey(s)))){
+    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {}); s.reviewedMods = modsKey(s);
+    s.reviewedNote = s.note || "";
+    commitSession(s);
+    Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});
+    if (past){ S.detail = {id:s.id}; go("detail"); } else go("prep");
+    Sync.review(s.id, !!had);
+  } else { commitSession(s); if (past){ S.detail = {id:s.id}; go("detail"); } else go(s.kind !== "mobility" && Sync.url ? "prep" : "home"); }
+}
+
+async function backup(btn){
+  const data = JSON.stringify({app:"trening", v:2, exportedAt:new Date().toISOString(), profile:S.profile, sessions:S.sessions}, null, 1);
+  const name = "trening-kopia-" + today() + ".json";
+  try {
+    const file = new File([data], name, {type:"application/json"});
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"Kopia zapasowa: trening"}); markBackup(); btn.textContent = "Kopia zapisana"; return; }
+  } catch(e){ if (e && e.name === "AbortError") return; }
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([data], {type:"application/json"})); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  markBackup(); btn.textContent = "Kopia zapisana";
+}
+function markBackup(){ S.profile.lastBackup = today(); commitProfile(); }
+function backupAgeDays(){ if (!S.profile.lastBackup) return null; return Math.round((parseYmd(today()) - parseYmd(S.profile.lastBackup)) / 86400000); }
+function importBackup(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result);
+      if (!d || d.app !== "trening" || !d.profile || typeof d.sessions !== "object") throw 0;
+      S.profile = mergeProfile(d.profile); S.sessions = d.sessions; Store.replaceAll(S.profile, S.sessions);
+      S.notice = "Kopia wczytana: " + Object.keys(d.sessions).length + " sesji.";
+    } catch(e){ S.notice = "To nie jest kopia zapasowa z tej aplikacji."; }
+    render();
+  };
+  r.readAsText(file);
+}
+
+
+/* ---------- events ---------- */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]");
+  if (!b){ if (e.target.id === "sheet" && S.sheet && S.sheet.type !== "confirm"){ S.sheet = null; renderSheet(); } return; }
+  if (!S.loaded) return;
+  const act = b.dataset.act, s = current();
+  const editIt = () => s.items.find(i => i.key === S.sheet?.key);
+  switch (act){
+    case "go": go(b.dataset.v); break;
+    case "cat": S.cat = b.dataset.c; S.catGroup = null; go("cat"); break;
+    case "home": go("home"); break;
+    case "open": S.kind = b.dataset.kind; go("prep"); break;
+    case "detail": S.detail = {id:b.dataset.id}; go("detail"); break;
+    case "plan-detail": S.detail = {date:b.dataset.date, kind:b.dataset.kind}; go("plan"); break;
+    case "cat-g": S.catGroup = b.dataset.g; render(); break;
+    case "pick-day": S.sel = b.dataset.date === today() ? null : b.dataset.date; render(); break;
+    case "wk": { const off = Math.max(wkMin(), Math.min(WK_MAX, (S.weekOff || 0) + Number(b.dataset.d))); if (off === (S.weekOff || 0)) break; S.weekOff = off;
+      const w = parseYmd(selDate()).getDay(), m = mondayOf(today(), off); m.setDate(m.getDate() + (w + 6) % 7); const nd = off === 0 ? today() : ymd(m); S.sel = nd === today() ? null : nd; render(); break; }
+    case "wk-today": S.weekOff = 0; S.sel = null; render(); break;
+    case "skin": try { localStorage.setItem(KEY_SKIN, b.dataset.v); } catch(e2){} applySkin(b.dataset.v); render(); break;
+    case "back-prep": if (S.editId){ S.detail = {id:S.editId}; S.editId = null; go("detail"); } else go("prep"); break;
+    case "edit-done": S.editId = b.dataset.id; go("note"); break;
+    case "note": go("note"); break;
+    case "photo-del": setPhoto(current().id, null); render(); break;
+    case "finish": finishSession(); break;
+    case "review": Sync.retryReview(); break;
+    case "preview-all": Sync.previewAll(); break;
+    case "seen": try { localStorage.setItem("trening:seen-review", b.dataset.id); } catch(e2){} render(); break;
+    case "edit": if (s.status !== "prep") return; S.sheet = {type:"edit", key:b.dataset.key || S.sheet?.key}; renderSheet(); break;
+    case "set-variant": { const it = editIt(); if (!it) return; const ex = EX[b.dataset.ex]; if (!ex || ex.id === it.ex) return;
+      setItem(s, it, {ex:ex.id, load:fitLoad(ex, loadsOf(ex).includes(it.load) ? it.load : ex.def[0]), reps:ex.def[1]}, true); renderSheet(); render(); break; }
+    case "bbload": { const it = editIt(); if (!it) return; const i = BB_LOADS.indexOf(it.load) + Number(b.dataset.d); if (i < 0 || i >= BB_LOADS.length) return; setItem(s, it, {load:BB_LOADS[i]}); renderSheet(); render(); break; }
+    case "set-load": { const it = editIt(); if (!it) return; setItem(s, it, {load:b.dataset.l}); renderSheet(); render(); break; }
+    case "reps": { const it = editIt(); if (!it) return; const r = it.reps + Number(b.dataset.d); if (r < 1) return; setItem(s, it, {reps:r}); renderSheet(); render(); break; }
+    case "swap": S.sheet = {type:"swap", key:S.sheet.key}; renderSheet(); break;
+    case "rx": { s.rx = b.dataset.v === "1"; if (s.rx){ s.items.forEach(it => Object.assign(it, {ex:it.planEx, load:it.planLoad, reps:it.planReps, swap:null})); s.pfmt = {}; } commitSession(s, true); render(); break; }
+    case "pf-swap": S.sheet = {type:"swap", key:b.dataset.key, perf:true}; renderSheet(); break;
+    case "pick": {
+      const it = editIt(); if (!it) return;
+      const id = b.dataset.ex, ex = exOf(id), sl = slotOfItem(it);
+      if (sl && id === sl.ex) setItem(s, it, {ex:id, load:fitLoad(ex, sl.load), reps:sl.reps, swap:null});
+      else if (s.kind === "mobility") setItem(s, it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:null}, true);
+      else { Object.assign(it, {ex:id, load:fitLoad(ex, ex.def[0]), reps:ex.def[1], swap:{from:it.swap ? it.swap.from : it.ex}}); commitSession(s); }
+      S.sheet = S.sheet && S.sheet.perf ? null : {type:"edit", key:it.key}; renderSheet(); render(); break;
+    }
+    case "rounds": { const r = Math.max(1, Math.min(5, s.rounds + Number(b.dataset.d))); s.rounds = r; S.profile.rounds = r; commitProfile(); commitSession(s); render(); break; }
+    case "mic": { S.micHint = true; render(); const t = $("#sessionNote"); if (t) t.focus(); break; }
+    case "cday": { const d = Number(b.dataset.d), sc = S.profile.condSchedule || []; S.profile.condSchedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
+    case "day": { const d = Number(b.dataset.d), sc = S.profile.schedule; S.profile.schedule = sc.includes(d) ? sc.filter(x => x !== d) : [...sc, d].sort(); commitProfile(); render(); break; }
+    case "backup": backup(b); break;
+    case "sync-on": {
+      const url = ($("#syncUrl")?.value || "").trim();
+      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(url)){ Sync.err = "To nie wygląda na adres z Apps Script. Powinien zaczynać się od https://script.google.com/macros/s/ i kończyć na /exec."; render(); break; }
+      S.busy = true; Sync.err = null; render();
+      Sync.connect(url).then(ok => { S.busy = false; if (!ok){ Sync.disconnect(); Sync.err = "Nie udało się połączyć. Sprawdź, czy wdrożenie ma dostęp „Każdy”, i spróbuj jeszcze raz."; } render(); });
+      break;
+    }
+    case "sync-now": Sync.pull().then(() => render()); break;
+    case "sync-off": S.sheet = {type:"confirm", title:"Odłączyć arkusz?", text:"Dane w arkuszu zostaną. Nowe sesje będą zapisywać się tylko w telefonie.", act:"sync-off-yes", yes:"Odłącz", no:"Anuluj"}; renderSheet(); break;
+    case "sync-off-yes": Sync.disconnect(); S.sheet = null; render(); break;
+    case "reset": S.sheet = {type:"confirm", title:"Przywrócić plan startowy?", text:"Ćwiczenia, ciężary i powtórzenia wrócą do planu startowego. Historia zostaje.", act:"reset-yes", yes:"Przywróć", no:"Anuluj"}; renderSheet(); break;
+    case "reset-yes": S.profile.slots = DEFAULT_SLOTS.map(x => ({...x})); S.profile.rounds = 3; S.profile.over = {}; commitProfile(); S.sheet = null; render(); break;
+    case "close": S.sheet = null; renderSheet(); break;
+  }
+});
+document.addEventListener("input", e => {
+  if (e.target.dataset.sc){ const s = current(), sc = s.score || (s.score = {}), k = e.target.dataset.sc, el = e.target;
+    let d = el.value.replace(/\D/g, "");
+    if (el.dataset.time){ d = d.slice(0, 4); el.value = d.length > 2 ? d.slice(0, -2) + ":" + d.slice(-2) : d;
+      const sec = d.length > 2 ? +d.slice(-2) : +d, v = d.length > 2 ? +d.slice(0, -2) * 60 + sec : sec;
+      sc[k] = d && sec < 60 && v > 0 ? v : null; el.classList.toggle("bad", d !== "" && sc[k] == null); }
+    else { d = d.slice(0, +el.maxLength || 3); el.value = d; sc[k] = d === "" ? null : +d; }
+    commitSession(s, true); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); }
+  if (e.target.dataset.note){ const s = current(); s.note = e.target.value; commitSession(s, true); }
+  if (e.target.dataset.tm){ const s = current(), t = tmOf(s), k = e.target.dataset.tm; t[k] = e.target.value.replace(/\D/g, "").slice(0, 2); e.target.value = t[k];
+    if (k === "m" && t.m.length === 2) $("#durS").focus();
+    s.dur = tmSecs(t); commitSession(s, true);
+    const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); const ms = $(".lab-ms"); if (ms) ms.classList.toggle("bad", tmBad(s)); }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.pfp != null){ const s = current(), pi = +t.dataset.pfp, n = parseInt(t.value, 10), c = partCount(s.block.parts[pi].fmt);
+    if (!(n > 0)){ t.value = partDone(s, pi); return; }
+    (s.pfmt || (s.pfmt = {}))[pi] = n; t.value = n; s.rx = false; commitSession(s, true);
+    const row = t.closest("[data-pfrowp]"); if (row) row.classList.toggle("chg", partMod(s, pi)); return; }
+  if (t.dataset.pf){ const s = current(), it = s.items.find(i => i.key === t.dataset.key); if (!it) return; const ex = exOf(it.ex);
+    if (t.dataset.pf === "load"){
+      if (ex.bb){ const kg = parseFloat(String(t.value).replace(",", ".")); if (!(kg > 0)){ t.value = plKg(LOADS[it.load].bb); return; }
+        it.load = BB_LOADS.reduce((a, l) => Math.abs(LOADS[l].bb - kg) < Math.abs(LOADS[a].bb - kg) ? l : a); t.value = plKg(LOADS[it.load].bb); }
+      else it.load = t.value; }
+    else { const n = parseInt(t.value, 10); if (!(n > 0)){ t.value = shownReps(ex, it.reps); return; } it.reps = storedReps(ex, n); t.value = shownReps(ex, it.reps); }
+    s.rx = false; commitSession(s, true);
+    const row = t.closest("[data-pfrow]"); if (row) row.classList.toggle("chg", itemMod(it)); return; }
+  if (t.dataset.eq){ S.profile.equip[t.dataset.eq] = t.checked; commitProfile(); render(); }
+  if (t.id === "importFile" && t.files && t.files[0]) importBackup(t.files[0]);
+  if (t.id === "pm5File" && t.files && t.files[0]) takePhoto(t.files[0]);
+  if (t.dataset.scft){ const s = current(), sc = s.score || (s.score = {}); sc.ft = t.checked; if (!t.checked) sc.time = null; commitSession(s); render(); const i = $("[data-sc=time]"); if (i) i.focus(); }
+  if (t.dataset.timed){ const s = current(); s.timed = t.checked; s.dur = s.timed ? tmSecs(tmOf(s)) : null; commitSession(s); render(); if (s.timed) $("#durM").focus(); }
+});
+// Swipe the week strip left/right to change week.
+let wkTouch = null;
+document.addEventListener("touchstart", e => { wkTouch = e.target.closest(".wk-strip") ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, {passive:true});
+document.addEventListener("touchend", e => {
+  if (!wkTouch) return; const t = e.changedTouches[0], dx = t.clientX - wkTouch[0], dy = t.clientY - wkTouch[1]; wkTouch = null;
+  if (Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)){ const btn = document.querySelector(`[data-act=wk][data-d="${dx < 0 ? 1 : -1}"]`); if (btn && !btn.disabled) btn.click(); }
+}, {passive:true});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ S.sheet = null; renderSheet(); } });
+

@@ -1,7 +1,7 @@
 // Offline cache. The page itself is always fetched fresh (bypassing the browser cache) when online,
 // so a new index.html shows up on the next app start without reinstalling the icon.
-const CACHE = "trening-v3";
-const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"];
+const CACHE = "trening-v4";
+const SHELL = ["./", "index.html", "css/styles.css", "js/core.js", "js/state-block.js", "js/session.js", "js/storage.js", "js/sync-coach.js", "js/views.js", "js/progress.js", "js/ui.js", "js/boot.js", "manifest.webmanifest", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache:"reload"})))).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
