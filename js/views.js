@@ -11,13 +11,13 @@ function itemRow(it, i, tappable){
   const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
-// Format of a part split for its header: the count in bold ("6 rounds", "5 × 5", "EMOM 8 min"), the rest after it,
+// Format of a part split for its header: the count in bold ("6 rounds", "5 × 5", "EMOM 8 rounds"), the rest after it,
 // and what comes between it and the part before ("potem", "przerwa 3:00"), shown between the two cards.
 function fmtParts(f){
   let m;
   if ((m = f.match(/^(\d+) rounds?,? ?(.*)$/))) return {main:m[1] + " rounds", rest:m[2]};
   if ((m = f.match(/^AMRAP (\d+) min,? ?(.*)$/))) return {main:"AMRAP " + m[1] + " min", rest:m[2]};
-  if ((m = f.match(/^(Potem )?EMOM (\d+) min(.*)$/))) return {main:"EMOM " + m[2] + " min", rest:"", before:m[1] ? "potem" : ""};
+  if ((m = f.match(/^(Potem )?EMOM (\d+) min(.*)$/))) return {main:"EMOM " + roundsText(+m[2]), rest:"", before:m[1] ? "potem" : ""};
   if ((m = f.match(/^(\d+) intervals? (for time)?(?: · )?(.*)$/))) return {main:m[1] + " intervals", rest:[m[2], m[3]].filter(Boolean).join(" · ")};
   if ((m = f.match(/^(\d+(?:-\d+)+)$/))){ const a = m[1].split("-"); return {main:a.every(x => x === a[0]) ? roundsText(a.length) : m[1], rest:""}; }
   if ((m = f.match(/^(\d+ × [^·]+?)(?: · (.*))?$/))) return {main:m[1], rest:m[2] || ""};
@@ -110,7 +110,7 @@ const pm5Text = p => [p.dist ? p.dist + " m" : "", p.time ? mmss(p.time) : "", p
 function doneHead(s){
   return (pi, p, f) => {
     const c = partCount(p.fmt); if (!c || !partMod(s, pi)) return `<b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}`;
-    const n = partDone(s, pi), main = c.unit === "min" ? "EMOM " + n + " min" : /^\d+ rounds?/.test(p.fmt) ? n + " rounds" : roundsText(n);
+    const n = partDone(s, pi), main = c.emom ? "EMOM " + roundsText(n) : /^\d+ rounds?/.test(p.fmt) ? n + " rounds" : roundsText(n);
     return `<b>${esc(main)}</b><span class="struck">${esc(f.main)}</span>`;
   };
 }
@@ -193,7 +193,7 @@ function scoreCard(s){
   const head = (a, b) => `<div class="lab-row"><span>${a}${b ? `<small>${b}</small>` : ""}</span></div>`;
   let body;
   if (t.k === "amrap") body = head("Wynik", "AMRAP " + t.min + " min") + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", "reps", 3)}</div>`;
-  else if (t.k === "deathby") body = head("Wynik", esc(s.block.parts[0].fmt)) + `<div class="lab-ms">${num("rounds", "min", 2)}<b>+</b>${num("reps", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
+  else if (t.k === "deathby") body = head("Wynik", esc(s.block.parts[0].fmt)) + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
   else if (t.k === "fortime") body = head("Czas", "Bez Warm-up") + `<div class="lab-ms">${tim("time", "min:s")}</div>`;
   else if (t.k === "ftornot") body = `<label class="lab-row"><span>Na czas<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-scft="1" ${sc.ft ? "checked" : ""} aria-label="Na czas"></label>` + (sc.ft ? `<div class="lab-ms">${tim("time", "min:s")}</div>` : "");
   else if (t.k === "intervals") body = head("Czasy odcinków") + `<div class="lab-ms" style="flex-wrap:wrap">${[...Array(t.n)].map((_, i) => tim("t" + i, String(i + 1))).join("")}</div>`;

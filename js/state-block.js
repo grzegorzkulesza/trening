@@ -30,7 +30,7 @@ function finFor(dateStr){
   return eqOk("rower") ? {ex:sl.ex, load:sl.load, reps:sl.reps, min:m} : {ex:"air-squat", load:"bw", reps:15, min:m};
 }
 const finDose = f => f.ex === "row-cal" ? f.reps + " cal" : "× " + f.reps;
-const finRow = f => f ? `<section class="sec"><h2 class="sec-h">Finisher</h2><div class="card"><div class="row"><span class="main"><span class="name">EMOM ${f.min} min</span><span class="sub">${esc(exOf(f.ex).name)} ${esc(finDose(f))} co minutę</span></span></div></div></section>` : "";
+const finRow = f => f ? `<section class="sec"><h2 class="sec-h">Finisher</h2><div class="card"><div class="row"><span class="main"><span class="name">EMOM ${roundsText(f.min)}</span><span class="sub">${esc(exOf(f.ex).name)} ${esc(finDose(f))} co minutę</span></span></div></div></section>` : "";
 /* ---------- block: 4 weeks planned day by day (Linchpin, Nov 2026) ----------
    Mon–Fri with no day off in between, so fatigue is spread in the plan: Mon Heavy (legs), Tue Engine, Wed Heavy (upper body),
    Thu easy, Fri medium. Each day: type, planned effort 1–5 (EFF_TXT), estimate in minutes and parts. A part: how it is done (fmt),
@@ -110,7 +110,7 @@ function scoreText(s){
   const t = scoreType(s), sc = s.score || {};
   if (!t) return "";
   if (t.k === "amrap") return sc.rounds != null ? roundsText(sc.rounds) + (sc.reps ? " + " + sc.reps : "") : "";
-  if (t.k === "deathby") return sc.rounds != null ? sc.rounds + " min" + (sc.reps ? " + " + sc.reps + (/calor/i.test(s.block.parts[0].fmt) ? " cal" : "") : "") : "";
+  if (t.k === "deathby") return sc.rounds != null ? roundsText(sc.rounds) + (sc.reps ? " + " + sc.reps + (/calor/i.test(s.block.parts[0].fmt) ? " cal" : "") : "") : "";
   if (t.k === "fortime" || t.k === "ftornot") return sc.time ? mmss(sc.time) : "";
   if (t.k === "intervals") return [...Array(t.n)].map((_, i) => sc["t" + i]).filter(Boolean).map(mmss).join(" · ");
   if (t.k === "steady") return sc.dist ? sc.dist + " m" : "";
@@ -123,7 +123,7 @@ function scoreBrief(s){
   const none = "nie podał w polu; weź z notatki albo zdjęcia, jeśli tam jest";
   if (t.k === "amrap") return sc.rounds != null ? sc.rounds + " pełnych rund + " + (sc.reps || 0) + " powtórzeń w " + t.min + " min" + partialText(s, sc.reps) : none;
   if (t.k === "deathby"){ if (sc.rounds == null) return none; const n = sc.rounds, x = sc.reps || 0;
-    return "ostatnia pełna minuta " + n + (x ? ", w minucie " + (n + 1) + " zrobił " + x : "") + "; łącznie " + (n * (n + 1) / 2 + x); }
+    return n + " pełnych rund (runda = minuta, runda n to n powtórzeń)" + (x ? ", w rundzie " + (n + 1) + " zrobił " + x : "") + "; łącznie " + (n * (n + 1) / 2 + x); }
   if (t.k === "fortime" || t.k === "ftornot") return sc.time ? "czas " + mmss(sc.time) + " (bez Warm-up)" : "bez mierzenia czasu";
   if (t.k === "intervals"){ const ts = [...Array(t.n)].map((_, i) => sc["t" + i] ? mmss(sc["t" + i]) : "—"); return ts.some(x => x !== "—") ? "czasy odcinków: " + ts.join(", ") : none; }
   if (t.k === "steady") return sc.dist ? "dystans " + sc.dist + " m" : none;

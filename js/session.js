@@ -1,11 +1,11 @@
 "use strict";
 /* ---------- planned vs performed (Rx / Modified) ---------- */
-// What a part of the plan counts in: rounds, sets or minutes (EMOM). Performed value lives in s.pfmt[part index].
+// What a part of the plan counts in: rounds (EMOM too: one round per minute). Performed value lives in s.pfmt[part index].
 function partCount(fmt){
   let m;
   if ((m = fmt.match(/^(\d+) rounds?/))) return {n:+m[1], label:"Rundy", unit:""};
   if ((m = fmt.match(/^(\d+(?:-\d+)+)$/))) return {n:m[1].split("-").length, label:"Rundy", unit:""};
-  if ((m = fmt.match(/EMOM (\d+) min/))) return {n:+m[1], label:"Minuty", unit:"min"};
+  if ((m = fmt.match(/EMOM (\d+) min/))) return {n:+m[1], label:"Rundy", unit:"", emom:true};
   return null;
 }
 const partDone = (s, pi) => { const c = partCount(s.block.parts[pi].fmt); return c ? (s.pfmt && s.pfmt[pi] != null ? s.pfmt[pi] : c.n) : null; };

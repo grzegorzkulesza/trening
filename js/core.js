@@ -187,7 +187,7 @@ function doseText(exId, load, reps){
   if (ex.interval) return reps + " × (" + ex.interval + ")";
   if (ex.test) return "na czas";
   if (ex.m) return reps + " m";
-  if (ex.deathby) return "1 cal w 1. minucie, +1 cal co minutę";
+  if (ex.deathby) return "runda 1: 1 cal, każda kolejna +1 cal";
   if (ex.cal) return reps + " cal";
   if (ex.minutes) return reps + " min";
   reps = shownReps(ex, reps);
