@@ -25,9 +25,9 @@ function fmtParts(f){
   return {main:f, rest:""};
 }
 // A block day as cards, one per part: its format as the first row, then the items. rowFn draws one item.
-function blockSections(b, items, rowFn, head = "Workout", partFn = null){
+function blockSections(b, items, rowFn, head = "Workout", partFn = null, headFn = null){
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
-    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h"><b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}</div>${partFn ? partFn(pi, p) : ""}${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
+    return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h">${headFn ? headFn(pi, p, f) : `<b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}`}</div>${partFn ? partFn(pi, p) : ""}${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
 const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
@@ -106,19 +106,29 @@ function renderPrep(){
 }
 // Details of a done session: what was done, the note and Claude's review. Same screen for today and for past days.
 const pm5Text = p => [p.dist ? p.dist + " m" : "", p.time ? mmss(p.time) : "", p.split ? mmss(p.split) + " /500 m" : "", p.spm ? p.spm + " s/m" : "", p.hr ? p.hr + " bpm" : ""].filter(Boolean).join(" · ");
+// Header of a part on a done session: what was done, with the plan struck through when it differs.
+function doneHead(s){
+  return (pi, p, f) => {
+    const c = partCount(p.fmt); if (!c || !partMod(s, pi)) return `<b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}`;
+    const n = partDone(s, pi), main = c.unit === "min" ? "EMOM " + n + " min" : /^\d+ rounds?/.test(p.fmt) ? n + " rounds" : roundsText(n);
+    return `<b>${esc(main)}</b><span class="struck">${esc(f.main)}</span>`;
+  };
+}
 function doneScreen(s){
-  const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id);
-  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}</p><h1 class="title">Zrobione</h1></div></header>`;
-  const mods = strength || cond ? modLines(s) : [], rxp = (strength || cond) && !sessionMod(s) ? "Rx · " : "";
+  const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id), tr = strength || cond;
+  const badge = tr ? ` · ${sessionMod(s) ? "Modified" : "Rx"}` : "";
+  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}${badge}</p><h1 class="title">Zrobione</h1></div></header>`;
+  const eff = effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "";
+  const scoreRow = pi => pi === 0 && scoreText(s) ? `<div class="row"><span class="main"><span class="name">Wynik</span></span><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(scoreText(s))}</b></div>` : "";
+  const pm5 = s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : "";
+  const done = s.block
+    ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? "" : s.dur ? " · " + mmss(s.dur) : "") + eff)}</h2></section>${blockSections(s.block, s.items || [], doneRow, null, (pi) => scoreRow(pi), doneHead(s))}${pm5 ? `<section class="sec"><div class="card">${pm5}</div></section>` : ""}`
+    : `<section class="sec"><h2 class="sec-h">${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + eff}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${pm5}</div></section>${strength && s.fin ? finRow(s.fin) : ""}`;
   return `<section class="screen">${head}
-    ${(strength || cond) && sessionMod(s) ? `<section class="sec"><h2 class="sec-h">Modified</h2>${mods.length ? `<div class="card">${partLines(s).map(l => `<div class="row"><span class="main"><span class="name" style="font-weight:500">${esc(l.replace(/ \(plan:.*$/, ""))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((l.match(/\(plan: ([^;)]+)/) || [])[1] || "")}</span></div>`).join("")}${(s.items || []).filter(itemMod).map(it => `<div class="row"><span class="main"><span class="name">${esc(exOf(it.ex).name)}</span><span class="sub">${esc(doseText(it.ex, it.load, it.reps))}</span></span><span class="sub" style="text-decoration:line-through;text-align:right">${esc((it.planEx === it.ex ? "" : exOf(it.planEx).name + " ") + doseText(it.planEx, it.planLoad, it.planReps))}</span></div>`).join("")}</div>` : ""}</section>` : ""}
+    ${done}
     ${s.note ? `<section class="sec"><h2 class="sec-h">Twoja notatka</h2><div class="verdict"><p>${esc(s.note)}</p></div></section>` : ""}
-    ${strength || cond ? (isToday || S.reviewing === s.id || (Sync.pendingReview() || {}).id === s.id ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
-    ${s.block ? `<section class="sec"><h2 class="sec-h">${rxp}${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? " · " + scoreText(s) : s.dur ? " · " + mmss(s.dur) : "") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] + " (plan " + EFF_TXT[s.block.effort] + ")" : ""))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null, (pi) => pi === 0 && scoreText(s) ? `<div class="row"><span class="main"><span class="name">Wynik</span></span><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(scoreText(s))}</b></div>` : "")}${s.pm5 ? `<section class="sec"><div class="card"><div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div></div></section>` : ""}` : `
-    <section class="sec"><h2 class="sec-h">${rxp}${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + (effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "")}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : ""}</div>
-      </section>`}
+    ${tr ? (isToday || S.reviewing === s.id || (Sync.pendingReview() || {}).id === s.id ? reviewBlock(s, r) : r ? reviewHtml(r, false) : "") : ""}
     ${s.photoLost && photoOf(s.id) ? `<p class="note">Zdjęcie nie dotarło do Claude. Zaktualizuj skrypt w arkuszu i zapisz notatkę jeszcze raz.</p>` : ""}
-    ${strength && s.fin ? finRow(s.fin) : ""}
     <div class="push"><button class="btn plain" data-act="edit-done" data-id="${esc(s.id)}">Popraw</button></div></section>`;
 }
 // Plan of the next Strength day, on the screen of a done session.

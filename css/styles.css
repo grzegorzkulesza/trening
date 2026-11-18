@@ -357,3 +357,6 @@ html.skin2 .lvl{border-top:3px solid var(--ink)}
 html.skin2 .gp-ring{border-radius:0}
 html.skin2 .lvl-badge{border-radius:0}
 html.skin2 .grp-name{font-family:"Barlow Condensed",Inter,sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:0}
+
+.struck{font-size:14px;color:var(--faint);text-decoration:line-through;font-weight:400;white-space:nowrap}
+.fmt-h .struck{font-size:15px}
