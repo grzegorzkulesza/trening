@@ -208,7 +208,7 @@ function weekStripHtml(){
     const dt = parseYmd(d.date), name = DAYS[d.w] + ", " + dt.getDate() + " " + MONTHS[dt.getMonth()] + (d.done ? ", zrobione" : d.kind ? ", " + (d.kind === "strength" ? "Strength" : "Conditioning") : "");
     return `<button class="wk-c ${d.date === sel ? "on" : ""} ${d.today ? "today" : ""} ${d.past ? "past" : ""}" role="tab" aria-selected="${d.date === sel}" aria-label="${esc(name)}" data-act="pick-day" data-date="${d.date}"><span class="l">${LETTERS[d.w]}</span><span class="n">${dt.getDate()}${dot ? `<i class="dot ${dot}" aria-hidden="true"></i>` : ""}</span></button>`;
   };
-  return `<section class="wk"><div class="wk-nav"><h2 class="sec-h">${esc(label)}</h2><span class="wk-arrows">${off !== 0 || sel !== today() ? `<button class="wk-today" data-act="wk-today" aria-label="Wróć do dziś">${RELOAD}</button>` : ""}
+  return `<section class="wk"><div class="wk-nav"><h2 class="sec-h">${esc(label)}</h2><span class="wk-arrows">${off !== 0 || sel !== today() ? `<button class="wk-today" data-act="wk-today" aria-label="Wróć do dziś">${TODAY_ICON}</button>` : ""}
       <button data-act="wk" data-d="-1" aria-label="Poprzedni tydzień" ${off <= wkMin() ? "disabled" : ""}>${BACK}</button>
       <button data-act="wk" data-d="1" aria-label="Następny tydzień" ${off >= WK_MAX ? "disabled" : ""}><span style="display:inline-flex;transform:scaleX(-1)">${BACK}</span></button></span></div>
     <div class="wk-strip" role="tablist" aria-label="${esc(label)}">${days.map(cell).join("")}</div></section>`;
