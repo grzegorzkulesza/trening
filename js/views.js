@@ -189,14 +189,17 @@ function scoreCard(s){
   const t = scoreType(s); if (!t) return "";
   const sc = s.score || {};
   const num = (k, lab, w) => `<label><input data-sc="${k}" inputmode="numeric" pattern="[0-9]*" maxlength="${w}" autocomplete="off" placeholder="0" value="${sc[k] ?? ""}" aria-label="${lab}">${lab}</label>`;
-  const tim = (k, lab) => `<label><input data-sc="${k}" data-time="1" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="off" placeholder="0:00" value="${sc[k] ? mmss(sc[k]) : ""}" aria-label="${lab}">${lab}</label>`;
+  // Time as two fields, minutes and seconds, like the workout time; n = interval number shown before the fields.
+  const tim = (k, n) => { const v = sc[k], m = v ? String(Math.floor(v / 60)) : "", sx = v ? String(v % 60).padStart(2, "0") : "";
+    const f = (p, val, ph, lab, w) => `<label><input data-sc="${k}" data-tp="${p}" inputmode="numeric" pattern="[0-9]*" maxlength="${w}" autocomplete="off" placeholder="${ph}" value="${val}" aria-label="${lab}${n ? " " + n : ""}">${lab}</label>`;
+    return `<div class="lab-ms" data-tg="${k}">${n ? `<span class="lab-n">${n}</span>` : ""}${f("m", m, "0", "min", 2)}<b>:</b>${f("s", sx, "00", "s", 2)}</div>`; };
   const head = (a, b) => `<div class="lab-row"><span>${a}${b ? `<small>${b}</small>` : ""}</span></div>`;
   let body;
   if (t.k === "amrap") body = head("Wynik", "AMRAP " + t.min + " min") + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", "reps", 3)}</div>`;
   else if (t.k === "deathby") body = head("Wynik", esc(s.block.parts[0].fmt)) + `<div class="lab-ms">${num("rounds", "rounds", 2)}<b>+</b>${num("reps", /calor/i.test(s.block.parts[0].fmt) ? "cal" : "reps", 2)}</div>`;
-  else if (t.k === "fortime") body = head("Czas", "Bez Warm-up") + `<div class="lab-ms">${tim("time", "min:s")}</div>`;
-  else if (t.k === "ftornot") body = `<label class="lab-row"><span>Na czas<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-scft="1" ${sc.ft ? "checked" : ""} aria-label="Na czas"></label>` + (sc.ft ? `<div class="lab-ms">${tim("time", "min:s")}</div>` : "");
-  else if (t.k === "intervals") body = head("Czasy odcinków") + `<div class="lab-ms" style="flex-wrap:wrap">${[...Array(t.n)].map((_, i) => tim("t" + i, String(i + 1))).join("")}</div>`;
+  else if (t.k === "fortime") body = head("Czas", "Bez Warm-up") + tim("time");
+  else if (t.k === "ftornot") body = `<label class="lab-row"><span>Na czas<small>Bez Warm-up</small></span><input type="checkbox" class="sw" data-scft="1" ${sc.ft ? "checked" : ""} aria-label="Na czas"></label>` + (sc.ft ? tim("time") : "");
+  else if (t.k === "intervals") body = head("Czasy odcinków") + [...Array(t.n)].map((_, i) => tim("t" + i, String(i + 1))).join("");
   else if (t.k === "steady") body = head("Dystans") + `<div class="lab-ms">${num("dist", "m", 5)}</div>`;
   return body ? `<div class="card">${body}</div>` : "";
 }

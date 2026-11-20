@@ -37,7 +37,7 @@ const nextGroup = g => GROUPS[GROUPS.indexOf(g) + 1] || null;
 const badge = (g, size, dim) => { const sq = skinOf() === "2";
   return `<svg class="badge" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true" style="width:${size}px;height:${size}px;${sq ? "" : "clip-path:circle(50%);"}flex:none${dim ? ";opacity:.35" : ""}">${sq ? `<rect width="64" height="64" fill="${g.color}"/>` : `<circle cx="32" cy="32" r="32" fill="${g.color}"/>`}${ANIMAL[g.id](g.color)}</svg>`; };
 // Exercises that count for each category, easiest first: where to look for "what result gets me to the next group".
-const CAT_EX = {pull:["ring-row", "ring-row-box", "pullup-negative", "band-pullup", "pullup"], push:["incline-pushup-75", "knee-pushup", "pushup-negative", "pushup", "ring-dip"],
+const CAT_EX = {pull:["ring-row", "ring-row-box", "archer-ring-row", "sa-ring-row", "pullup-negative", "band-pullup", "pullup"], push:["incline-pushup-75", "knee-pushup", "pushup-negative", "pushup", "ring-dip"],
   press:["kb-clean-press", "kb-strict-press", "bb-push-press"], hinge:["kb-swing", "kb-swing-1a", "bb-dl"], legs:["bss", "bb-front-squat"], carry:["suitcase-carry", "farmer-carry"]};
 // Sensible rep range for a suggestion: at least a few reps (swings 10, carries 20 m), at most what fits the training style.
 const repFloor = (e, load) => e.dist ? 20 : e.pattern === "hinge" && !e.bb ? 10 : load === "bw" ? 1 : 3;
@@ -104,7 +104,7 @@ const fmtTime = t => Math.floor(t / 60) + ":" + String(Math.round(t % 60)).padSt
 const LEVEL_CATS = [
   {id:"pull", name:"Pull", pattern:"hpull", src:"Strength Level, Pull-ups", ref:() => ({a:[1, 6, 13, 24, 34], f:v => repsSet("Pull-up", v)}),
     score(it){ const r = it.reps; switch (it.ex){
-      case "ring-row": return 1.5 * clamp01(r / 12); case "ring-row-box": return 1.5 + clamp01(r / 12);
+      case "ring-row": return 1.5 * clamp01(r / 12); case "ring-row-box": case "archer-ring-row": return 1.5 + clamp01(r / 12); case "sa-ring-row": return 2 + 0.5 * clamp01(r / 10);
       case "pullup-negative": return 2.5 + clamp01(r / 5); case "band-pullup": return 3.5 + 1.5 * clamp01(r / 8);
       case "pullup": return pctFrom(r + RIR, [1, 6, 13, 24, 34]); } return null; }},
   {id:"push", name:"Push", pattern:"hpush", src:"Strength Level, Push-ups", ref:() => ({a:[1, 18, 41, 68, 99], f:v => repsSet("Push-up", v)}),

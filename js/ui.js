@@ -236,16 +236,18 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => {
   if (e.target.dataset.sc){ const s = current(), sc = s.score || (s.score = {}), k = e.target.dataset.sc, el = e.target;
     let d = el.value.replace(/\D/g, "");
-    if (el.dataset.time){ d = d.slice(0, 4); el.value = d.length > 2 ? d.slice(0, -2) + ":" + d.slice(-2) : d;
-      const sec = d.length > 2 ? +d.slice(-2) : +d, v = d.length > 2 ? +d.slice(0, -2) * 60 + sec : sec;
-      sc[k] = d && sec < 60 && v > 0 ? v : null; el.classList.toggle("bad", d !== "" && sc[k] == null); }
+    if (el.dataset.tp){ d = d.slice(0, 2); el.value = d;
+      const g = el.closest("[data-tg]"), mi = g.querySelector("[data-tp=m]"), si = g.querySelector("[data-tp=s]");
+      const mv = mi.value, sv = si.value, v = (+mv || 0) * 60 + (+sv || 0);
+      sc[k] = (mv || sv) && (+sv || 0) < 60 && v > 0 ? v : null; g.classList.toggle("bad", (mv !== "" || sv !== "") && sc[k] == null);
+      if (el === mi && d.length === 2) si.focus(); }
     else { d = d.slice(0, +el.maxLength || 3); el.value = d; sc[k] = d === "" ? null : +d; }
     commitSession(s, true); const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); }
   if (e.target.dataset.note){ const s = current(); s.note = e.target.value; commitSession(s, true); }
   if (e.target.dataset.tm){ const s = current(), t = tmOf(s), k = e.target.dataset.tm; t[k] = e.target.value.replace(/\D/g, "").slice(0, 2); e.target.value = t[k];
     if (k === "m" && t.m.length === 2) $("#durS").focus();
     s.dur = tmSecs(t); commitSession(s, true);
-    const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); const ms = $(".lab-ms"); if (ms) ms.classList.toggle("bad", tmBad(s)); }
+    const b = $("[data-act=finish]"); if (b) b.disabled = !noteOk(s); const ms = $("#durM") && $("#durM").closest(".lab-ms"); if (ms) ms.classList.toggle("bad", tmBad(s)); }
 });
 document.addEventListener("change", e => {
   const t = e.target;

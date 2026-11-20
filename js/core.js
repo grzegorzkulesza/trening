@@ -66,8 +66,8 @@ const X = (id, o) => { EX[id] = Object.assign({id, loads:["bw"], side:false, tim
 X("kb-halo", {name:"KB Halo", pattern:"shoulder", loads:["kb4","kb8","kb16"], side:true, def:["kb8",5], cue:"Kettel blisko głowy, żebra w dół, brzuch napięty."});
 X("kb-clean-press", {name:"KB Clean & Press", pattern:"vpush", loads:["kb8","kb16","kb20"], side:true, def:["kb16",5], cue:"Opuszczaj przez 3 sekundy. Push press dozwolony."});
 X("kb-strict-press", {name:"KB Clean & Strict Press", pattern:"vpush", loads:["kb8","kb16","kb20"], side:true, def:["kb16",3], cue:"Bez pomocy nóg. Opuszczanie 3 sekundy."});
-X("ring-row", {name:"Ring Row", pattern:"hpull", req:["rings"], def:["bw",8], cue:"Ciało w jednej linii, łopatki ściągnięte."});
-X("ring-row-box", {name:"Ring Row", tag:"Feet on box", pattern:"hpull", req:["rings","box"], def:["bw",8], cue:"Stopy na skrzyni, ciało poziomo."});
+X("ring-row", {name:"Ring Row", pattern:"hpull", req:["rings"], def:["bw",8], cue:"Ringi na wysokości bioder. Ciało w jednej linii, łopatki ściągnięte."});
+X("ring-row-box", {name:"Ring Row", tag:"Feet on box", pattern:"hpull", req:["rings","box","off"] /* wycofane 20.11: nie do wykonania u Grzegorza; zostaje dla historii */, def:["bw",8], cue:"Stopy na skrzyni, ciało poziomo."});
 X("pullup-negative", {name:"Pull-up Negative", pattern:"hpull", req:["pullbar"], def:["bw",3], cue:"Wskakujesz nad drążek, schodzisz przez 5 sekund."});
 X("band-pullup", {name:"Band-assisted Pull-up", pattern:"hpull", req:["pullbar","bands"], def:["bw",5], cue:"Guma pod kolanem albo stopą, pełny zakres."});
 X("pullup", {name:"Pull-up", pattern:"hpull", req:["pullbar"], def:["bw",3], cue:"Pełny zwis na dole, broda nad drążkiem."});
@@ -164,7 +164,7 @@ const UNKNOWN = {id:"?", name:"Nieznane ćwiczenie", pattern:"", loads:["bw"], s
 const EX_ALIAS = {"ring-row-60":"ring-row", "ring-row-45":"ring-row", "ring-row-30":"ring-row", "ring-row-flat":"ring-row"};
 const ladderOf = sl => sl.block || sl.bb ? [sl.ex] : (LADDERS[sl.pattern] || [sl.ex]);
 const LADDERS = {
-  hpull:["ring-row","ring-row-box","pullup-negative","band-pullup","pullup"],
+  hpull:["ring-row","archer-ring-row","sa-ring-row","pullup-negative","band-pullup","pullup"],
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
   vpush:["kb-clean-press","kb-strict-press"],
   hinge:["kb-swing","kb-swing-1a"],
@@ -273,7 +273,7 @@ function warmupFor(items){
   return out;
 }
 
-const MIG = 4; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026); 4: longer mobility
+const MIG = 5; // 1: barbell switched on; 2: Steady at least 40 min; 3: circuits A and B, 3 rounds, finisher (Nov 2026); 4: longer mobility
 function defaultProfile(){
   return {v:2, mig:MIG, schedule:[1,3,5], condSchedule:[2,4], mobSchedule:[0,1,2,3,4,5,6], rounds:3, rest:120, warmStart:"rope", equip:{...DEFAULT_EQUIP}, slots:DEFAULT_SLOTS.map(s => ({...s})), custom:{}, analysis:null, over:{}};
 }
@@ -290,6 +290,7 @@ function mergeProfile(p){
     out.slots.forEach(sl => { if (EX_ALIAS[sl.ex]) sl.ex = EX_ALIAS[sl.ex]; });
     if ((p.mig || 0) < 2){ const st = out.slots.find(x => x.key === "c-steady"); if (st && st.reps < 40) st.reps = 40; }
     if ((p.mig || 0) < 3){ out.rounds = 3; out.finStart = ymd(mondayOf(today())); }
+    if ((p.mig || 0) < 5) out.slots.forEach(sl => { if (sl.ex === "ring-row-box") sl.ex = "ring-row"; });
     if ((p.mig || 0) < 4) out.slots.forEach(sl => { if (sl.group === "mobility") sl.reps = Math.max(sl.reps, exOf(sl.ex).def[1]); });
   }
   return out;
