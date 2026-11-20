@@ -71,8 +71,8 @@ X("ring-row-box", {name:"Ring Row", tag:"Feet on box", pattern:"hpull", req:["ri
 X("pullup-negative", {name:"Pull-up Negative", pattern:"hpull", req:["pullbar"], def:["bw",3], cue:"Wskakujesz nad drążek, schodzisz przez 5 sekund."});
 X("band-pullup", {name:"Band-assisted Pull-up", pattern:"hpull", req:["pullbar","bands"], def:["bw",5], cue:"Guma pod kolanem albo stopą, pełny zakres."});
 X("pullup", {name:"Pull-up", pattern:"hpull", req:["pullbar"], def:["bw",3], cue:"Pełny zwis na dole, broda nad drążkiem."});
-X("archer-ring-row", {name:"Archer Ring Row", pattern:"hpull", req:["rings"], side:true, def:["bw",5], cue:"Jedna ręka ciągnie, druga prowadzi bokiem."});
-X("sa-ring-row", {name:"Single-arm Ring Row", pattern:"hpull", req:["rings"], side:true, def:["bw",5], cue:"Bez rotacji tułowia."});
+X("archer-ring-row", {name:"Archer Ring Row", pattern:"hpull", req:["rings","off"] /* wycofane 20.11 */, side:true, def:["bw",5], cue:"Jedna ręka ciągnie, druga prowadzi bokiem."});
+X("sa-ring-row", {name:"Single-arm Ring Row", pattern:"hpull", req:["rings","off"] /* wycofane 20.11 */, side:true, def:["bw",5], cue:"Bez rotacji tułowia."});
 X("kb-swing", {name:"KB Swing", pattern:"hinge", loads:["kb16","kb20"], def:["kb20",15], cue:"Ruch idzie z bioder. Ramiona tylko prowadzą kettla."});
 X("kb-swing-1a", {name:"One-arm KB Swing", pattern:"hinge", loads:["kb16","kb20"], side:true, def:["kb20",8], cue:"Barki równo, bez skrętu tułowia."});
 X("incline-pushup-75", {name:"Incline Push-up", tag:"Box 75 cm", pattern:"hpush", req:["box"], def:["bw",10], cue:"Dłonie na krawędzi skrzyni, ciało prosto."});
@@ -164,7 +164,7 @@ const UNKNOWN = {id:"?", name:"Nieznane ćwiczenie", pattern:"", loads:["bw"], s
 const EX_ALIAS = {"ring-row-60":"ring-row", "ring-row-45":"ring-row", "ring-row-30":"ring-row", "ring-row-flat":"ring-row"};
 const ladderOf = sl => sl.block || sl.bb ? [sl.ex] : (LADDERS[sl.pattern] || [sl.ex]);
 const LADDERS = {
-  hpull:["ring-row","archer-ring-row","sa-ring-row","pullup-negative","band-pullup","pullup"],
+  hpull:["ring-row","pullup-negative","band-pullup","pullup"],
   hpush:["incline-pushup-75","knee-pushup","pushup-negative","pushup"],
   vpush:["kb-clean-press","kb-strict-press"],
   hinge:["kb-swing","kb-swing-1a"],
