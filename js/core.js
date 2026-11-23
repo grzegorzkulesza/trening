@@ -37,7 +37,7 @@ const EQUIP = [
   {id:"kb4", label:"Kettlebell 4 kg"}, {id:"kb8", label:"Kettlebell 8 kg"}, {id:"kb16", label:"Kettlebell 16 kg"}, {id:"kb20", label:"Kettlebell 20 kg"},
   {id:"db15", label:"Hantle 2 × 15 kg"}, {id:"db225", label:"Hantle 2 × 22,5 kg"}, {id:"mb9", label:"Piłka lekarska 9 kg"},
   {id:"rings", label:"Kółka gimnastyczne"}, {id:"pullbar", label:"Drążek"}, {id:"bands", label:"Gumy oporowe"},
-  {id:"box", label:"Skrzynia 50 / 60 / 75 cm"}, {id:"rower", label:"Wioślarz"}, {id:"rope", label:"Skakanka"}, {id:"broom", label:"Kij"}, {id:"abmat", label:"AbMat"},
+  {id:"box", label:"Skrzynia 50 / 60 / 75 cm"}, {id:"rower", label:"Wioślarz"}, {id:"rope", label:"Skakanka"}, {id:"broom", label:"PVC pipe"}, {id:"abmat", label:"AbMat"},
   {id:"barbell", label:"Sztanga i stojaki", note:"Gryf 20 kg, bumpery 2 × 20 / 15 / 10 / 5 / 2,5 / 1,25 kg."}
 ];
 const DEFAULT_EQUIP = Object.fromEntries(EQUIP.map(e => [e.id, true]));
@@ -273,14 +273,14 @@ function warmupFor(items){
     if (cardio(x) || p === "carry" || p === "shoulder") continue;
     if (ex.bb){
       if (p === "squat") add(squatPrep());
-      if (p === "hinge") add(eqOk("broom") ? {name:"Broomstick Hip Hinge", dose:"× 8"} : kbDl(it));
-      if (p === "vpush" && eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"});
+      if (p === "hinge") add(eqOk("broom") ? {name:"PVC Hip Hinge", dose:"× 8"} : kbDl(it));
+      if (p === "vpush" && eqOk("broom")) add({name:"PVC Pass-through", dose:"× 10"});
       const kg = LOADS[it.load] && LOADS[it.load].bb || BAR;
       add({name:ex.name, dose:plKg(Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
     } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:LOADS[it.load].label + " × " + shownReps(ex, 5)}); }
     else if (p === "vpush"){
       if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:(eqOk("kb8") ? "8 kg " : "") + "× " + shownReps(ex, 3)}); }
-      else { if (eqOk("broom")) add({name:"Broomstick Pass-through", dose:"× 10"}); add(same(x)); }
+      else { if (eqOk("broom")) add({name:"PVC Pass-through", dose:"× 10"}); add(same(x)); }
     }
     else if (p === "squat") add(it.load === "bw" ? {name:ex.name, dose:"× " + half(it) + " · 2 s na dole"} : squatPrep());
     else if (p === "lunge") add(it.load === "bw" ? same(x) : squatPrep());
