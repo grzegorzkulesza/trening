@@ -202,6 +202,24 @@ function doseText(exId, load, reps){
   const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
   return (lbl ? lbl + " × " : "× ") + reps + (ex.dist ? " m" : "") + sideTxt(ex) + (ex.hold ? " · " + ex.hold : "");
 }
+// Plan written like the whiteboard: reps first ("5 ×"), then the name, then the load or dose. Empty reps when the dose is not a count.
+function boardDose(exId, load, reps){
+  const ex = exOf(exId);
+  if (ex.interval) return {r:reps + " ×", rest:ex.interval};
+  if (ex.test || ex.m || ex.deathby || ex.cal || ex.minutes) return {r:"", rest:doseText(exId, load, reps)};
+  reps = shownReps(ex, reps);
+  const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
+  if (ex.timed) return {r:"", rest:(lbl ? lbl + " · " : "") + reps + " s"};
+  if (ex.dist) return {r:"", rest:(lbl ? lbl + " · " : "") + reps + " m"};
+  return {r:reps + " ×", rest:lbl + (ex.hold ? (lbl ? " · " : "") + ex.hold : "")};
+}
+// Same split for warm-up doses written as text ("× 8", "30 kg × 5", "3 × 10 s", "2 min").
+function boardText(dose){
+  let m = /^(\d+) × (.+)$/.exec(dose); if (m) return {r:m[1] + " ×", rest:m[2]};
+  m = /^(.*?)\s*× (\d+)(.*)$/.exec(dose); if (m) return {r:m[2] + " ×", rest:(m[1] + m[3]).replace(/^\s*·\s*/, "").trim()};
+  return {r:"", rest:dose};
+}
+const boardRow = (r, name, rest, dot) => `<span class="rp">${esc(r)}</span><span class="main bd"><span class="name">${esc(name)}</span>${rest || dot ? `<span class="ld">${dot || ""}${esc(rest)}</span>` : ""}</span>`;
 const shortDose = (exId, reps) => { const ex = exOf(exId); reps = shownReps(ex, reps); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
 

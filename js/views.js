@@ -8,7 +8,8 @@ function itemRow(it, i, tappable){
   const changed = it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
   const byClaude = it.claudeAt ? Date.now() - it.claudeAt < CLAUDE_TAG_DAYS * 86400000 && !changed : sl && sl.claudeAt && Date.now() - sl.claudeAt < CLAUDE_TAG_DAYS * 86400000 && sl.ex === it.ex && sl.load === it.load && sl.reps === it.reps;
   const tag = it.swap ? `<span class="tag">zamiana na dziś</span>` : changed ? `<span class="tag">zmienione</span>` : byClaude ? `<span class="tag up">od Claude</span>` : "";
-  const inner = `${i != null ? `<span class="num">${i+1}</span>` : ""}<span class="main"><span class="name">${esc(ex.name)}</span><span class="sub">${dotHtml(it.load)}${esc(doseText(it.ex, it.load, it.reps))}</span></span>${tag}${tappable ? CHEV : ""}`;
+  const b = boardDose(it.ex, it.load, it.reps);
+  const inner = `${boardRow(b.r, ex.name, b.rest, dotHtml(it.load))}${tag}${tappable ? CHEV : ""}`;
   return tappable ? `<button class="row" data-act="edit" data-key="${it.key}">${inner}</button>` : `<div class="row">${inner}</div>`;
 }
 // Format of a part split for its header: the count in bold ("6 rounds", "5 × 5", "EMOM 8 rounds"), the rest after it,
@@ -146,7 +147,7 @@ function bbWarmNote(items, word = "rundą"){
   const half = Math.round(LOADS[b.load].bb / 2 / 2.5) * 2.5;
   return `<p class="note">${esc(exOf(b.ex).name)} przed pierwszą ${word}: 5 × pusty gryf${half > BAR ? ", 3 × " + plKg(half) + " kg" : ""}.</p>`;
 }
-const warmCard = items => !warmupFor(items).length ? "" : `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => `<div class="row"><span class="main"><span class="name" style="display:flex;justify-content:space-between;gap:12px"><span>${w.name}</span><span style="font-variant-numeric:tabular-nums">${w.dose}</span></span></span></div>`).join("")}</div></section>`;
+const warmCard = items => !warmupFor(items).length ? "" : `<section class="sec"><h2 class="sec-h">Warm-up</h2><div class="card">${warmupFor(items).map(w => { const b = boardText(w.dose); return `<div class="row">${boardRow(b.r, w.name, b.rest)}</div>`; }).join("")}</div></section>`;
 function planScreen(date, kind){
   const b = blockFor(date, kind);
   if (b){ const its = blockItems(date);
