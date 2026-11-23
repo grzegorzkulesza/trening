@@ -130,8 +130,10 @@ function finishSession(){
   const had = reviewFor(s.id);
   if (!noteOk(s)) return;
   if (s.kind === "strength") s.dur = s.timed ? tmSecs(tmOf(s)) : null;
-  if (s.kind !== "mobility" && Sync.url && (!had || (s.note || "") !== (s.reviewedNote || "") || photoOf(s.id) || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}") || modsKey(s) !== (s.reviewedMods || modsKey(s)))){
-    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {}); s.reviewedMods = modsKey(s);
+  const legacy = () => (s.note || "") !== (s.reviewedNote || "") || (s.dur || 0) !== (s.reviewedDur || 0) || JSON.stringify(s.score || {}) !== (s.reviewedScore || "{}") || modsKey(s) !== (s.reviewedMods || modsKey(s));
+  const changed = !had || photoOf(s.id) || (s.reviewedKey ? reviewKey(s) !== s.reviewedKey : legacy() || past);
+  if (s.kind !== "mobility" && Sync.url && changed){
+    s.reviewedDur = s.dur || 0; s.reviewedScore = JSON.stringify(s.score || {}); s.reviewedMods = modsKey(s); s.reviewedKey = reviewKey(s);
     s.reviewedNote = s.note || "";
     commitSession(s);
     Sync.setPendingReview({id:s.id, force:!!had, prev:had ? had.title + had.text : ""});

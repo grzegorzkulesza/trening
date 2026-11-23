@@ -15,6 +15,8 @@ function partRow(s, pi, p){
   const c = partCount(p.fmt); if (!c) return "";
   return `<div class="row pf-row ${partMod(s, pi) ? "chg" : ""}" data-pfrowp="${pi}"><span class="main"><span class="name">${c.label}</span><span class="plan">${c.n}${c.unit ? " " + c.unit : ""}</span></span><span class="pf-in"><label class="pf"><input data-pfp="${pi}" inputmode="numeric" pattern="[0-9]*" autocomplete="off" aria-label="${c.label}" value="${partDone(s, pi)}">${c.unit ? `<span>${c.unit}</span>` : ""}</label></span></div>`;
 }
+// Everything the review is based on; when any of it changes on save, the session is reviewed again.
+const reviewKey = s => JSON.stringify([s.note || "", s.dur || 0, s.score || {}, s.eff ?? null, modsKey(s)]);
 const modsKey = s => JSON.stringify([s.rx, s.pfmt || {}, (s.items || []).map(i => [i.ex, i.load, i.reps])]);
 const itemMod = it => it.ex !== it.planEx || it.load !== it.planLoad || it.reps !== it.planReps;
 const sessionMod = s => s.rx === false || (s.items || []).some(itemMod) || partsMod(s);

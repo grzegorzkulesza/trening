@@ -310,7 +310,7 @@ const Sync = {
   async review(id, force){
     const s = S.sessions[id];
     if (!this.url || !s || S.reviewing) return;
-    const redraw = () => { if (["home", "prep"].includes(S.view)) render(); };
+    const redraw = () => { if (["home", "prep", "detail"].includes(S.view)) render(); };
     if (!navigator.onLine){ S.reviewErr = "Brak internetu. Ocena przyjdzie, gdy telefon złapie sieć."; redraw(); return; }
     S.reviewing = id; S.reviewErr = null; redraw();
     for (let i = 0; i < 60 && this.busy; i++) await sleep(250);
