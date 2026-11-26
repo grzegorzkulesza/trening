@@ -30,7 +30,9 @@ function blockSections(b, items, rowFn, head = "Workout", partFn = null, headFn 
   return b.parts.map((p, pi) => { const its = items.filter(it => (it.part || 0) === pi), many = its.length > 1, f = fmtParts(p.fmt);
     return `${f.before && pi ? `<p class="fmt-sep"><i></i>${esc(f.before)}<i></i></p>` : ""}<section class="sec">${pi === 0 && head ? `<h2 class="sec-h">${esc(head)}</h2>` : ""}<div class="card"><div class="fmt-h">${headFn ? headFn(pi, p, f) : `<b>${esc(f.main)}</b>${f.rest ? `<span>${esc(f.rest)}</span>` : ""}`}</div>${partFn ? partFn(pi, p) : ""}${its.map((it, i) => rowFn(it, many ? i : null)).join("")}</div></section>`; }).join("");
 }
-const blockHeader = (kind, date, b, title) => `<header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">${title || BLOCK_TITLE[b.type]}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
+// Every training screen: title = the name on the day list (Strength / Conditioning / Mobility); date, type and status in the line above.
+const kickerOf = (kind, date, b, extra) => [dayLabel(parseYmd(date)), b && BLOCK_TITLE[b.type] !== kindLabel(kind) ? BLOCK_TITLE[b.type] : null, ...(extra || [])].filter(Boolean).join(" · ");
+const blockHeader = (kind, date, b) => `<header class="head"><div><p class="kicker">${kickerOf(kind, date, b)}</p><h1 class="title">${kindLabel(kind)}</h1><p class="lead">${esc(blockHead(b))}</p></div></header>`;
 const planItems = group => (group === "circuit" ? circuitFor(tomorrow()) : slotsOf(group)).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
 function sessionFor(kind){ const x = S.sessions[sessionId(kind)]; return x && x.v === 2 ? x : null; }
 const reviewFor = id => (S.reviews || {})[id] || null;
@@ -81,7 +83,7 @@ function reviewBlock(s, r){
 }
 function renderPrep(){
   const s = current(), strength = s.kind === "strength", cond = s.kind === "cond";
-  const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(new Date())}</p><h1 class="title">${title}</h1></div></header>`;
+  const head = title => `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kickerOf(s.kind, today(), null)}</p><h1 class="title">${kindLabel(s.kind)}</h1></div></header>`;
   if (s.status === "done") return doneScreen(s);
   if (s.block){
     return `<section class="screen"><div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div>${blockHeader(s.kind, s.date, s.block)}
@@ -122,8 +124,7 @@ function doneHead(s){
 }
 function doneScreen(s){
   const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id), tr = strength || cond;
-  const badge = tr ? ` · ${sessionMod(s) ? "Modified" : "Rx"}` : "";
-  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(s.kind)} · ${dayLabel(parseYmd(s.date))}${badge}</p><h1 class="title">Zrobione</h1></div></header>`;
+  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kickerOf(s.kind, s.date, s.block, ["Zrobione", tr ? (sessionMod(s) ? "Modified" : "Rx") : null])}</p><h1 class="title">${kindLabel(s.kind)}</h1></div></header>`;
   const eff = effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "";
   const scoreRow = pi => pi === 0 && scoreText(s) ? `<div class="row"><span class="main"><span class="name">Wynik</span></span><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(scoreText(s))}</b></div>` : "";
   const pm5 = s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : "";
@@ -161,7 +162,7 @@ function planScreen(date, kind){
   const day = dayFor(date) || {date, kind}, strength = kind === "strength";
   const its = strength ? dayPlanItems(day.kind === "strength" ? day : {date, kind:"strength", plan:null})
     : (kind === "cond" ? [slotByKey(condKey(date))].filter(Boolean) : slotsOf("mobility")).map(sl => ({key:sl.key, ex:sl.ex, load:sl.load, reps:sl.reps, planEx:sl.ex, planLoad:sl.load, planReps:sl.reps}));
-  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kindLabel(kind)} · ${dayLabel(parseYmd(date))}</p><h1 class="title">Plan</h1></div></header>`;
+  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kickerOf(kind, date, null)}</p><h1 class="title">${kindLabel(kind)}</h1></div></header>`;
   return `<section class="screen">${head}${strength ? warmCard(its) : ""}
     <section class="sec"><h2 class="sec-h">${strength ? "Circuit " + (day.plan || nextPlan(date)) + " · " + roundsText(S.profile.rounds) : kind === "cond" ? condLabel(condKey(date)) : "Mobility"} · ${estText(kind, its, S.profile.rounds, strength ? finFor(date) : null)}</h2>
       <div class="card">${its.map((it, i) => itemRow(it, strength ? i : null, false)).join("")}</div>
