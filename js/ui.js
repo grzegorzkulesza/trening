@@ -272,28 +272,79 @@ document.addEventListener("change", e => {
   if (t.dataset.timed){ const s = current(); s.timed = t.checked; s.dur = s.timed ? tmSecs(tmOf(s)) : null; commitSession(s); render(); if (s.timed) $("#durM").focus(); }
 });
 // Swipes, like native iOS:
-// - week strip left/right: previous / next week;
-// - day screen left/right: next / previous day;
-// - any screen with a back arrow, swipe right: back (same as the arrow);
+// - any screen with a back arrow, drag right: the screen slides away and the previous one shows underneath (same as the arrow);
+// - day screen, drag left/right: the next / previous day slides in;
+// - week strip left/right: previous / next week (quick swipe);
 // - open sheet, swipe down from its top: close.
+// The target screen is rendered for real under a snapshot of the current one; a cancelled drag restores the state.
 let swp = null;
 const noSwipe = el => el.closest("input, textarea, select, .eff-bar, [data-noswipe]");
+const backBtn = () => document.querySelector('#app .topbar .icon-btn, #app .head .icon-btn[aria-label^="Wróć"]');
+const SNAP_KEYS = ["view", "sel", "weekOff", "detail", "editId", "kind", "sheet"];
+function dragStart(g, dir){
+  const w = innerWidth, y = scrollY, app = $("#app");
+  const layer = document.createElement("div"); layer.className = "swp-layer";
+  const inner = app.cloneNode(true); inner.style.transform = `translateY(${-y}px)`; layer.appendChild(inner);
+  const shade = document.createElement("div"); shade.className = "swp-shade";
+  document.body.append(shade, layer);
+  if (g.mode === "day"){ layer.style.boxShadow = "none"; shade.style.opacity = "0"; }
+  g.snap = Object.fromEntries(SNAP_KEYS.map(k => [k, S[k]])); g.scroll = y; g.layer = layer; g.shade = shade; g.dir = dir; g.w = w;
+  if (g.mode === "back") backBtn().click();
+  else { const nd = addDays(selDate(), dir < 0 ? 1 : -1), off = Math.round((mondayOf(nd) - mondayOf(today())) / (7 * 86400000));
+    S.weekOff = off; S.sel = nd === today() ? null : nd; render(); window.scrollTo(0, 0); }
+  app.style.willChange = "transform";
+}
+function dragMove(g, dx){
+  const p = Math.max(0, Math.min(1, Math.abs(dx) / g.w));
+  g.layer.style.transform = `translateX(${dx}px)`;
+  // Back: the previous screen waits underneath with a slight parallax and shade. Day: the next day sits right next to it, like pages.
+  $("#app").style.transform = `translateX(${g.mode === "day" ? dx - g.dir * g.w : (g.dir > 0 ? -1 : 1) * (1 - p) * g.w * 0.3}px)`;
+  g.shade.style.opacity = g.mode === "day" ? "0" : String(0.35 * (1 - p));
+}
+function dragEnd(g, dx, v){
+  const done = Math.abs(dx) > g.w * 0.3 || (Math.abs(v) > 0.5 && Math.sign(v) === g.dir);
+  const app = $("#app"), ms = 220, ease = `transform ${ms}ms cubic-bezier(.2,.8,.2,1), opacity ${ms}ms`;
+  [g.layer, app, g.shade].forEach(el => el.style.transition = ease);
+  requestAnimationFrame(() => {
+    g.layer.style.transform = `translateX(${done ? g.dir * g.w : 0}px)`;
+    app.style.transform = done ? "translateX(0)" : `translateX(${g.mode === "day" ? -g.dir * g.w : (g.dir > 0 ? -1 : 1) * g.w * 0.3}px)`;
+    g.shade.style.opacity = done || g.mode === "day" ? "0" : "0.35";
+  });
+  setTimeout(() => {
+    g.layer.remove(); g.shade.remove(); app.style.transition = app.style.transform = app.style.willChange = "";
+    if (!done){ Object.assign(S, g.snap); render(); window.scrollTo(0, g.scroll); }
+  }, ms + 20);
+}
+// Move/end listeners sit on the touched element itself: the drag re-renders #app, and a detached element no longer bubbles its touch events to document.
 document.addEventListener("touchstart", e => {
-  const t = e.touches[0]; swp = e.touches.length === 1 && !noSwipe(e.target) ? {x:t.clientX, y:t.clientY, strip:!!e.target.closest(".wk-strip"), sheet:e.target.closest(".sheet")} : null;
+  const t = e.touches[0]; swp = e.touches.length === 1 && !noSwipe(e.target) ? {x:t.clientX, y:t.clientY, t:Date.now(), strip:!!e.target.closest(".wk-strip"), sheet:e.target.closest(".sheet")} : null;
+  if (!swp) return; const el = e.target, off = () => { el.removeEventListener("touchmove", swpMove); el.removeEventListener("touchend", swpEnd); el.removeEventListener("touchcancel", swpCancel); };
+  swp.off = off; el.addEventListener("touchmove", swpMove, {passive:false}); el.addEventListener("touchend", swpEnd, {passive:true}); el.addEventListener("touchcancel", swpCancel, {passive:true});
 }, {passive:true});
-document.addEventListener("touchend", e => {
-  if (!swp) return; const t = e.changedTouches[0], dx = t.clientX - swp.x, dy = t.clientY - swp.y, g = swp; swp = null;
-  const horiz = Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy);
-  if (S.sheet){ if (g.sheet && dy > 80 && Math.abs(dy) > 1.5 * Math.abs(dx) && g.sheet.scrollTop <= 0){ S.sheet = null; renderSheet(); } return; }
-  if (!horiz) return;
-  if (g.strip){ const btn = document.querySelector(`[data-act=wk][data-d="${dx < 0 ? 1 : -1}"]`); if (btn && !btn.disabled) btn.click(); return; }
-  if (S.view === "home"){
-    const nd = addDays(selDate(), dx < 0 ? 1 : -1), off = Math.round((mondayOf(nd) - mondayOf(today())) / (7 * 86400000));
-    if (off < wkMin() || off > WK_MAX) return;
-    S.weekOff = off; S.sel = nd === today() ? null : nd; render(); return;
+function swpMove(e){
+  const g = swp; if (!g || g.dead || S.sheet || g.strip) return;
+  const t = e.touches[0], dx = t.clientX - g.x, dy = t.clientY - g.y;
+  if (!g.mode){
+    if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+    if (Math.abs(dx) < 1.2 * Math.abs(dy)){ g.dead = true; return; }
+    if (S.view === "home"){ const nd = addDays(selDate(), dx < 0 ? 1 : -1), off = Math.round((mondayOf(nd) - mondayOf(today())) / (7 * 86400000));
+      if (off < wkMin() || off > WK_MAX){ g.dead = true; return; } g.mode = "day"; }
+    else if (dx > 0 && backBtn()) g.mode = "back";
+    else { g.dead = true; return; }
+    dragStart(g, dx > 0 ? 1 : -1);
   }
-  if (dx > 0){ const back = document.querySelector('#app .topbar .icon-btn, #app .head .icon-btn[aria-label^="Wróć"]'); if (back) back.click(); }
-}, {passive:true});
+  if (e.cancelable) e.preventDefault();
+  g.lastX = t.clientX; g.lastT = e.timeStamp; g.vx = g.prevX != null ? (t.clientX - g.prevX) / Math.max(1, g.lastT - g.prevT) : 0; g.prevX = t.clientX; g.prevT = g.lastT;
+  dragMove(g, g.dir > 0 ? Math.max(0, dx) : Math.min(0, dx));
+}
+function swpEnd(e){
+  const g = swp; swp = null; if (!g) return; g.off();
+  const t = e.changedTouches[0], dx = t.clientX - g.x, dy = t.clientY - g.y;
+  if (g.mode){ dragEnd(g, g.dir > 0 ? Math.max(0, dx) : Math.min(0, dx), g.vx || 0); return; }
+  if (S.sheet){ if (g.sheet && dy > 80 && Math.abs(dy) > 1.5 * Math.abs(dx) && g.sheet.scrollTop <= 0){ S.sheet = null; renderSheet(); } return; }
+  if (g.strip && Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)){ const btn = document.querySelector(`[data-act=wk][data-d="${dx < 0 ? 1 : -1}"]`); if (btn && !btn.disabled) btn.click(); }
+}
+function swpCancel(){ const g = swp; swp = null; if (!g) return; g.off(); if (g.mode) dragEnd(g, 0, 0); }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ S.sheet = null; renderSheet(); } });
 
 // Number fields: the whole value is selected on tap, so typing replaces it and one Backspace clears it.
