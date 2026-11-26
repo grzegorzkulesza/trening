@@ -293,7 +293,7 @@ function warmupFor(items){
     else if (p === "lunge") add(it.load === "bw" ? same(x) : squatPrep());
     else if (p === "hpull") add(/ring/.test(ex.id) ? same(x) : eqOk("pullbar") ? {name:"Scapular Pull-up", dose:"× 5"} : same(x));
     else if (p === "hpush") add(same(x));
-    else if (p === "core") add(ex.id === "dead-bug" ? same(x) : {name:"Dead Bug", dose:"× 10"});
+    else if (p === "core") add({name:"Hollow Hold", dose:"20 s"});
   }
   return out;
 }
