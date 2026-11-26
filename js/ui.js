@@ -32,7 +32,7 @@ function sheetHtml(){
     const it = s.items.find(i => i.key === sh.key), ex = exOf(it.ex), idx = s.items.indexOf(it), slot = slotOfItem(it);
     const loads = loadsOf(ex), step = ex.timed ? 15 : ex.dist || ex.minutes ? 5 : 1;
     const variants = it.swap ? [] : ladderOf(slot).filter(id => EX[id] && exAvailable(EX[id]));
-    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + shownReps(ex, Math.abs(it.reps - it.planReps)) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + " względem planu";
+    const diff = it.load !== it.planLoad || it.ex !== it.planEx ? "inaczej niż w planie" : it.reps === it.planReps ? "jak w planie" : (it.reps > it.planReps ? "+" : "−") + (ex.side ? Math.abs(it.reps - it.planReps) : shownReps(ex, Math.abs(it.reps - it.planReps))) + (ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : "") + (ex.side ? " na stronę" : "") + " względem planu";
     const cols = Math.min(3, loads.length);
     return `<div class="sheet" role="dialog" aria-modal="true" aria-label="Zmiana ćwiczenia">${SHEET_X}
       <header><h2>${esc(ex.name)}</h2><p class="sub">${s.block ? BLOCK_TITLE[s.block.type] : s.kind === "strength" ? "Circuit, " + (idx+1) + "/" + s.items.length : kindLabel(s.kind)} · w planie ${esc(exOf(it.planEx).name + " " + doseText(it.planEx, it.planLoad, it.planReps))}</p>
@@ -44,7 +44,7 @@ function sheetHtml(){
       : loads.length > 1 ? `<section class="sec"><h3 class="sec-h">Load</h3><div class="choices" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${loads.map(l =>
         `<button class="choice ${it.load === l ? "on" : ""}" style="flex-direction:row;gap:8px" data-act="set-load" data-l="${l}" aria-pressed="${it.load === l}">${dotHtml(l)}${esc(LOADS[l].label)}</button>`).join("")}</div></section>` : ""}
       <section class="sec"><h3 class="sec-h">${ex.timed ? "Time" : ex.dist ? "Distance" : ex.minutes ? "Time" : ex.interval ? "Rounds" : "Reps"}${s.kind === "strength" && !s.block ? " per round" : ""}</h3>
-        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${shownReps(ex, it.reps)}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
+        <div class="big-step"><button data-act="reps" data-d="-${step}" aria-label="Mniej" ${it.reps - step < 1 ? "disabled" : ""}>−</button><span class="v"><b>${repTxt(ex, it.reps)}${ex.timed ? " s" : ex.dist ? " m" : ex.minutes ? " min" : ""}</b><span>${esc(diff)}</span></span><button data-act="reps" data-d="${step}" aria-label="Więcej">+</button></div></section>
       <p class="note">${it.swap || s.block ? "Zmiana tylko na dziś. Plan się nie zmienia." : "Zmiana zostaje w planie na następne treningi."}</p>
       <div class="card"><button class="row" data-act="swap" style="min-height:56px"><span class="main"><span class="name" style="font-weight:400">${it.swap ? "Wróć do planu albo zamień na inne" : s.kind === "mobility" ? "Zamień na inne ćwiczenie" : "Zamień na inne ćwiczenie (tylko dziś)"}</span></span>${CHEV}</button></div>
       <button class="btn" data-act="close">Gotowe</button></div>`;
@@ -262,7 +262,7 @@ document.addEventListener("change", e => {
       if (ex.bb){ const kg = parseFloat(String(t.value).replace(",", ".")); if (!(kg > 0)){ t.value = plKg(LOADS[it.load].bb); return; }
         it.load = BB_LOADS.reduce((a, l) => Math.abs(LOADS[l].bb - kg) < Math.abs(LOADS[a].bb - kg) ? l : a); t.value = plKg(LOADS[it.load].bb); }
       else it.load = t.value; }
-    else { const n = parseInt(t.value, 10); if (!(n > 0)){ t.value = shownReps(ex, it.reps); return; } it.reps = storedReps(ex, n); t.value = shownReps(ex, it.reps); }
+    else { const n = parseInt(t.value, 10), show = () => ex.side ? it.reps : shownReps(ex, it.reps); if (!(n > 0)){ t.value = show(); return; } it.reps = ex.side ? n : storedReps(ex, n); t.value = show(); }
     s.rx = false; commitSession(s, true);
     const row = t.closest("[data-pfrow]"); if (row) row.classList.toggle("chg", itemMod(it)); return; }
   if (t.dataset.eq){ S.profile.equip[t.dataset.eq] = t.checked; commitProfile(); render(); }

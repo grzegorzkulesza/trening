@@ -188,6 +188,8 @@ const loadLabel = (ex, load) => load === "bw" ? (ex.tag || "Bodyweight") : (ex.t
 // One-arm, one-leg and per-side exercises are written as totals (5 per side = 10); the plan stores reps per side.
 const sideTxt = ex => "";
 const shownReps = (ex, reps) => ex.side ? reps * 2 : reps;
+// Per-side exercises are written "2 × N" (N per side), like "2 × 15 kg" for two dumbbells.
+const repTxt = (ex, reps) => ex.side ? "2 × " + reps : String(reps);
 const storedReps = (ex, total) => ex.side ? Math.max(1, Math.round(total / 2)) : total;
 function doseText(exId, load, reps){
   const ex = exOf(exId);
@@ -197,6 +199,8 @@ function doseText(exId, load, reps){
   if (ex.deathby) return "runda 1: 1 cal, każda kolejna +1 cal";
   if (ex.cal) return reps + " cal";
   if (ex.minutes) return reps + " min";
+  if (ex.side){ const lb = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
+    return (lb ? lb + " · " : "") + repTxt(ex, reps) + (ex.timed ? " s" : ex.dist ? " m" : "") + (ex.hold ? " · " + ex.hold : ""); }
   reps = shownReps(ex, reps);
   if (ex.timed) return (load === "bw" && !ex.tag ? "" : loadLabel(ex, load) + " · ") + reps + " s" + sideTxt(ex);
   const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
@@ -207,20 +211,23 @@ function boardDose(exId, load, reps){
   const ex = exOf(exId);
   if (ex.interval) return {r:reps + " ×", rest:ex.interval};
   if (ex.test || ex.m || ex.deathby || ex.cal || ex.minutes) return {r:"", rest:doseText(exId, load, reps)};
-  reps = shownReps(ex, reps);
   const lbl = load === "bw" ? ex.tag || "" : loadLabel(ex, load);
+  if (ex.side && !ex.timed && !ex.dist) return {r:repTxt(ex, reps), rest:lbl + (ex.hold ? (lbl ? " · " : "") + ex.hold : "")};
+  if (ex.side) return {r:"", rest:(lbl ? lbl + " · " : "") + repTxt(ex, reps) + (ex.timed ? " s" : " m")};
+  reps = shownReps(ex, reps);
   if (ex.timed) return {r:"", rest:(lbl ? lbl + " · " : "") + reps + " s"};
   if (ex.dist) return {r:"", rest:(lbl ? lbl + " · " : "") + reps + " m"};
   return {r:reps + " ×", rest:lbl + (ex.hold ? (lbl ? " · " : "") + ex.hold : "")};
 }
 // Same split for warm-up doses written as text ("× 8", "30 kg × 5", "3 × 10 s", "2 min").
 function boardText(dose){
-  let m = /^(\d+) × (.+)$/.exec(dose); if (m) return {r:m[1] + " ×", rest:m[2]};
+  let m = /^(?:(.*?) · )?(2 × \d+)$/.exec(dose); if (m) return {r:m[2], rest:m[1] || ""};
+  m = /^(\d+) × (.+)$/.exec(dose); if (m) return {r:m[1] + " ×", rest:m[2]};
   m = /^(.*?)\s*× (\d+)(.*)$/.exec(dose); if (m) return {r:m[2] + " ×", rest:(m[1] + m[3]).replace(/^\s*·\s*/, "").trim()};
   return {r:"", rest:dose};
 }
 const boardRow = (r, name, rest, dot) => `<span class="rp">${esc(r)}</span><span class="main bd"><span class="name">${esc(name)}</span>${rest || dot ? `<span class="ld">${dot || ""}${esc(rest)}</span>` : ""}</span>`;
-const shortDose = (exId, reps) => { const ex = exOf(exId); reps = shownReps(ex, reps); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
+const shortDose = (exId, reps) => { const ex = exOf(exId); if (ex.side) return ex.name + " " + repTxt(ex, reps) + (ex.timed ? " s" : ex.dist ? " m" : ""); reps = shownReps(ex, reps); if (ex.interval || ex.minutes) return ex.name + " · " + doseText(exId, "bw", reps); return ex.timed ? `${ex.name} · ${reps} s${sideTxt(ex)}` : `${ex.name} × ${reps}${ex.dist ? " m" : ""}${sideTxt(ex)}`; };
 const dotHtml = load => LOADS[load]?.color ? `<span class="dot" style="background:${LOADS[load].color}"></span>` : "";
 
 /* ---------- plan ---------- */
@@ -267,7 +274,7 @@ function warmupFor(items){
   const kbDl = it => { const k = kbOf(it); return k ? {name:"KB Deadlift", dose:LOADS[k].label + " × 5"} : {name:"Hip Hinge", dose:"× 8"}; };
   const squatPrep = () => eqOk("kb8") ? {name:"Goblet Squat", dose:"8 kg × 5 · 2 s na dole"} : {name:"Air Squat", dose:"× 8 · 2 s na dole"};
   const half = it => Math.max(3, Math.ceil(it.reps / 2));
-  const same = x => ({name:x.ex.name, dose:(x.ex.tag ? x.ex.tag + " " : "") + "× " + shownReps(x.ex, half(x.it))});
+  const same = x => ({name:x.ex.name, dose:x.ex.side ? (x.ex.tag ? x.ex.tag + " · " : "") + repTxt(x.ex, half(x.it)) : (x.ex.tag ? x.ex.tag + " " : "") + "× " + shownReps(x.ex, half(x.it))});
   for (const x of exs){
     const {it, ex} = x, p = ex.pattern;
     if (cardio(x) || p === "carry" || p === "shoulder") continue;
@@ -277,9 +284,9 @@ function warmupFor(items){
       if (p === "vpush" && eqOk("broom")) add({name:"PVC Pass-through", dose:"× 10"});
       const kg = LOADS[it.load] && LOADS[it.load].bb || BAR;
       add({name:ex.name, dose:plKg(Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
-    } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:LOADS[it.load].label + " × " + shownReps(ex, 5)}); }
+    } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:ex.side ? LOADS[it.load].label + " · " + repTxt(ex, 3) : LOADS[it.load].label + " × " + shownReps(ex, 5)}); }
     else if (p === "vpush"){
-      if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:(eqOk("kb8") ? "8 kg " : "") + "× " + shownReps(ex, 3)}); }
+      if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:ex.side ? (eqOk("kb8") ? "8 kg · " : "") + repTxt(ex, 3) : (eqOk("kb8") ? "8 kg " : "") + "× " + shownReps(ex, 3)}); }
       else { if (eqOk("broom")) add({name:"PVC Pass-through", dose:"× 10"}); add(same(x)); }
     }
     else if (p === "squat") add(it.load === "bw" ? {name:ex.name, dose:"× " + half(it) + " · 2 s na dole"} : squatPrep());
