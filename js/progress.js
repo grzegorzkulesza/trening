@@ -144,24 +144,26 @@ const ddmm = d => { const x = parseYmd(d); return x.getDate() + "." + (x.getMont
 const exLabel = id => { const ex = exOf(id); return ex.name + (ex.tag ? " (" + ex.tag + ")" : ""); };
 const resText = it => exLabel(it.ex) + " " + doseText(it.ex, it.load, it.reps).replace(/^.* · /, "").replace(/^(Bodyweight|Feet on box) /, "");
 const unlockN = c => c.bench ? 1 : 2;
+// Unlocked after that many sessions with a result, even when the level stayed the same.
+const unlocked = (c, a) => (a.length ? a[a.length - 1].n || a.length : 0) >= unlockN(c);
 const FRESH_DAYS = 42;
 // Category level = best of the latest results of each exercise from the last 6 weeks.
 function levelHistory(){
-  const out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []])), latest = Object.fromEntries(LEVEL_CATS.map(c => [c.id, {}]));
+  const cnt = {}, out = Object.fromEntries(LEVEL_CATS.map(c => [c.id, []])), latest = Object.fromEntries(LEVEL_CATS.map(c => [c.id, {}]));
   const sess = Object.values(S.sessions).filter(x => x.v === 2 && x.status === "done" && (x.kind === "strength" || x.kind === "cond")).sort((a, b) => a.date.localeCompare(b.date));
   for (const x of sess){
     for (const c of LEVEL_CATS){
       if (c.bench){ const t = x.bench && x.bench.row2000; if (t) out[c.id].push({date:x.date, level:toLv(c.scoreBench(t)), text:"Row 2000 m " + fmtTime(t)}); continue; }
-      if (x.kind !== "strength") continue;
+      // Conditioning days count too: Carry lives on Thursdays.
       const mine = {};
       for (const it0 of x.items || []){ const it = {...it0, ex:EX_ALIAS[it0.ex] || it0.ex}; const v = c.score(it); if (v == null) continue;
         const l = toLv(v); if (!mine[it.ex] || l > mine[it.ex].level) mine[it.ex] = {date:x.date, level:l, text:resText(it), it}; }
       if (!Object.keys(mine).length) continue;
-      Object.assign(latest[c.id], mine);
+      Object.assign(latest[c.id], mine); cnt[c.id] = (cnt[c.id] || 0) + 1;   // sessions with a result in this category, for unlocking
       // A light day on another exercise (e.g. first Deadlift after KB Swing) does not pull the level down.
       const best = Object.values(latest[c.id]).filter(r => (parseYmd(x.date) - parseYmd(r.date)) / 86400000 <= FRESH_DAYS).sort((a, b) => b.level - a.level || b.date.localeCompare(a.date))[0];
       const prev = out[c.id][out[c.id].length - 1];
-      if (!prev || best.date === x.date || best.level !== prev.level) out[c.id].push({...best, date:x.date});
+      if (!prev || best.date === x.date || best.level !== prev.level) out[c.id].push({...best, date:x.date, n:cnt[c.id]}); else prev.n = cnt[c.id];
     }
   }
   return out;
@@ -169,7 +171,7 @@ function levelHistory(){
 const lastChange = arr => { if (!arr.length) return 0; const v = arr[arr.length - 1]; for (let i = arr.length - 2; i >= 0; i--) if (arr[i] !== v) return v - arr[i]; return 0; };
 function overallSeries(H){
   const dates = [...new Set(Object.values(H).flat().map(r => r.date))].sort();
-  return dates.map(d => { const lv = LEVEL_CATS.map(c => [c, H[c.id].filter(r => r.date <= d)]).filter(([c, a]) => a.length >= unlockN(c)).map(([, a]) => a[a.length - 1].level);
+  return dates.map(d => { const lv = LEVEL_CATS.map(c => [c, H[c.id].filter(r => r.date <= d)]).filter(([c, a]) => unlocked(c, a)).map(([, a]) => a[a.length - 1].level);
     return lv.length ? {date:d, level:Math.round(lv.reduce((a, b) => a + b, 0) / lv.length)} : null; }).filter(Boolean);
 }
 function levelChart(points, label){
@@ -184,10 +186,11 @@ const deltaChip = d => d ? `<span class="chip-d ${d < 0 ? "down" : ""}">${d > 0 
 const barHtml = v => `<span class="bar"><i style="width:${Math.max(0, Math.min(100, v))}%"></i></span>`;
 function renderProgress(){
   const H = levelHistory(), O = overallSeries(H), ov = O.length ? O[O.length - 1].level : null;
-  const open = LEVEL_CATS.filter(c => H[c.id].length >= unlockN(c));
+  const open = LEVEL_CATS.filter(c => unlocked(c, H[c.id]));
   const rows = LEVEL_CATS.map(c => {
     const h = H[c.id], last = h[h.length - 1], d = lastChange(h.map(r => r.level)), need = unlockN(c);
-    if (h.length < need) return `<button class="row cat-r locked" data-act="cat" data-c="${c.id}"><span class="main"><span class="name">${c.name}</span></span><span class="s">${c.bench ? "Row 2000 m" : h.length + " z " + need}</span></button>`;
+    const got = last ? last.n || h.length : 0;
+    if (got < need) return `<button class="row cat-r locked" data-act="cat" data-c="${c.id}"><span class="main"><span class="name">${c.name}</span></span><span class="s">${c.bench ? "Row 2000 m" : got + " z " + need}</span></button>`;
     // Name, last change, level. The group and the target live on the category screen.
     return `<button class="row cat-r" data-act="cat" data-c="${c.id}"><span class="main"><span class="name">${c.name}</span></span>${deltaChip(d)}<b class="lv">${last.level}</b>${CHEV}</button>`;
   }).join("");
@@ -212,7 +215,7 @@ const CHECK_W = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" str
 function renderCat(){
   const c = LEVEL_CATS.find(x => x.id === S.cat) || LEVEL_CATS[0], h = levelHistory()[c.id], last = h[h.length - 1], need = unlockN(c), lv = last ? last.level : null;
   const head = `<header class="head"><div style="flex-direction:row;align-items:center;gap:12px"><button class="icon-btn" data-act="go" data-v="progress" aria-label="Wróć do progresu">${BACK}</button><h1 class="title" style="font-size:28px">${c.name}</h1></div></header>`;
-  const hero = h.length < need ? `<section class="lvl"><p class="lead">${c.bench ? "Zrób test Row 2000 m na maksa w sesji Conditioning i podaj czas w notatce, np. „Row 2000 m 8:45”." : "Odblokuje się po 2 treningach (" + h.length + " z 2)."}</p></section>`
+  const got = last ? last.n || h.length : 0, hero = got < need ? `<section class="lvl"><p class="lead">${c.bench ? "Zrób test Row 2000 m na maksa w sesji Conditioning i podaj czas w notatce, np. „Row 2000 m 8:45”." : "Odblokuje się po 2 treningach (" + got + " z 2)."}</p></section>`
     : (() => { const g = groupOf(lv), ng = nextGroup(g), tg = ng && !c.bench ? targetText(targetFor(c, last.it, ng.min)) : null;
       return `<section class="lvl"><div class="grp-top">${badge(g, 64)}<div class="grp-t"><h2 class="grp-name" style="font-size:26px">${g.name}</h2><p class="grp-lv"><b>${lv}</b> / 100 ${deltaChip(lastChange(h.map(r => r.level)))}</p></div></div>
         ${ng ? groupTrack(g, ng, lv, "") : ""}${ng && tg ? `<p class="cat-next" style="margin:0">${badge(ng, 18)}${esc(tg)}</p>` : ""}
