@@ -124,12 +124,12 @@ function doneHead(s){
 }
 function doneScreen(s){
   const strength = s.kind === "strength", cond = s.kind === "cond", isToday = s.date === today(), r = reviewFor(s.id), tr = strength || cond;
-  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kickerOf(s.kind, s.date, s.block, ["Zrobione", tr ? (sessionMod(s) ? "Modified" : "Rx") : null])}</p><h1 class="title">${kindLabel(s.kind)}</h1></div></header>`;
+  const head = `<div class="topbar"><button class="icon-btn" data-act="home" aria-label="Wróć do dnia">${BACK}</button></div><header class="head"><div><p class="kicker">${kickerOf(s.kind, s.date, s.block)}</p><h1 class="title">${kindLabel(s.kind)}</h1><div class="head-chips"><span class="status done">✓ Zrobione</span>${tr ? `<span class="status">${sessionMod(s) ? "Modified" : "Rx"}</span>` : ""}</div></div></header>`;
   const eff = effOf(s) ? " · wysiłek " + EFF_TXT[effOf(s)] : "";
   const scoreRow = pi => pi === 0 && scoreText(s) ? `<div class="row"><span class="main"><span class="name">Wynik</span></span><b style="font-size:20px;font-variant-numeric:tabular-nums">${esc(scoreText(s))}</b></div>` : "";
   const pm5 = s.pm5 ? `<div class="row"><span class="main"><span class="name">PM5</span><span class="sub">${esc(pm5Text(s.pm5))}</span></span></div>` : "";
   const done = s.block
-    ? `<section class="sec"><h2 class="sec-h">${esc(BLOCK_TITLE[s.block.type] + (scoreText(s) ? "" : s.dur ? " · " + mmss(s.dur) : "") + eff)}</h2></section>${blockSections(s.block, s.items || [], doneRow, null, (pi) => scoreRow(pi), doneHead(s))}${pm5 ? `<section class="sec"><div class="card">${pm5}</div></section>` : ""}`
+    ? `<section class="sec"><h2 class="sec-h">${esc(cap([(scoreText(s) ? "" : s.dur ? mmss(s.dur) : ""), eff.replace(/^ · /, "")].filter(Boolean).join(" · ") || "Wykonane"))}</h2></section>${blockSections(s.block, s.items || [], doneRow, null, (pi) => scoreRow(pi), doneHead(s))}${pm5 ? `<section class="sec"><div class="card">${pm5}</div></section>` : ""}`
     : `<section class="sec"><h2 class="sec-h">${(strength ? "Circuit" + (planOfSession(s) ? " " + planOfSession(s) : "") + " · " + roundsText(s.rounds) + (s.dur ? " · " + mmss(s.dur) : "") : cond ? "Conditioning" : "Mobility") + eff}</h2><div class="card">${(s.items || []).map((it, i) => doneRow(it, strength ? i : null)).join("")}${pm5}</div></section>${strength && s.fin ? finRow(s.fin) : ""}`;
   return `<section class="screen">${head}
     ${done}

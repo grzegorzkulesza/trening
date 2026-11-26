@@ -412,3 +412,5 @@ html.skin2.dark .eff-bar span.on{background:var(--ink)}
 .day-page{display:flex;flex-direction:column;gap:20px}
 .day-track{position:relative}
 .day-next{position:absolute;top:0;left:0;right:0}
+.head-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.head-chips .status{position:static}
