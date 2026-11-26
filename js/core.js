@@ -283,7 +283,8 @@ function warmupFor(items){
       if (p === "hinge") add(eqOk("broom") ? {name:"PVC Hip Hinge", dose:"× 8"} : kbDl(it));
       if (p === "vpush" && eqOk("broom")) add({name:"PVC Pass-through", dose:"× 10"});
       const kg = LOADS[it.load] && LOADS[it.load].bb || BAR;
-      add({name:ex.name, dose:plKg(Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
+      // Classic heavy day (Pat Sherwood): general warm-up only with the empty bar; the build-up sets to the working load come after it and are not written out.
+      add({name:ex.name, dose:plKg(it.heavy ? BAR : Math.max(BAR, Math.round(kg / 2 / 2.5) * 2.5)) + " kg × 5"});
     } else if (p === "hinge"){ add(kbDl(it)); if (it.load !== "bw" && !/dl$/.test(ex.id)) add({name:ex.name, dose:ex.side ? LOADS[it.load].label + " · " + repTxt(ex, 3) : LOADS[it.load].label + " × " + shownReps(ex, 5)}); }
     else if (p === "vpush"){
       if (/^kb-/.test(ex.id)){ add(kbDl(it)); add({name:ex.name, dose:ex.side ? (eqOk("kb8") ? "8 kg · " : "") + repTxt(ex, 3) : (eqOk("kb8") ? "8 kg " : "") + "× " + shownReps(ex, 3)}); }

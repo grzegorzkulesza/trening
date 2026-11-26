@@ -152,6 +152,7 @@ function blockItems(date){
     const ex = o.ex || (slot ? (slotByKey(slot) || {}).ex || SLOT_EX[slot] : id), l = fitLoad(exOf(ex), o.load || load), r = o.reps || reps;
     const it = {key, ex, load:l, reps:r, planEx:ex, planLoad:l, planReps:r, part:pi};
     if (slot) it.slot = slot;
+    if (fmtKind(p.fmt).k === "load") it.heavy = true;   // classic heavy day: warm-up with the empty bar, build-up sets are his own
     if (o.at){ it.claudeAt = o.at; it.claudeNote = o.note || ""; }
     return it;
   }));
