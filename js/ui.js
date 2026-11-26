@@ -271,12 +271,28 @@ document.addEventListener("change", e => {
   if (t.dataset.scft){ const s = current(), sc = s.score || (s.score = {}); sc.ft = t.checked; if (!t.checked) sc.time = null; commitSession(s); render(); const i = $("[data-sc=time]"); if (i) i.focus(); }
   if (t.dataset.timed){ const s = current(); s.timed = t.checked; s.dur = s.timed ? tmSecs(tmOf(s)) : null; commitSession(s); render(); if (s.timed) $("#durM").focus(); }
 });
-// Swipe the week strip left/right to change week.
-let wkTouch = null;
-document.addEventListener("touchstart", e => { wkTouch = e.target.closest(".wk-strip") ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, {passive:true});
+// Swipes, like native iOS:
+// - week strip left/right: previous / next week;
+// - day screen left/right: next / previous day;
+// - any screen with a back arrow, swipe right: back (same as the arrow);
+// - open sheet, swipe down from its top: close.
+let swp = null;
+const noSwipe = el => el.closest("input, textarea, select, .eff-bar, [data-noswipe]");
+document.addEventListener("touchstart", e => {
+  const t = e.touches[0]; swp = e.touches.length === 1 && !noSwipe(e.target) ? {x:t.clientX, y:t.clientY, strip:!!e.target.closest(".wk-strip"), sheet:e.target.closest(".sheet")} : null;
+}, {passive:true});
 document.addEventListener("touchend", e => {
-  if (!wkTouch) return; const t = e.changedTouches[0], dx = t.clientX - wkTouch[0], dy = t.clientY - wkTouch[1]; wkTouch = null;
-  if (Math.abs(dx) > 50 && Math.abs(dx) > 1.5 * Math.abs(dy)){ const btn = document.querySelector(`[data-act=wk][data-d="${dx < 0 ? 1 : -1}"]`); if (btn && !btn.disabled) btn.click(); }
+  if (!swp) return; const t = e.changedTouches[0], dx = t.clientX - swp.x, dy = t.clientY - swp.y, g = swp; swp = null;
+  const horiz = Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy);
+  if (S.sheet){ if (g.sheet && dy > 80 && Math.abs(dy) > 1.5 * Math.abs(dx) && g.sheet.scrollTop <= 0){ S.sheet = null; renderSheet(); } return; }
+  if (!horiz) return;
+  if (g.strip){ const btn = document.querySelector(`[data-act=wk][data-d="${dx < 0 ? 1 : -1}"]`); if (btn && !btn.disabled) btn.click(); return; }
+  if (S.view === "home"){
+    const nd = addDays(selDate(), dx < 0 ? 1 : -1), off = Math.round((mondayOf(nd) - mondayOf(today())) / (7 * 86400000));
+    if (off < wkMin() || off > WK_MAX) return;
+    S.weekOff = off; S.sel = nd === today() ? null : nd; render(); return;
+  }
+  if (dx > 0){ const back = document.querySelector('#app .topbar .icon-btn, #app .head .icon-btn[aria-label^="Wróć"]'); if (back) back.click(); }
 }, {passive:true});
 document.addEventListener("keydown", e => { if (e.key === "Escape" && S.sheet){ S.sheet = null; renderSheet(); } });
 
