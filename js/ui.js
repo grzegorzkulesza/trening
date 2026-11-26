@@ -92,7 +92,42 @@ function fitDayTitle(){
   for (const t of fits){ h.textContent = t; if (h.scrollWidth <= h.clientWidth + 1) return; }
 }
 window.addEventListener("resize", fitDayTitle);
-function go(view){ if (view !== "note") S.editId = null; S.view = view; S.sheet = null; render(); window.scrollTo(0, 0); }
+// Screens have a depth; going deeper slides the new screen in from the right over the old one, going back slides the old one away (like the back swipe).
+const DEPTH = {home:0, prep:1, detail:1, plan:1, settings:1, progress:1, note:2, cat:2};
+let noAnim = false;
+function go(view){
+  const from = S.view, d = (DEPTH[view] ?? 1) - (DEPTH[from] ?? 1);
+  const anim = !noAnim && d !== 0 && from !== view && !(window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const snap = anim ? snapLayer() : null;
+  if (view !== "note") S.editId = null; S.view = view; S.sheet = null; render(); window.scrollTo(0, 0);
+  if (snap) slide(snap, d > 0 ? "push" : "pop");
+}
+// Snapshot of the screen as it is now, fixed in place.
+function snapLayer(){
+  const app = $("#app"), layer = document.createElement("div"); layer.className = "swp-layer";
+  const inner = app.cloneNode(true); inner.style.transform = `translateY(${-scrollY}px)`; layer.appendChild(inner);
+  const shade = document.createElement("div"); shade.className = "swp-shade";
+  return {layer, shade};
+}
+function slide({layer, shade}, kind){
+  const app = $("#app"), w = innerWidth, ms = 280, ease = `transform ${ms}ms cubic-bezier(.2,.8,.2,1), opacity ${ms}ms`;
+  if (kind === "push"){
+    // Old screen underneath, drifting left and darkening; new screen on top, coming from the right.
+    Object.assign(layer.style, {zIndex:"38", boxShadow:"none"}); shade.style.zIndex = "39"; shade.style.opacity = "0";
+    document.body.append(layer, shade);
+    Object.assign(app.style, {position:"relative", zIndex:"40", background:"var(--bg)", boxShadow:"-8px 0 24px rgba(0,0,0,.25)", transform:`translateX(${w}px)`});
+    app.getBoundingClientRect();
+    [app, layer, shade].forEach(el => el.style.transition = ease);
+    app.style.transform = "translateX(0)"; layer.style.transform = `translateX(${-w * 0.3}px)`; shade.style.opacity = "0.35";
+  } else {
+    // Old screen on top, sliding right; the screen we return to waits underneath.
+    document.body.append(shade, layer);
+    app.style.transform = `translateX(${-w * 0.3}px)`; app.getBoundingClientRect();
+    [app, layer, shade].forEach(el => el.style.transition = ease);
+    layer.style.transform = `translateX(${w}px)`; app.style.transform = "translateX(0)"; shade.style.opacity = "0";
+  }
+  setTimeout(() => { layer.remove(); shade.remove(); ["transition", "transform", "position", "zIndex", "background", "boxShadow"].forEach(k => app.style[k] = ""); }, ms + 30);
+}
 // Opening the app shows today: always after the date changed, and after a break of 30 min or more unless a workout or its note is open.
 let hiddenAt = 0;
 function backToToday(force){
@@ -305,7 +340,7 @@ function dragStart(g, dir){
   const shade = document.createElement("div"); shade.className = "swp-shade";
   document.body.append(shade, layer);
   g.snap = Object.fromEntries(SNAP_KEYS.map(k => [k, S[k]])); g.scroll = y; g.layer = layer; g.shade = shade; g.dir = dir; g.w = w;
-  backBtn().click();
+  noAnim = true; try { backBtn().click(); } finally { noAnim = false; }
   app.style.willChange = "transform";
 }
 function dragMove(g, dx){
