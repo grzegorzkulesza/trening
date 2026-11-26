@@ -281,34 +281,49 @@ let swp = null;
 const noSwipe = el => el.closest("input, textarea, select, .eff-bar, [data-noswipe]");
 const backBtn = () => document.querySelector('#app .topbar .icon-btn, #app .head .icon-btn[aria-label^="Wróć"]');
 const SNAP_KEYS = ["view", "sel", "weekOff", "detail", "editId", "kind", "sheet"];
+// Day swipe: only the day's content moves, the next day's page sits right next to it; header and week strip update after the swipe.
+function dayDragStart(g, dir){
+  const body = $(".day-body"), track = body && $(".day-track"); if (!track){ g.dead = true; return false; }
+  const nd = addDays(selDate(), dir < 0 ? 1 : -1), gap = 32, pw = body.offsetWidth + gap;
+  const page = document.createElement("div"); page.className = "day-page day-next"; page.style.transform = `translateX(${-dir * pw}px)`; page.innerHTML = dayPageHtml(nd);
+  track.appendChild(page); Object.assign(g, {nd, track, w:pw, dir}); track.style.willChange = "transform"; return true;
+}
+function dayDragEnd(g, dx, v){
+  const done = Math.abs(dx) > g.w * 0.3 || (Math.abs(v) > 0.5 && Math.sign(v) === g.dir), ms = 220;
+  g.track.style.transition = `transform ${ms}ms cubic-bezier(.2,.8,.2,1)`;
+  requestAnimationFrame(() => { g.track.style.transform = `translateX(${done ? g.dir * g.w : 0}px)`; });
+  setTimeout(() => {
+    if (done){ const off = Math.round((mondayOf(g.nd) - mondayOf(today())) / (7 * 86400000)); S.weekOff = off; S.sel = g.nd === today() ? null : g.nd; render(); }
+    else { g.track.style.transition = g.track.style.transform = g.track.style.willChange = ""; const n = $(".day-next"); if (n) n.remove(); }
+  }, ms + 20);
+}
+// Back swipe: snapshot of the leaving screen above the real previous screen, which waits underneath with a slight parallax and shade.
 function dragStart(g, dir){
   const w = innerWidth, y = scrollY, app = $("#app");
   const layer = document.createElement("div"); layer.className = "swp-layer";
   const inner = app.cloneNode(true); inner.style.transform = `translateY(${-y}px)`; layer.appendChild(inner);
   const shade = document.createElement("div"); shade.className = "swp-shade";
   document.body.append(shade, layer);
-  if (g.mode === "day"){ layer.style.boxShadow = "none"; shade.style.opacity = "0"; }
   g.snap = Object.fromEntries(SNAP_KEYS.map(k => [k, S[k]])); g.scroll = y; g.layer = layer; g.shade = shade; g.dir = dir; g.w = w;
-  if (g.mode === "back") backBtn().click();
-  else { const nd = addDays(selDate(), dir < 0 ? 1 : -1), off = Math.round((mondayOf(nd) - mondayOf(today())) / (7 * 86400000));
-    S.weekOff = off; S.sel = nd === today() ? null : nd; render(); window.scrollTo(0, 0); }
+  backBtn().click();
   app.style.willChange = "transform";
 }
 function dragMove(g, dx){
+  if (g.mode === "day"){ g.track.style.transform = `translateX(${dx}px)`; return; }
   const p = Math.max(0, Math.min(1, Math.abs(dx) / g.w));
   g.layer.style.transform = `translateX(${dx}px)`;
-  // Back: the previous screen waits underneath with a slight parallax and shade. Day: the next day sits right next to it, like pages.
-  $("#app").style.transform = `translateX(${g.mode === "day" ? dx - g.dir * g.w : (g.dir > 0 ? -1 : 1) * (1 - p) * g.w * 0.3}px)`;
-  g.shade.style.opacity = g.mode === "day" ? "0" : String(0.35 * (1 - p));
+  $("#app").style.transform = `translateX(${-(1 - p) * g.w * 0.3}px)`;
+  g.shade.style.opacity = String(0.35 * (1 - p));
 }
 function dragEnd(g, dx, v){
+  if (g.mode === "day") return dayDragEnd(g, dx, v);
   const done = Math.abs(dx) > g.w * 0.3 || (Math.abs(v) > 0.5 && Math.sign(v) === g.dir);
   const app = $("#app"), ms = 220, ease = `transform ${ms}ms cubic-bezier(.2,.8,.2,1), opacity ${ms}ms`;
   [g.layer, app, g.shade].forEach(el => el.style.transition = ease);
   requestAnimationFrame(() => {
-    g.layer.style.transform = `translateX(${done ? g.dir * g.w : 0}px)`;
-    app.style.transform = done ? "translateX(0)" : `translateX(${g.mode === "day" ? -g.dir * g.w : (g.dir > 0 ? -1 : 1) * g.w * 0.3}px)`;
-    g.shade.style.opacity = done || g.mode === "day" ? "0" : "0.35";
+    g.layer.style.transform = `translateX(${done ? g.w : 0}px)`;
+    app.style.transform = done ? "translateX(0)" : `translateX(${-g.w * 0.3}px)`;
+    g.shade.style.opacity = done ? "0" : "0.35";
   });
   setTimeout(() => {
     g.layer.remove(); g.shade.remove(); app.style.transition = app.style.transform = app.style.willChange = "";
@@ -331,7 +346,7 @@ function swpMove(e){
       if (off < wkMin() || off > WK_MAX){ g.dead = true; return; } g.mode = "day"; }
     else if (dx > 0 && backBtn()) g.mode = "back";
     else { g.dead = true; return; }
-    dragStart(g, dx > 0 ? 1 : -1);
+    if (g.mode === "day"){ if (!dayDragStart(g, dx > 0 ? 1 : -1)) return; } else dragStart(g, 1);
   }
   if (e.cancelable) e.preventDefault();
   g.lastX = t.clientX; g.lastT = e.timeStamp; g.vx = g.prevX != null ? (t.clientX - g.prevX) / Math.max(1, g.lastT - g.prevT) : 0; g.prevX = t.clientX; g.prevT = g.lastT;

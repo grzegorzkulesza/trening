@@ -45,6 +45,13 @@ function summaryLine(s){
   if (s.kind === "strength") return roundsText(s.rounds) + " · " + s.items.length + " " + plural(s.items.length, "ćwiczenie", "ćwiczenia", "ćwiczeń");
   return s.items.length + " " + plural(s.items.length, "ćwiczenie", "ćwiczenia", "ćwiczeń");
 }
+// What belongs to one day under the week strip; swiping days moves only this.
+function dayPageHtml(sel){
+  const r = latestReview(), isToday = sel === today();
+  return `${dayCardsHtml(sel)}
+    ${isToday && r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
+    ${isToday && !Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}`;
+}
 function renderHome(){
   const d = new Date(), r = latestReview(), sel = selDate();
   // Overall level as a small ring gauge (tap: Progres) and a gear (tap: Sprzęt i plan) instead of a menu.
@@ -63,9 +70,7 @@ function renderHome(){
   return `<section class="screen">${head}
     ${S.syncErr ? `<p class="banner">${esc(S.syncErr)}</p>` : ""}
     ${weekStripHtml()}
-    ${dayCardsHtml(sel)}
-    ${isToday && r && r.id !== seenReview() ? reviewHtml(r, true) : ""}
-    ${isToday && !Sync.url ? `<button class="linkbtn" data-act="go" data-v="settings">Połącz arkusz Google, żeby Claude oceniał treningi i zmieniał plan.</button>` : ""}</section>`;
+    <div class="day-body"><div class="day-track"><div class="day-page">${dayPageHtml(sel)}</div></div></div></section>`;
 }
 function reviewBlock(s, r){
   if (S.reviewing === s.id) return `<section class="verdict"><div class="wait"><i></i><p class="t" style="margin:0">Claude ocenia trening…</p></div><p>Czyta notatkę i sprawdza plan. Zwykle trwa to do minuty.</p></section>`;
