@@ -129,14 +129,15 @@ function scoreBrief(s){
   if (t.k === "steady") return sc.dist ? "dystans " + sc.dist + " m" : none;
 }
 // Where an AMRAP stopped: the movements go in order, so the extra reps say how far into the last round he got.
-// Distance, calorie and timed pieces have no reps: when reps go past them, they were done in full (row 250 m done + 1 rep of the next movement).
+// CrossFit counting: a distance, calorie or timed piece (row 250 m, 12 cal) is 1 rep once finished. Movements go in order.
 function partialText(s, reps){
   if (!reps) return "";
   let left = reps; const out = [];
   for (const it of s.items || []){
+    if (left <= 0) break;
     const e = exOf(it.ex);
-    if (e.dist || e.m || e.cal || e.timed){ out.push(e.name + " " + doseText(it.ex, it.load, it.reps) + " w całości"); continue; }
-    const n = it.reps * (e.side ? 2 : 1); out.push(Math.min(left, n) + "/" + n + " " + e.name); left -= n; if (left <= 0) break;
+    if (e.dist || e.m || e.cal || e.timed){ out.push(e.name + " " + doseText(it.ex, it.load, it.reps)); left -= 1; continue; }
+    const n = it.reps * (e.side ? 2 : 1); out.push(Math.min(left, n) + "/" + n + " " + e.name); left -= n;
   }
   return " (niepełna runda: " + out.join(", ") + ")";
 }
