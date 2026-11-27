@@ -178,7 +178,7 @@ function renderNote(){
       ${cond ? "" : `<p class="lead">${strength ? (s.block ? "Opowiedz o treningu: ciężary w seriach, co było łatwe, co trudne, co zmieniłeś. Claude dopasuje kolejne dni bloku." : "Opowiedz o całym treningu: ile rund, co było łatwe, co trudne, co zmieniłeś w trakcie. Claude rozbierze to na ćwiczenia i w razie potrzeby zmieni plan.") : "Krótko, jeśli coś było inaczej. Możesz zostawić puste."}</p>`}</div></header>
     ${rxHtml(s)}
     ${s.block ? scoreCard(s) : strength ? timeCard(s) : ""}
-    ${s.kind !== "mobility" ? effHtml(effOf(s), "note", s.block ? EFF_TXT[s.block.effort] : null) : ""}
+    ${s.kind !== "mobility" ? effHtml(effOf(s), "note", s.block ? EFF_TXT[s.block.effort] : null, effModeOf(s)) : ""}
     <div class="field note-field"><textarea id="sessionNote" data-note="1" placeholder="Podyktuj lub napisz">${esc(s.note)}</textarea></div>
     ${s.kind !== "mobility" ? (photoOf(s.id) ? `<div class="photo"><img src="${photoOf(s.id)}" alt="Zdjęcie po treningu"><span>Zdjęcie</span><button data-act="photo-del">Usuń</button></div>`
       : `<label class="photo-btn"><input type="file" id="pm5File" accept="image/*" capture="environment" hidden>Zdjęcie</label>`) : ""}

@@ -2,10 +2,15 @@
 /* ---------- effort: one 5-step scale for every session, tap or drag ---------- */
 // Old sessions stored 1–10 (rpe); 1–2 → 1, 3–4 → 2 … 9–10 → 5.
 const EFF_TXT = ["", "Bardzo lekko", "Lekko", "W sam raz", "Ciężko", "Maksymalnie"];
-const EFF_HINT = ["", "ruch, rozgrzewka, zero zmęczenia", "swobodna rozmowa, zapas 3 i więcej powtórzeń", "oddech w zdaniach, zapas około 2 powtórzeń", "oddech urywany, zapas 0–1 powtórzenia", "do granicy, nie dałbym więcej"];
+// Hints follow the kind of work: reps in reserve only mean something for heavy sets; for everything else, how you breathed.
+const EFF_HINT = {lift:["", "zero zmęczenia", "zapas 3+ powtórzeń", "zapas 2 powtórzeń", "zapas 0–1 powtórzenia", "nic więcej"],
+  pace:["", "zero zmęczenia", "swobodna rozmowa", "krótkie zdania", "pojedyncze słowa", "do granicy"]};
+let effMode = "pace";
+const effModeOf = s => s && s.block && s.block.parts.length && fmtKind(s.block.parts[0].fmt).k === "load" ? "lift" : "pace";
 const effOf = x => x && (x.eff || (x.rpe ? Math.ceil(x.rpe / 2) : null)) || null;
-const effHead = n => n ? `<b>${EFF_TXT[n]}</b>${EFF_HINT[n]}` : `<b>–</b>`;
-function effHtml(n, key, plan){
+const effHead = n => n ? `<b>${EFF_TXT[n]}</b>${EFF_HINT[effMode][n]}` : `<b>–</b>`;
+function effHtml(n, key, plan, mode){
+  effMode = mode || "pace";
   return `<section class="sec eff"><div class="eff-h"><h2 class="sec-h">Wysiłek${plan ? " · plan " + esc(plan) : ""}</h2></div><p class="eff-v">${effHead(n)}</p>
     <div class="eff-bar" data-eff="${key}" role="slider" aria-label="Wysiłek od 1 do 5" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${n || ""}">${[1,2,3,4,5].map(k => `<span class="${n >= k ? "on" : ""}" style="height:${40 + k * 12}%"></span>`).join("")}</div></section>`;
 }

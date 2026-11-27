@@ -129,10 +129,15 @@ function scoreBrief(s){
   if (t.k === "steady") return sc.dist ? "dystans " + sc.dist + " m" : none;
 }
 // Where an AMRAP stopped: the movements go in order, so the extra reps say how far into the last round he got.
+// Distance, calorie and timed pieces have no reps: when reps go past them, they were done in full (row 250 m done + 1 rep of the next movement).
 function partialText(s, reps){
-  if (!reps || (s.items || []).some(it => { const e = exOf(it.ex); return e.dist || e.m || e.cal || e.timed; })) return "";
+  if (!reps) return "";
   let left = reps; const out = [];
-  for (const it of s.items){ const e = exOf(it.ex), n = it.reps * (e.side ? 2 : 1); if (left <= 0) break; out.push(Math.min(left, n) + "/" + n + " " + e.name); left -= n; }
+  for (const it of s.items || []){
+    const e = exOf(it.ex);
+    if (e.dist || e.m || e.cal || e.timed){ out.push(e.name + " " + doseText(it.ex, it.load, it.reps) + " w całości"); continue; }
+    const n = it.reps * (e.side ? 2 : 1); out.push(Math.min(left, n) + "/" + n + " " + e.name); left -= n; if (left <= 0) break;
+  }
   return " (niepełna runda: " + out.join(", ") + ")";
 }
 // The same workout done before (same formats and movements): a benchmark to compare with.
